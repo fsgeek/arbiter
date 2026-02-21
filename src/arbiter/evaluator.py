@@ -106,6 +106,122 @@ def _extract_json(text: str) -> str:
     return text
 
 
+def _parse_evaluation_response(raw: str) -> EvaluationResult:
+    """Parse a JSON evaluation response into an EvaluationResult.
+
+    Shared by all evaluator implementations. Fail-stop on unparseable
+    responses — no silent fallbacks.
+    """
+    extracted = _extract_json(raw)
+
+    try:
+        data = json.loads(extracted)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"Evaluator returned unparseable response.\n"
+            f"Raw response: {raw!r}\n"
+            f"Parse error: {e}"
+        ) from e
+
+    conflicts = [
+        ConflictReport(
+            source=c["source"],
+            target=c["target"],
+            description=c["description"],
+            resolution_hint=c.get("resolution_hint"),
+        )
+        for c in data.get("conflicts", [])
+    ]
+
+    return EvaluationResult(
+        resolved=not data["has_conflict"],
+        output=data.get("output"),
+        conflicts=conflicts,
+    )
+
+
+def _build_prompt(system: SystemLayer, domain: DomainLayer, query: str) -> str:
+    """Build the judge prompt from system/domain/query layers."""
+    system_rules = "\n".join(f"- {r}" for r in system.rules) or "(none)"
+    domain_entries = "\n".join(f"- {e}" for e in domain.entries) or "(none)"
+    return _JUDGE_PROMPT.format(
+        system_rules=system_rules,
+        domain_entries=domain_entries,
+        query=query,
+    )
+
+
+class OpenAICompatibleEvaluator:
+    """Evaluator for any provider speaking the OpenAI chat completions API.
+
+    Works with OpenRouter, OpenAI, Gemini, Qwen, xAI/Grok, Together,
+    or any other OpenAI-compatible endpoint. Pass the model identifier
+    and base URL for your provider.
+
+    Examples:
+        # OpenRouter (routes to any provider)
+        OpenAICompatibleEvaluator(
+            model="google/gemini-2.5-flash-preview",
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+        )
+
+        # OpenAI direct
+        OpenAICompatibleEvaluator(
+            model="gpt-4o-mini",
+            api_key=os.environ["OPENAI_API_KEY"],
+        )
+    """
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
+        try:
+            import openai
+        except ImportError as e:
+            raise ImportError(
+                "OpenAI SDK required. Install with: uv sync --extra openai-compat"
+            ) from e
+        kwargs: dict = {}
+        if base_url is not None:
+            kwargs["base_url"] = base_url
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+        if extra_headers is not None:
+            kwargs["default_headers"] = extra_headers
+        self._client = openai.OpenAI(**kwargs)
+        self._model = model
+
+    def evaluate(
+        self,
+        system: SystemLayer,
+        domain: DomainLayer,
+        query: str,
+        *,
+        budget_usd: float | None = None,
+    ) -> EvaluationResult:
+        """Evaluate a query against system and domain layers.
+
+        Returns an EvaluationResult with either resolved output or a list
+        of conflicts. Never both. Raises ValueError if the LLM response
+        cannot be parsed — fail-stop, no silent fallbacks.
+        """
+        prompt = _build_prompt(system, domain, query)
+
+        response = self._client.chat.completions.create(
+            model=self._model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        raw = response.choices[0].message.content
+        return _parse_evaluation_response(raw)
+
+
 class AnthropicEvaluator:
     """Evaluator backed by Anthropic's Claude models.
 
@@ -143,16 +259,7 @@ class AnthropicEvaluator:
         of conflicts. Never both. Raises ValueError if the LLM response
         cannot be parsed — fail-stop, no silent fallbacks.
         """
-        system_rules = "\n".join(f"- {r}" for r in system.rules) or "(none)"
-        domain_entries = (
-            "\n".join(f"- {e}" for e in domain.entries) or "(none)"
-        )
-
-        prompt = _JUDGE_PROMPT.format(
-            system_rules=system_rules,
-            domain_entries=domain_entries,
-            query=query,
-        )
+        prompt = _build_prompt(system, domain, query)
 
         message = self._client.messages.create(
             model=self._model,
@@ -161,29 +268,4 @@ class AnthropicEvaluator:
         )
 
         raw = message.content[0].text
-        extracted = _extract_json(raw)
-
-        try:
-            data = json.loads(extracted)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Evaluator returned unparseable response.\n"
-                f"Raw response: {raw!r}\n"
-                f"Parse error: {e}"
-            ) from e
-
-        conflicts = [
-            ConflictReport(
-                source=c["source"],
-                target=c["target"],
-                description=c["description"],
-                resolution_hint=c.get("resolution_hint"),
-            )
-            for c in data.get("conflicts", [])
-        ]
-
-        return EvaluationResult(
-            resolved=not data["has_conflict"],
-            output=data.get("output"),
-            conflicts=conflicts,
-        )
+        return _parse_evaluation_response(raw)

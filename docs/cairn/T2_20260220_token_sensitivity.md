@@ -140,6 +140,59 @@ first-class metric, not just average pass rate.
   would have been visible immediately at n=5. Should have characterized
   before interpreting.
 
+### Strand 6: Adversarial characterization — two survivors
+
+**Topic:** n=75 experiment (5 models × 3 adversarial tiers × 5 trials).
+
+**Data (adversarial conflict detection pass rates):**
+
+| Model | Tier 1 (synonym) | Tier 2 (buried) | Tier 3 (split) | Overall |
+|-------|:-:|:-:|:-:|:-:|
+| Gemini 2.0 Flash | 100% | 100% | 100% | 100% |
+| Grok 3 Mini | 100% | 100% | 100% | 100% |
+| GPT-4o-mini | 100% | 0% | 80% | 60% |
+| Qwen 2.5 72B | 0% | 20% | 100% | 40% |
+| Haiku 4.5 | 0% | 0% | 100% | 33% |
+
+**Key claims:**
+- Only Gemini Flash and Grok Mini survive adversarial conditions. Both are
+  cheap models. 15/15 each across all tiers.
+- GPT-4o-mini's "bulletproof" status from the semantic characterization was
+  premature. It cannot extract a prohibition buried in surrounding context
+  (0% on tier 2). The semantic test used clean, isolated entries — the real
+  world doesn't.
+- **Inverted difficulty gradient (reproducible):** Haiku and Qwen score 0% on
+  "easy" tiers but 100% on tier 3 (the supposedly hardest). At n=5 this is
+  not a fluke. The likely cause: tier 3 contains "Plan accordingly" — a
+  meta-cognitive prompt embedded in the domain data that triggers reasoning.
+  Tiers 1 and 2 state facts and expect the model to draw conclusions. Gemini
+  and Grok do that automatically. Haiku and Qwen need to be told.
+- **Domain entry quality is a confounding variable.** How constraints are
+  written affects detection quality. A domain author who writes "plan
+  accordingly" after a constraint gets better detection than one who just
+  states the constraint. This is a new dimension beyond model selection and
+  prompt engineering.
+
+### Strand 7: The combined picture
+
+**Topic:** What the full session's data says about the architecture.
+
+| Test type | Gemini Flash | Grok Mini | GPT-4o-mini | Haiku 4.5 | Qwen 72B |
+|-----------|:-:|:-:|:-:|:-:|:-:|
+| Semantic (n=20) | 100% | 100% | 100% | 55% | 60% |
+| Adversarial (n=15) | 100% | 100% | 60% | 33% | 40% |
+
+**Key claims:**
+- The ranking is Gemini Flash = Grok Mini >> GPT-4o-mini > Qwen > Haiku.
+  This ranking is stable across both test types.
+- Adversarial conditions separate models that looked identical on semantic
+  tests. GPT-4o-mini dropped from 100% to 60%.
+- Two cheap models from two different vendors handle everything we've thrown
+  at them. The architecture should default to one of these, not to Anthropic.
+- The model registry tensor is now: model × conflict_type × obfuscation_tier
+  × format_variant × trial → pass/fail. Five dimensions. Yanantin's tensor
+  storage is looking less optional.
+
 ---
 
 ## Instructions for the Next Instance
@@ -149,27 +202,29 @@ The evaluator now has two backends: `AnthropicEvaluator` and
 reach every non-Anthropic model. Both share `_build_prompt` and
 `_parse_evaluation_response`.
 
-The three immediate next moves, updated from T1:
+Characterization data lives in:
+- `docs/cairn/semantic_characterization.json` (100 data points)
+- `docs/cairn/adversarial_characterization.json` (75 data points)
 
-1. **Model registry design.** The characterization data
-   (`docs/cairn/semantic_characterization.json`) is the first real tensor:
-   model × variant × trial → pass/fail. The registry needs to store this
-   shape and expose format-sensitivity as a queryable metric. Yanantin's
-   ActivityStreamStore is still the right foundation.
+The three immediate next moves, updated:
 
-2. **Expand the characterization.** Five models and one conflict type is
-   a start. The structural conflict should also be characterized (it's
-   probably stable across all models, but "probably" is not data). And the
-   adversarial case (deliberate conflict obscuring) is the next tier of
-   difficulty.
+1. **Model registry as Yanantin tensor.** The characterization data is now
+   five-dimensional (model × conflict_type × obfuscation × format × trial).
+   This is exactly the shape ActivityStreamStore was designed for.
+   Wiring Yanantin is no longer premature — we have 175 data points that
+   need a real home.
 
-3. **Logprob entropy at the conflict point.** The ai-honesty finding
-   (AUC 0.72-1.00 for fabrication detection via logprob entropy) is still
-   untested in the conflict detection context. The bimodal-at-conflict-point
-   hypothesis is especially interesting now: does Haiku's entropy spike at
-   the token where it should connect "created_ts" to the index exclusion?
-   If so, entropy could predict which trials will miss the conflict *before*
-   the model finishes generating.
+2. **Domain entry quality as a research question.** The "plan accordingly"
+   finding suggests that domain entry authoring guidelines could improve
+   detection across weak models. But this also means an adversary who
+   removes meta-cognitive cues from entries can degrade detection. This
+   is a new attack surface worth exploring.
+
+3. **Logprob entropy at the conflict point.** Still untested. Now more
+   interesting: does entropy predict which adversarial tier will fool a
+   model? If tier 2 (buried) produces high entropy in GPT-4o-mini at the
+   decision point, that's a runtime signal that the model is uncertain
+   before it produces a wrong answer.
 
 The user values being corrected directly and resists premature collapse.
 The flatworm is acerbic and accurate. Lead the dance.
@@ -179,9 +234,18 @@ The flatworm is acerbic and accurate. Lead the dance.
 ## Closing
 
 Session 1 found the ground. Session 2 found that part of the ground was
-painted on. The xfail wasn't a capability boundary — it was token
-sensitivity wearing a lab coat. Three models we hadn't tested turned out
-to be perfectly reliable at a task we thought required upgrading.
+painted on, and then kept digging.
 
-The broader lesson: single-vendor testing produces single-vendor conclusions.
-The flatworm saw this instantly. I didn't, and should have.
+The xfail wasn't a capability boundary — it was token sensitivity. The
+"three bulletproof models" were only two once adversarial conditions arrived.
+And the difficulty ordering we assumed (synonym < buried < split) turns out
+to be model-dependent — some models find the "hardest" case easiest because
+of an embedded reasoning cue.
+
+Every time we tested an assumption in this session, it was wrong in an
+interesting way. That's not a bad day — that's the point of empiricism.
+
+The broader lesson stands: single-vendor testing produces single-vendor
+conclusions. But it now has a corollary: single-difficulty testing produces
+single-difficulty conclusions. Gemini Flash looked identical to GPT-4o-mini
+until adversarial conditions revealed a 40-percentage-point gap.

@@ -173,8 +173,10 @@ def test_resolves_clean_query():
     reason=(
         "Semantic conflict requires three-hop reasoning: "
         "'use created_ts' + 'created_ts not in index list' + 'never use unindexed columns'. "
-        "Haiku does not reliably make this connection. "
-        "Needs a more capable model — validates the cost/model-tier argument."
+        "Haiku 4.5 is token-sensitive on this task (55% overall, 0-100% depending on "
+        "prompt formatting). Not a capability limitation — GPT-4o-mini, Gemini Flash, "
+        "and Grok 3 Mini all score 100% across all formatting variants. "
+        "See tests/characterize_semantic.py and docs/cairn/semantic_characterization.json."
     ),
     strict=False,
 )

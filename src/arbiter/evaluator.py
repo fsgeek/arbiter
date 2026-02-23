@@ -3,7 +3,15 @@
 Architecture
 ------------
 EvaluatorProtocol defines the interface. Callers depend only on this.
-AnthropicEvaluator is the default implementation.
+
+Single-model evaluators:
+  AnthropicEvaluator — Anthropic's Claude models (direct SDK)
+  OpenAICompatibleEvaluator — any OpenAI-compatible endpoint
+
+Multi-model evaluator:
+  EnsembleEvaluator — runs multiple evaluators, merges results.
+  OR-gate for detection (any evaluator flags → flagged),
+  AND-gate for clean (all must agree → clean).
 
 The evaluation prompt uses observer framing: the LLM acts as a neutral judge
 examining instructions for internal consistency, not as the executor of those
@@ -20,6 +28,8 @@ from __future__ import annotations
 import json
 import re
 from typing import Protocol
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .models import ConflictReport, DomainLayer, EvaluationResult, SystemLayer
 
@@ -269,3 +279,83 @@ class AnthropicEvaluator:
 
         raw = message.content[0].text
         return _parse_evaluation_response(raw)
+
+
+class EnsembleEvaluator:
+    """Multi-model evaluator that merges results from multiple backends.
+
+    OR-gate for conflict detection: if any evaluator flags a conflict,
+    the ensemble flags it. AND-gate for clean: all evaluators must agree
+    the input is clean for the ensemble to resolve.
+
+    This addresses the domain-dependent ranking problem: no single model
+    is best across all domains. An ensemble of models with complementary
+    domain strengths (e.g., Haiku for instruction compliance + Gemini for
+    database schemas) catches conflicts that any single model misses.
+
+    Evaluators run concurrently via ThreadPoolExecutor.
+    """
+
+    def __init__(self, evaluators: list[EvaluatorProtocol]) -> None:
+        if not evaluators:
+            raise ValueError("EnsembleEvaluator requires at least one evaluator")
+        self._evaluators = evaluators
+
+    def evaluate(
+        self,
+        system: SystemLayer,
+        domain: DomainLayer,
+        query: str,
+        *,
+        budget_usd: float | None = None,
+    ) -> EvaluationResult:
+        """Run all evaluators concurrently and merge results.
+
+        Merge strategy:
+        - If any evaluator detects conflicts, return unresolved with
+          all unique conflicts collected from all evaluators.
+        - If all evaluators agree clean, return the first evaluator's
+          resolved output (arbitrary choice — all agreed it's clean).
+        - If any evaluator raises, propagate the first exception.
+        """
+        results: list[EvaluationResult] = []
+
+        with ThreadPoolExecutor(max_workers=len(self._evaluators)) as pool:
+            futures = {
+                pool.submit(ev.evaluate, system, domain, query, budget_usd=budget_usd): i
+                for i, ev in enumerate(self._evaluators)
+            }
+            for future in as_completed(futures):
+                results.append(future.result())
+
+        all_conflicts: list[ConflictReport] = []
+        any_unresolved = False
+        first_output = None
+
+        for result in results:
+            if not result.resolved:
+                any_unresolved = True
+                all_conflicts.extend(result.conflicts)
+            elif first_output is None:
+                first_output = result.output
+
+        if any_unresolved:
+            # Deduplicate conflicts by (source, target) pair
+            seen = set()
+            unique = []
+            for c in all_conflicts:
+                key = (c.source, c.target)
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(c)
+            return EvaluationResult(
+                resolved=False,
+                output=None,
+                conflicts=unique,
+            )
+
+        return EvaluationResult(
+            resolved=True,
+            output=first_output,
+            conflicts=[],
+        )

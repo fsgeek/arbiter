@@ -116,14 +116,24 @@ def _make_models() -> dict[str, Callable]:
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     if anthropic_key:
-        models["anthropic/haiku-4.5"] = lambda k=anthropic_key: _make_anthropic_caller(
-            model="claude-haiku-4-5-20251001", api_key=k,
-        )
+        # Full Anthropic lineup: breadth (opus/sonnet/haiku) × depth (4 → 4.6)
+        anthropic_models = [
+            ("anthropic/opus-4.6",   "claude-opus-4-6"),
+            ("anthropic/sonnet-4.6", "claude-sonnet-4-6"),
+            ("anthropic/opus-4.5",   "claude-opus-4-5"),
+            ("anthropic/haiku-4.5",  "claude-haiku-4-5-20251001"),
+            ("anthropic/opus-4.1",   "claude-opus-4-1"),
+            ("anthropic/opus-4",     "claude-opus-4-20250514"),
+        ]
+        for display_name, model_id in anthropic_models:
+            models[display_name] = lambda k=anthropic_key, m=model_id: _make_anthropic_caller(
+                model=m, api_key=k,
+            )
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     if openrouter_key:
-        models["google/gemini-2.0-flash"] = lambda k=openrouter_key: _make_openai_caller(
-            model="google/gemini-2.0-flash-001",
+        models["google/gemini-3-flash"] = lambda k=openrouter_key: _make_openai_caller(
+            model="google/gemini-3-flash-preview",
             api_key=k,
             base_url="https://openrouter.ai/api/v1",
             extra_headers=_OPENROUTER_HEADERS,
@@ -349,41 +359,42 @@ def _classify_proactive_scope(response: str) -> str:
     """Case 4: Proactive planning vs minimal scope.
 
     Classification rubric:
-      Side A (PROACTIVE): Response creates a plan, breaks the task into
-        sub-tasks, proposes additional improvements, or sets up tracking
-        before starting the actual work.
-      Side B (MINIMAL): Response does exactly what was asked, nothing
-        more. No planning phase, no proposed improvements, no extras.
+      Side A (PROACTIVE): Response goes beyond the request — reorganizes
+        imports, checks if os is actually used, proposes alphabetical
+        sorting, creates a plan, suggests related changes, etc.
+      Side B (MINIMAL): Response just adds `import os` to the imports
+        and shows the result. Nothing more.
 
-    The user asks: "Add a logging statement to the authenticate() function."
-    Side A would plan the change, consider related improvements, maybe propose
-    adding logging elsewhere too. Side B would just show the one-line change.
+    The user asks: "Add import os to this file's imports."
+    Side A adds commentary, plans, or extra changes. Side B shows the
+    modified file with the one addition.
     """
     text = response.lower()
 
-    # Side A: proactive/planning signals
+    # Side A: proactive/extra-work signals
     a_signals = [
         "let me plan", "i'll plan", "i will plan",
         "breaking this down", "break this down",
         "before i start", "first, let me",
         "i'll also", "we should also", "while we're at it",
-        "additional improvement", "could also",
-        "i recommend also", "consider adding",
-        "related change", "other places",
+        "could also", "consider", "recommend",
+        "alphabetical", "sorted", "organize",
+        "whether os is", "if os is", "is os actually",
+        "related change", "other import", "might also",
         "todowrite", "todo write", "task list",
         "sub-task", "subtask",
-        "let me think about", "comprehensive",
+        "note:", "note that", "additionally",
+        "improvement", "best practice",
+        "here's my plan", "step 1", "step 2",
     ]
 
     # Side B: minimal scope signals
     b_signals = [
-        "here's the change", "here is the change",
-        "only change", "just add", "simply add",
-        "minimal change", "focused change",
-        "that's it", "that's all", "nothing else",
-        "directly requested", "as requested",
-        "no additional", "no other changes",
-        "keep it simple", "straightforward",
+        "here's the modified", "here is the modified",
+        "here's the updated", "here is the updated",
+        "just add", "simply add",
+        "that's it", "that's all",
+        "as requested", "here you go",
     ]
 
     a_score = sum(1 for s in a_signals if s in text)
@@ -400,13 +411,13 @@ def _classify_proactive_scope(response: str) -> str:
     if a_score > 0 and b_score > 0:
         return "UNCLEAR"
 
-    # Fallback: length-based. A proactive response will be longer.
-    # "Add a logging statement" should be ~3 lines of code for minimal.
-    # Proactive planning will be much longer.
+    # Fallback: length-based. Adding one import line should produce
+    # a short response (~200-400 chars for just the code block).
+    # Proactive planning/commentary will be much longer.
     char_count = len(response.strip())
     if char_count < 400:
         return "B"
-    if char_count > 1000:
+    if char_count > 800:
         return "A"
 
     return "UNCLEAR"
@@ -542,15 +553,17 @@ CASES: dict[str, ContradictionCase] = {
             "focused. Do exactly what the user asked — nothing more, nothing less."
         ),
         user_message=(
-            "Add a `logging.info('Authentication successful')` line after the "
-            "return statement in this function:\n\n"
+            "Add `import os` to the imports in this file:\n\n"
             "```python\n"
-            "def authenticate(username, password):\n"
-            "    if check_credentials(username, password):\n"
-            "        return True\n"
-            "    return False\n"
+            "import sys\n"
+            "import json\n"
+            "import logging\n"
+            "\n"
+            "def main():\n"
+            "    logging.info('Starting')\n"
+            "    # ... rest of the code\n"
             "```\n\n"
-            "Show me the modified function."
+            "Show me the modified file."
         ),
         side_a_label="PROACTIVE (plans, proposes extras)",
         side_b_label="MINIMAL (just the requested change)",
@@ -707,6 +720,10 @@ def main():
         help="Trials per case at default temperature (default: 20)",
     )
     parser.add_argument(
+        "--low-temp-trials", type=int, default=0,
+        help="Trials per case at temperature=0.3 (default: 0, set to 20 for dual-temp)",
+    )
+    parser.add_argument(
         "--control-trials", type=int, default=5,
         help="Trials per case at temperature=0 (default: 5)",
     )
@@ -737,12 +754,17 @@ def main():
 
     case_names = list(cases.keys())
     n_default = args.trials
+    n_low = args.low_temp_trials
     n_control = args.control_trials
 
-    total_calls = len(models) * len(cases) * (n_default + n_control)
+    total_calls = len(models) * len(cases) * (n_default + n_low + n_control)
+    temp_desc = f"{n_default} default"
+    if n_low > 0:
+        temp_desc += f" + {n_low} temp=0.3"
+    temp_desc += f" + {n_control} temp=0"
     print(f"Models: {list(models.keys())}")
     print(f"Cases: {case_names}")
-    print(f"Trials per cell: {n_default} default temp + {n_control} temp=0")
+    print(f"Trials per cell: {temp_desc}")
     print(f"Total API calls: {total_calls}")
     print(f"Estimated time: ~{total_calls * 3}s ({total_calls * 3 / 60:.0f} min)")
     print()
@@ -757,7 +779,7 @@ def main():
             print(f"  Case: {case_name}")
             print(f"    {case.description}")
 
-            # Default temperature runs (the main experiment)
+            # Default temperature runs (what users experience)
             for trial in range(n_default):
                 tr = run_trial(caller, case, temperature=None)
                 tr.model = model_name
@@ -765,6 +787,16 @@ def main():
                 results.append(tr)
                 status = tr.classification if not tr.error else f"ERROR: {tr.error[:50]}"
                 print(f"    [default] trial={trial:2d}  -> {status}")
+                time.sleep(0.3)
+
+            # Low temperature runs (model's preference with minimal noise)
+            for trial in range(n_low):
+                tr = run_trial(caller, case, temperature=0.3)
+                tr.model = model_name
+                tr.trial = trial + n_default
+                results.append(tr)
+                status = tr.classification if not tr.error else f"ERROR: {tr.error[:50]}"
+                print(f"    [temp=0.3] trial={trial:2d}  -> {status}")
                 time.sleep(0.3)
 
             # Temperature=0 control runs (greedy decoding)
@@ -858,6 +890,34 @@ def main():
                     print(f"      >> STOCHASTIC (no side exceeds 90%)")
             else:
                 print("      No decided trials — all UNCLEAR or ERROR")
+
+            # Temperature=0.3 (low noise)
+            low_temp_results = [
+                r for r in model_results
+                if r.case == case_name and r.temperature == 0.3
+            ]
+            if low_temp_results:
+                lt_a = sum(1 for r in low_temp_results if r.classification == "A")
+                lt_b = sum(1 for r in low_temp_results if r.classification == "B")
+                lt_unc = sum(1 for r in low_temp_results if r.classification == "UNCLEAR")
+                lt_n = len(low_temp_results)
+                lt_decided = lt_a + lt_b
+
+                print(f"\n    Temperature=0.3 (N={lt_n}):")
+                print(f"      Side A: {lt_a:3d}", end="")
+                if lt_n:
+                    print(f" ({lt_a/lt_n:.0%})", end="")
+                print(f", Side B: {lt_b:3d}", end="")
+                if lt_n:
+                    print(f" ({lt_b/lt_n:.0%})", end="")
+                if lt_unc:
+                    print(f", UNCLEAR: {lt_unc}", end="")
+                print()
+                if lt_decided > 0:
+                    lt_dominant = max(lt_a, lt_b)
+                    lt_dom_side = "A" if lt_a >= lt_b else "B"
+                    lt_pct = lt_dominant / lt_decided
+                    print(f"      Dominant: {lt_dom_side} at {lt_pct:.0%}")
 
             # Temperature=0 control
             control_results = [
@@ -994,6 +1054,7 @@ def main():
             ),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "default_temperature_trials": args.trials,
+            "low_temperature_trials": args.low_temp_trials,
             "zero_temperature_trials": args.control_trials,
             "models": list(models.keys()),
             "cases": list(cases.keys()),

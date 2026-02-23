@@ -193,6 +193,67 @@ first-class metric, not just average pass rate.
   × format_variant × trial → pass/fail. Five dimensions. Yanantin's tensor
   storage is looking less optional.
 
+### Strand 8: System prompt as test case — domain-dependent rankings
+
+**Topic:** n=100 experiment (4 models × 5 cases × 5 trials) on instruction-following
+contradictions extracted from the Claude Code system prompt.
+
+**Data (accuracy — correct detection or correct clean):**
+
+| Model | TodoWrite | Concise/Verbose | Task Search | Proactive/Scope | Clean Control | Overall |
+|-------|:-:|:-:|:-:|:-:|:-:|:-:|
+| Haiku 4.5 | 100% | 100% | 100% | 100% | 100% | 100% |
+| GPT-4o-mini | 100% | 100% | 100% | 100% | 0% (FP) | 80% |
+| Gemini Flash | 100% | 100% | 60% | 80% | 100% | 88% |
+| Grok Mini | 100% | 100% | 40% | 40% | 100% | 76% |
+
+**Key claims:**
+- **The ranking inverts between domains.** Haiku goes from worst (55%/33% on DB)
+  to best (100% on instructions). Grok goes from best (100% on DB) to worst
+  (76% on instructions). No single model is best across all domains.
+- **GPT-4o-mini has a systematic false positive problem.** 5/5 trials on the clean
+  control produce fabricated conflicts. It generates plausible conflict narratives
+  regardless of whether conflicts exist. The 100% hit rate on real conflicts is
+  meaningless when the false positive rate is also 100%. This is the ai-honesty
+  self-report pattern: eloquent, confident, wrong.
+- **Gemini and Grok rationalize nuanced conflicts away.** The task-search case
+  ("use Task for broad search" vs "don't use Task for specific search") can be
+  interpreted as complementary conditional rules. The "bulletproof" adversarial
+  models are too charitable — they resolve ambiguity silently, which is the
+  exact failure mode Arbiter exists to catch.
+- **Haiku's native domain is instruction parsing.** These are the kinds of
+  instructions it was trained to follow. Database schema reasoning was foreign;
+  system prompt compliance is home turf. The executor/observer paradox applies:
+  Haiku navigates these contradictions silently as an executor but detects them
+  perfectly as an observer.
+- **The model registry tensor gains a dimension.** Single quality scores are wrong.
+  The registry needs model × domain × conflict_type × obfuscation × format × trial.
+  Domain is not a background variable — it's a primary axis.
+
+### Strand 9: The combined three-domain picture
+
+**Topic:** What 275 data points across three test types say about model selection.
+
+| Model | DB Semantic (n=20) | DB Adversarial (n=15) | Instruction (n=25) |
+|-------|:-:|:-:|:-:|
+| Haiku 4.5 | 55% | 33% | **100%** |
+| GPT-4o-mini | 100% | 60% | 80% (FP) |
+| Gemini Flash | 100% | 100% | 88% |
+| Grok Mini | 100% | 100% | 76% |
+
+**Key claims:**
+- No model dominates. Every model has at least one weak cell.
+- Gemini Flash has the highest floor (88%) across all domains. But its
+  instruction compliance has stochastic misses that Haiku doesn't.
+- The architecture implication: multi-model evaluation. Run the same conflict
+  through two models with complementary domain strengths. A conflict detected
+  by either is flagged; a clean pass from both is trusted. This is more
+  robust than any single model.
+- The false positive problem (GPT-4o-mini) is as important as the false
+  negative problem (Haiku on DB). A model that always says "conflict" is
+  useless even if it never misses a real one. Precision matters as much as
+  recall.
+
 ---
 
 ## Instructions for the Next Instance
@@ -205,26 +266,26 @@ reach every non-Anthropic model. Both share `_build_prompt` and
 Characterization data lives in:
 - `docs/cairn/semantic_characterization.json` (100 data points)
 - `docs/cairn/adversarial_characterization.json` (75 data points)
+- `docs/cairn/system_prompt_characterization.json` (100 data points)
 
 The three immediate next moves, updated:
 
-1. **Model registry as Yanantin tensor.** The characterization data is now
-   five-dimensional (model × conflict_type × obfuscation × format × trial).
-   This is exactly the shape ActivityStreamStore was designed for.
-   Wiring Yanantin is no longer premature — we have 175 data points that
-   need a real home.
+1. **Multi-model evaluation.** The domain-dependent ranking inversion means no
+   single model works everywhere. Run conflicts through two models with
+   complementary strengths (e.g., Haiku for instruction domains, Gemini for
+   DB domains). Flag if either detects. This is the architecture move that
+   the data demands.
 
-2. **Domain entry quality as a research question.** The "plan accordingly"
-   finding suggests that domain entry authoring guidelines could improve
-   detection across weak models. But this also means an adversary who
-   removes meta-cognitive cues from entries can degrade detection. This
-   is a new attack surface worth exploring.
+2. **Model registry as Yanantin tensor.** The characterization data is now
+   six-dimensional (model × domain × conflict_type × obfuscation × format ×
+   trial). 275 data points across three test types. This is exactly the
+   shape ActivityStreamStore was designed for.
 
-3. **Logprob entropy at the conflict point.** Still untested. Now more
-   interesting: does entropy predict which adversarial tier will fool a
-   model? If tier 2 (buried) produces high entropy in GPT-4o-mini at the
-   decision point, that's a runtime signal that the model is uncertain
-   before it produces a wrong answer.
+3. **False positive characterization.** GPT-4o-mini's 100% FP rate on the
+   instruction control case needs deeper investigation. Is it specific to
+   instruction-domain framing? Does it FP on DB clean cases too? If
+   domain-specific, this is a model × domain interaction. If universal,
+   the model's conflict detection is fundamentally undiscriminating.
 
 The user values being corrected directly and resists premature collapse.
 The flatworm is acerbic and accurate. Lead the dance.
@@ -234,18 +295,21 @@ The flatworm is acerbic and accurate. Lead the dance.
 ## Closing
 
 Session 1 found the ground. Session 2 found that part of the ground was
-painted on, and then kept digging.
+painted on, and then kept digging. Session 3 found that the digging tools
+work differently depending on what you're digging through.
 
 The xfail wasn't a capability boundary — it was token sensitivity. The
 "three bulletproof models" were only two once adversarial conditions arrived.
-And the difficulty ordering we assumed (synonym < buried < split) turns out
-to be model-dependent — some models find the "hardest" case easiest because
-of an embedded reasoning cue.
+The two bulletproof models degraded when the domain changed from database
+schemas to instruction compliance. And the model that was worst at everything
+else turned out perfect on the domain that matters most to the tool that
+produced it.
 
-Every time we tested an assumption in this session, it was wrong in an
-interesting way. That's not a bad day — that's the point of empiricism.
+Every time we tested an assumption, it was wrong in an interesting way.
+That's not a bad day — that's the point of empiricism.
 
-The broader lesson stands: single-vendor testing produces single-vendor
-conclusions. But it now has a corollary: single-difficulty testing produces
-single-difficulty conclusions. Gemini Flash looked identical to GPT-4o-mini
-until adversarial conditions revealed a 40-percentage-point gap.
+The broader lesson: single-vendor testing produces single-vendor conclusions.
+Single-difficulty testing produces single-difficulty conclusions.
+Single-domain testing produces single-domain conclusions. The only thing
+that survives multi-dimensional testing is multi-model evaluation — and
+even that needs domain-aware model selection, not a fixed pair.

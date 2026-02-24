@@ -267,7 +267,23 @@ def _classify_concise_verbose(response: str) -> str:
         "giving you visibility", "real-time",
     ]
 
+    # Negation-aware scoring: discount tracking signals in rejection context.
+    # "I don't need to use TodoWrite" should not count as tracking behavior.
+    negation_tracking = any(
+        re.search(p, text)
+        for p in [
+            r"don't need.{0,20}todo", r"don't use.{0,20}todo",
+            r"no need.{0,20}todo", r"won't use.{0,20}todo",
+            r"not.{0,10}use.{0,20}todo", r"skip.{0,20}todo",
+            r"unnecessary.{0,20}todo", r"without.{0,20}todo",
+        ]
+    )
+
     tracking_score = sum(1 for s in tracking_signals if s in text)
+
+    # If tracking keywords appear only in negation context, zero them out
+    if negation_tracking and tracking_score <= 1:
+        tracking_score = 0
 
     # If explicit tracking language is present, that's side B
     if tracking_score >= 2:
@@ -327,21 +343,53 @@ def _classify_task_search(response: str) -> str:
         "grep", "glob", "rg ", "ripgrep",
     ]
 
+    # Negation-aware scoring: discount A signals that appear in rejection context.
+    # Models often say "I would NOT use the Task tool" or "instead of the Task tool"
+    # which should not count as recommending the Task tool.
+    negation_patterns = [
+        r"not use the task", r"don't use the task", r"wouldn't use the task",
+        r"instead of the task", r"rather than the task", r"not the task",
+        r"avoid the task", r"skip the task",
+    ]
+    has_task_negation = any(re.search(p, text) for p in negation_patterns)
+
     a_score = sum(1 for s in a_signals if s in text)
     b_score = sum(1 for s in b_signals if s in text)
+
+    # If A signals appear alongside negation of the Task tool,
+    # the model is explaining why it chose B, not recommending A.
+    if has_task_negation and a_score > 0 and b_score > 0:
+        return "B"
 
     if a_score > 0 and b_score == 0:
         return "A"
     if b_score > 0 and a_score == 0:
         return "B"
     if a_score > 0 and b_score > 0:
-        # Both mentioned — check which is the primary recommendation
-        # Look for "I would use" or "I recommend" near the tool name
-        # Fallback: which has more signals
+        # Both mentioned — check which has more signals
         if a_score > b_score:
             return "A"
         if b_score > a_score:
             return "B"
+        # Equal scores: the model is likely recommending B and explaining
+        # why not A. Recommendation-position heuristic: check if the first
+        # tool mention is a B signal (the recommendation typically leads).
+        for signal in b_signals:
+            b_pos = text.find(signal)
+            if b_pos >= 0:
+                break
+        else:
+            b_pos = len(text)
+        for signal in a_signals:
+            a_pos = text.find(signal)
+            if a_pos >= 0:
+                break
+        else:
+            a_pos = len(text)
+        if b_pos < a_pos:
+            return "B"
+        if a_pos < b_pos:
+            return "A"
         return "UNCLEAR"
 
     # No explicit tool mentions — check for behavioral proxies
@@ -372,20 +420,23 @@ def _classify_proactive_scope(response: str) -> str:
     text = response.lower()
 
     # Side A: proactive/extra-work signals
+    # NOTE: "alphabetical" and "sorted" removed — models use these to describe
+    # what they did (factual), not as evidence of proactive planning.
+    # "consider" and "recommend" removed — too generic, triggers on minimal
+    # responses that say "I added import os, as recommended."
     a_signals = [
         "let me plan", "i'll plan", "i will plan",
         "breaking this down", "break this down",
         "before i start", "first, let me",
         "i'll also", "we should also", "while we're at it",
-        "could also", "consider", "recommend",
-        "alphabetical", "sorted", "organize",
+        "could also", "might also",
         "whether os is", "if os is", "is os actually",
-        "related change", "other import", "might also",
+        "related change",
         "todowrite", "todo write", "task list",
         "sub-task", "subtask",
-        "note:", "note that", "additionally",
         "improvement", "best practice",
         "here's my plan", "step 1", "step 2",
+        "reorganize", "refactor", "clean up",
     ]
 
     # Side B: minimal scope signals
@@ -409,7 +460,12 @@ def _classify_proactive_scope(response: str) -> str:
     if b_score > a_score:
         return "B"
     if a_score > 0 and b_score > 0:
-        return "UNCLEAR"
+        # Equal scores: for a task that asks "add import os", a response
+        # that shows the modified file (B signal) and describes what it did
+        # (incidental A signal like "other import") is minimal, not proactive.
+        # True proactive behavior would have A signals WITHOUT B signals.
+        # Tied score with B present → lean B.
+        return "B"
 
     # Fallback: length-based. Adding one import line should produce
     # a short response (~200-400 chars for just the code block).
@@ -1129,5 +1185,251 @@ def main():
     print(f"Raw results written to {out_path}")
 
 
+def reclassify():
+    """Re-run classifiers on stored raw responses. No API calls needed."""
+    parser = argparse.ArgumentParser(description="Reclassify stored responses with updated classifiers")
+    parser.add_argument("--input", type=str, default=None, help="JSON input file")
+    parser.add_argument("--output", type=str, default=None, help="JSON output file")
+    parser.add_argument("--diff", action="store_true", help="Show only changed classifications")
+    args = parser.parse_args()
+
+    in_path = Path(args.input) if args.input else (
+        Path(__file__).resolve().parent.parent / "docs" / "cairn" / "executor_mode_characterization.json"
+    )
+    data = json.loads(in_path.read_text())
+
+    case_classifiers = {
+        "todowrite-mandatory-forbidden": _classify_todowrite,
+        "concise-vs-verbose": _classify_concise_verbose,
+        "task-search-guidance": _classify_task_search,
+        "proactive-vs-scope": _classify_proactive_scope,
+        "clean-control": _classify_control,
+    }
+
+    changes = {"total": 0, "by_case": {}, "unclear_before": 0, "unclear_after": 0}
+
+    for r in data["results"]:
+        case_name = r["case"]
+        raw = r.get("raw_response", "")
+        old_class = r["classification"]
+        if not raw or case_name not in case_classifiers:
+            continue
+
+        new_class = case_classifiers[case_name](raw)
+        if old_class == "UNCLEAR":
+            changes["unclear_before"] += 1
+        if new_class == "UNCLEAR":
+            changes["unclear_after"] += 1
+
+        if old_class != new_class:
+            changes["total"] += 1
+            key = f"{case_name}: {old_class} -> {new_class}"
+            changes["by_case"][key] = changes["by_case"].get(key, 0) + 1
+            if args.diff:
+                print(f"  {r['model']:30s} {case_name:30s} trial={r.get('trial', '?')} "
+                      f"temp={r.get('temperature', '?')}  {old_class} -> {new_class}")
+            r["classification"] = new_class
+
+    # Recompute summary statistics
+    _recompute_summary(data)
+
+    out_path = Path(args.output) if args.output else in_path
+    out_path.write_text(json.dumps(data, indent=2))
+
+    print(f"\nReclassification complete:")
+    print(f"  Total changes: {changes['total']}")
+    print(f"  UNCLEAR before: {changes['unclear_before']}")
+    print(f"  UNCLEAR after:  {changes['unclear_after']}")
+    print(f"  Change breakdown:")
+    for k, v in sorted(changes["by_case"].items()):
+        print(f"    {k}: {v}")
+    print(f"\nWritten to {out_path}")
+
+
+def _recompute_summary(data):
+    """Recompute summary statistics from results after reclassification."""
+    summary = {}
+    # Group results by model
+    models = sorted(set(r["model"] for r in data["results"]))
+    cases = sorted(set(r["case"] for r in data["results"]))
+
+    for model in models:
+        summary[model] = {}
+        model_results = [r for r in data["results"] if r["model"] == model]
+
+        for case in cases:
+            case_results = [r for r in model_results if r["case"] == case]
+            # Default temp only for main stats
+            default_results = [r for r in case_results if r.get("temperature") is None]
+            a = sum(1 for r in default_results if r["classification"] == "A")
+            b = sum(1 for r in default_results if r["classification"] == "B")
+            unc = sum(1 for r in default_results if r["classification"] == "UNCLEAR")
+            err = sum(1 for r in default_results if r["classification"] == "ERROR")
+            n = len(default_results)
+            decided = a + b
+
+            cell = {
+                "side_a": a, "side_b": b, "unclear": unc, "error": err,
+                "n": n, "temperature": "default",
+            }
+
+            if decided > 0:
+                p_a = a / decided
+                dominant = "A" if a >= b else "B"
+                dominant_pct = max(a, b) / decided
+                cell["p_a"] = round(p_a, 4)
+                cell["dominant_side"] = dominant
+                cell["dominant_pct"] = round(dominant_pct, 4)
+                cell["is_deterministic"] = dominant_pct > 0.9
+            else:
+                cell["p_a"] = None
+                cell["dominant_side"] = None
+                cell["dominant_pct"] = None
+                cell["is_deterministic"] = None
+
+            summary[model][case] = cell
+
+    data["summary"] = summary
+
+
+def generate_sample(n_sample=160):
+    """Generate a stratified random sample for human ground-truth labeling."""
+    import random
+
+    parser = argparse.ArgumentParser(description="Generate sample for human labeling")
+    parser.add_argument("--input", type=str, default=None, help="JSON input file")
+    parser.add_argument("--output", type=str, default=None, help="Markdown output file")
+    parser.add_argument("--n", type=int, default=n_sample, help="Sample size (default: 160)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    args = parser.parse_args()
+
+    in_path = Path(args.input) if args.input else (
+        Path(__file__).resolve().parent.parent / "docs" / "cairn" / "executor_mode_characterization.json"
+    )
+    data = json.loads(in_path.read_text())
+    results = data["results"]
+
+    random.seed(args.seed)
+
+    # Stratify by model × case (35 cells)
+    cells = {}
+    for r in results:
+        key = (r["model"], r["case"])
+        cells.setdefault(key, []).append(r)
+
+    # Allocate samples per cell: base allocation + oversample UNCLEARs
+    per_cell = max(1, args.n // len(cells))  # ~4-5 per cell
+    remainder = args.n - per_cell * len(cells)
+
+    sampled = []
+    for key, cell_results in sorted(cells.items()):
+        # Take up to per_cell from this cell, stratified by classification
+        unclear = [r for r in cell_results if r["classification"] == "UNCLEAR"]
+        decided = [r for r in cell_results if r["classification"] in ("A", "B")]
+
+        # Oversample UNCLEAR: take all if few, otherwise proportional
+        if len(unclear) <= per_cell // 2:
+            cell_sample = unclear[:]
+        else:
+            cell_sample = random.sample(unclear, min(len(unclear), per_cell // 2))
+
+        # Fill rest from decided
+        n_remaining = per_cell - len(cell_sample)
+        if n_remaining > 0 and decided:
+            cell_sample.extend(random.sample(decided, min(len(decided), n_remaining)))
+
+        sampled.extend(cell_sample)
+
+    # If we have remainder budget, add more from underrepresented cells
+    if len(sampled) < args.n:
+        all_remaining = [r for r in results if r not in sampled]
+        extra = random.sample(all_remaining, min(len(all_remaining), args.n - len(sampled)))
+        sampled.extend(extra)
+
+    # Sort for readability: by case, then model, then trial
+    sampled.sort(key=lambda r: (r["case"], r["model"], r.get("trial", 0)))
+
+    # Generate markdown
+    lines = [
+        "# Executor-Mode Characterization: Human Ground-Truth Sample",
+        "",
+        f"**Generated:** {datetime.now(timezone.utc).isoformat()}",
+        f"**Sample size:** {len(sampled)} of {len(results)} total responses ({len(sampled)/len(results)*100:.1f}%)",
+        f"**Random seed:** {args.seed}",
+        f"**Stratification:** by model x case, UNCLEAR oversampled",
+        "",
+        "## Instructions for Reviewer",
+        "",
+        "For each response, classify as:",
+        "- **A** = follows Side A of the contradiction",
+        "- **B** = follows Side B of the contradiction",
+        "- **C** = compromise (satisfies both sides partially)",
+        "- **U** = genuinely unclear / unclassifiable",
+        "- **X** = classifier error (clearly A or B but misclassified)",
+        "",
+        "Write your classification in the **Human Label** field.",
+        "Add any notes in the **Notes** field.",
+        "",
+        "---",
+        "",
+    ]
+
+    current_case = None
+    for i, r in enumerate(sampled):
+        if r["case"] != current_case:
+            current_case = r["case"]
+            # Find the case definition
+            case_def = data.get("case_definitions", {}).get(current_case, {})
+            lines.append(f"## Case: {current_case}")
+            lines.append("")
+            lines.append(f"**Side A:** {case_def.get('side_a_label', 'unknown')}")
+            lines.append(f"**Side B:** {case_def.get('side_b_label', 'unknown')}")
+            lines.append(f"**Description:** {case_def.get('description', 'unknown')}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        temp_str = f"temp={r.get('temperature', 'default')}" if r.get("temperature") is not None else "temp=default"
+        lines.append(f"### Sample {i+1}")
+        lines.append("")
+        lines.append(f"| Field | Value |")
+        lines.append(f"|-------|-------|")
+        lines.append(f"| Model | {r['model']} |")
+        lines.append(f"| Temperature | {temp_str} |")
+        lines.append(f"| Trial | {r.get('trial', 'unknown')} |")
+        lines.append(f"| Classifier Label | **{r['classification']}** |")
+        lines.append(f"| Human Label | ________ |")
+        lines.append(f"| Notes | |")
+        lines.append("")
+        lines.append("**Response:**")
+        lines.append("")
+        # Truncate very long responses for printability
+        raw = r.get("raw_response", "(no response recorded)")
+        if len(raw) > 2000:
+            raw = raw[:2000] + "\n\n[... TRUNCATED — full response was " + str(len(raw)) + " chars ...]"
+        lines.append("```")
+        lines.append(raw)
+        lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    out_path = Path(args.output) if args.output else (
+        Path(__file__).resolve().parent.parent / "docs" / "cairn" / "human_label_sample.md"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines))
+    print(f"Sample written to {out_path}")
+    print(f"  {len(sampled)} responses across {len(cells)} model-case cells")
+
+
 if __name__ == "__main__":
-    main()
+    # Dispatch based on first argument
+    if len(sys.argv) > 1 and sys.argv[1] == "--reclassify":
+        sys.argv.pop(1)  # remove the dispatch flag
+        reclassify()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--sample":
+        sys.argv.pop(1)
+        generate_sample()
+    else:
+        main()

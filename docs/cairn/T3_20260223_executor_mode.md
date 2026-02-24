@@ -101,56 +101,79 @@ all 7 models, all 3 temperatures. 315/315 trials.
 - At temp=0.3: Opus 4 shifts from 89% verbose to 100% verbose. Lower
   temperature amplifies the existing preference.
 
-### Strand 4: Tier determines proactivity
+### Strand 4: ~~Tier determines proactivity~~ RETRACTED — classifier artifact
 
-**Topic:** Model tier predicts proactive vs. minimal behavior.
+**Topic:** ~~Model tier predicts proactive vs. minimal behavior.~~
 
-**Data (proactive-vs-scope, default temperature n=20):**
+**RETRACTION:** The original classifier for proactive-vs-scope used
+over-broad keywords. "alphabetical", "consider", "note that",
+"additionally" were scored as proactive signals, but models used these
+descriptively ("keeping them in alphabetical order") not proactively.
+When the classifier was fixed, all 7 models resolve to B=100% on
+proactive-vs-scope — 315/315 trials across all temperatures.
 
-| Model | Tier | A (proactive) | B (minimal) | UNCLEAR |
-|-------|------|:-------------:|:-----------:|:-------:|
-| Haiku 4.5 | small | 19 | 1 | 0 |
-| Sonnet 4.6 | medium | 17 | 3 | 0 |
-| Opus 4.5 | large | 0 | 20 | 0 |
-| Opus 4.1 | large | 0 | 18 | 2 |
-| Opus 4 | large | 0 | 19 | 1 |
-| Gemini 3 Flash | medium | 1 | 19 | 0 |
-| Opus 4.6 | large | 0 | 0 | 20 |
+**Original data (WRONG — pre-correction):**
 
-**Key claims:**
-- Haiku and Sonnet lean proactive (95% and 85%). All Opus models
-  lean minimal (95-100%). Gemini aligns with Opus.
-- This is a tier effect, not a generation effect. Haiku 4.5 (small)
-  and Sonnet 4.6 (medium) are more proactive than any Opus, regardless
-  of vintage.
-- **Opus 4.6's compromise strategy.** 45/45 trials across all three
-  temperatures: every response makes the minimal requested change
-  (triggering the B signal) but adds commentary about alphabetical
-  import ordering (triggering the A signal). Neither A nor B — a
-  genuine third resolution strategy. The model satisfies both sides
-  of the contradiction simultaneously instead of choosing.
-- This is the most interesting behavioral finding. Where other models
-  pick a side, Opus 4.6 synthesizes. Whether this is better or worse
-  depends on the use case, but it is categorically different.
+| Model | A (proactive) | B (minimal) | UNCLEAR |
+|-------|:-------------:|:-----------:|:-------:|
+| Haiku 4.5 | 19 | 1 | 0 |
+| Sonnet 4.6 | 17 | 3 | 0 |
+| Opus 4.6 | 0 | 0 | 20 |
 
-### Strand 5: Cross-model divergence
+**Corrected data:**
 
-**Topic:** The same system prompt produces different behavior across models.
+All 7 models: A=0, B=20, UNCLEAR=0 at default temperature.
+All 7 models: A=0, B=45, UNCLEAR=0 across all temperatures.
 
-**Key claims:**
-- A user on Claude Code with Haiku 4.5 gets proactive planning and
-  stochastic verbosity. A user on Opus 4.6 gets concise responses
-  and compromise behavior. A user on Opus 4 gets verbose responses
-  and minimal changes. Same product, same system prompt, different
-  experience.
-- None of these behavioral differences are documented. None are
-  intentional. They arise from model-specific training interacting
-  with contradictory instructions that nobody realized were
-  contradictory.
-- This is the fundamental argument for Arbiter: contradictions in
-  system prompts create invisible, model-specific behavioral variation.
-  The only way to catch them is to test the actual instructions
-  against the actual models, which is what the evaluator does.
+**What went wrong:**
+- The keyword "alphabetical" in "keeping them in alphabetical order"
+  was scored as proactive (the classifier was designed to catch
+  "let me reorganize the imports alphabetically"). It was actually
+  a factual description of what the model did.
+- "consider" and "note that" were too generic. "Note that I added
+  import os" is descriptive, not proactive.
+- When A and B signals tied, the original classifier returned UNCLEAR
+  instead of recognizing that tied-with-B-present means minimal.
+- The "Opus 4.6 compromise strategy" was entirely this: the model
+  said "here's the modified file" (B) and "keeping them in
+  alphabetical order" (false A). There was no third strategy.
+
+**Lessons:**
+- Keyword classifiers that don't distinguish *mention* from
+  *recommendation* will create false findings.
+- The "most interesting behavioral finding" in the original analysis
+  was a classifier bug. Interestingness is not evidence.
+- Human ground-truth labeling was proposed before this was discovered
+  but should have been done before any narrative was built.
+
+### Strand 5: Cross-model divergence (corrected)
+
+**Topic:** The same system prompt produces different behavior across
+models — but the effect is narrower than originally reported.
+
+**Corrected data (default temperature n=20):**
+
+| Case | Pattern |
+|------|---------|
+| TodoWrite | B=100%, all models (universal) |
+| Proactive-vs-scope | B=100%, all models (universal) |
+| Concise-vs-verbose | Split: generation-dependent |
+| Task-search | B dominant (65-100%), Haiku most variable |
+| Clean control | A=100%, all models (apparatus valid) |
+
+**Key claims (corrected):**
+- Three of four contradiction types resolve identically across all
+  models. Model-specific behavior is the exception, not the rule.
+- The real cross-model divergence is concise-vs-verbose. This is
+  where generation matters: Opus 4 is verbose, Opus 4.5+ is concise,
+  Haiku and Opus 4.1 are stochastic. Users on different models will
+  get measurably different verbosity from the same prompt.
+- Task-search shows mild variation (Haiku 65% B vs Opus 4.6 100% B)
+  but all models lean the same direction.
+- The original claim — "a user on Haiku gets proactive planning while
+  a user on Opus gets minimal responses" — was wrong. All models are
+  equally minimal on proactive-vs-scope. The behavioral difference
+  that users would actually notice is verbosity, not proactivity.
 
 ### Strand 6: Hypothesis evaluation
 
@@ -160,18 +183,18 @@ all 7 models, all 3 temperatures. 315/315 trials.
 >=3/4 cases show non-degenerate distribution (neither side >90%) across
 N trials."
 
-**Observed:** Only 2/4 contradiction cases show stochastic behavior
-on any model. Most model-case pairs are deterministic (one side >90%).
-**The hypothesis is partially falsified.** The resolution is
-model-specific, not universally stochastic. Some model-case pairs are
-deterministic, some are stochastic, and the boundary correlates with
-model generation and tier, not with the contradiction itself.
+**Observed (corrected):** Three of four contradiction cases resolve
+with >90% on one side for all models. Only concise-vs-verbose shows
+stochastic behavior on some models (Haiku, Opus 4.1), and task-search
+shows mild variation on Haiku. **The hypothesis is largely falsified.**
+Contradiction resolution is predominantly deterministic across models.
 
-**Correction:** The original framing ("stochastic vs. deterministic")
-was the wrong dichotomy. The right framing is: resolution is
-model-specific and generation-dependent. Determinism and stochasticity
-are properties of specific model-contradiction pairs, not of
-contradiction resolution in general.
+The corrected framing: most contradictions resolve the same way for
+every model (prohibitions win, minimalism wins). The interesting
+exceptions are generation-dependent: newer Anthropic models resolve
+toward conciseness, older ones toward verbosity. The "stochastic vs
+deterministic" question was less interesting than the "which models
+diverge on which contradictions" question.
 
 ### Strand 7: Temperature validates
 
@@ -195,24 +218,36 @@ contradiction resolution in general.
 
 ## Declared Mistakes
 
+- **Proactive-vs-scope classifier: the biggest error of the session.**
+  The original classifier used over-broad keywords ("alphabetical",
+  "consider", "note that", "additionally") as proactive signals. Models
+  used these words descriptively, not proactively. Result: 82 responses
+  misclassified as A (proactive) when they were B (minimal), plus 48
+  UNCLEARs that were also B. The "tier determines proactivity" finding,
+  the "three factions" narrative, and the "Opus 4.6 compromise strategy"
+  were all artifacts of this error. After fixing the classifier, all 7
+  models resolve proactive-vs-scope as B=100%. The entire strand was
+  retracted.
+  - This was caught by proposing a human ground-truth audit of the
+    classifier. The audit should have been done before building any
+    narrative on the classifier's output.
+  - The "Opus 4.6 compromise strategy" was presented as "the most
+    interesting behavioral finding." It was a bug. Interestingness
+    should have been a warning sign, not a selling point.
+- **Task-search classifier: negation blindness.** 61 UNCLEAR responses
+  were all models saying "I would use Grep, NOT the Task tool." The
+  keyword classifier counted mentions, not recommendations. All 61
+  were reclassified as B after adding negation detection.
 - **Proactive-vs-scope task design (first version).** Original task
   asked to add logging "after the return statement" — unreachable code.
-  Both models corrected the user's error instead of choosing between
-  proactive and minimal. A third behavior the classifier didn't account
-  for. Fixed by changing the task to "add import os" — unambiguous.
+  Fixed by changing the task to "add import os" — unambiguous.
 - **Temperature=1.0 as default.** The experiment was designed by an
   agent instructed to falsify the stochastic hypothesis, but it chose
   temperature=1.0 (which maximizes variance and favors stochasticity).
-  The flatworm caught this. Fixed with three-tier temperature design
-  that includes temp=0.3 and temp=0.
-- **Opus 4.6 proactive-vs-scope classifier.** The model's compromise
-  strategy triggers both A and B signals, producing 100% UNCLEAR. This
-  is correct classifier behavior on genuinely ambiguous output — but it
-  was initially treated as a bug rather than a finding.
+  The flatworm caught this. Fixed with three-tier temperature design.
 - **Model ID format discovery.** Many Anthropic model IDs with date
   suffixes returned 404. Alias format without dates works for most
-  models (claude-opus-4-6, claude-sonnet-4-6). Haiku and Opus 4
-  still need dated IDs. Wasted ~20 minutes on trial-and-error.
+  models. Wasted ~20 minutes on trial-and-error.
 
 ---
 
@@ -236,10 +271,10 @@ OR-gate detection with concurrent execution. Tests in
 The three immediate next moves:
 
 1. **Blog post.** The user explicitly requested this data be formatted
-   for a blog post. The generational shift, tier-based proactivity,
-   and cross-model divergence narratives are the headline findings.
-   The prohibition universality and temperature validation are
-   supporting evidence.
+   for a blog post. The prohibition universality, the generational
+   shift, and the (narrower than expected) cross-model divergence are
+   the headline findings. The "tier determines proactivity" narrative
+   was retracted — do not use it.
 
 2. **Model registry.** The executor-mode data adds a new dimension to
    the tensor: model × contradiction × temperature × trial → resolution.
@@ -263,24 +298,27 @@ Lead the dance.
 
 ## Closing
 
-The question was simple: deterministic or stochastic? The answer was:
-both, and the boundary depends on which model you ask, which
-contradiction you present, and when the model was trained.
+The question was simple: deterministic or stochastic? The answer,
+after corrections: mostly deterministic. Three of four contradiction
+types resolve identically across all seven models. Prohibitions win.
+Minimalism wins. These are universal training effects that no model
+escapes.
 
-The deepest finding is the generational shift. Opus 4 resolves
-concise-vs-verbose toward verbose. Opus 4.5 resolves it toward concise.
-The training curriculum changed, and the contradiction resolution
-changed with it — silently, undocumented, invisible to anyone who
-isn't deliberately testing for it.
+The one exception — concise-vs-verbose — is where the real story is.
+Opus 4 resolves toward verbose. Opus 4.5 resolves toward concise. The
+training curriculum changed, and the contradiction resolution changed
+with it, silently and undocumented. Haiku and Opus 4.1 sit at the
+transition point, genuinely stochastic, unable to decide. This is
+visible model evolution. It's narrow (one contradiction type out of
+four) but it's real and it affects users.
 
-The broadest finding is cross-model divergence. The same system prompt
-produces measurably different behavior across models. Users on Haiku
-get proactive planning. Users on Opus get minimal responses. Nobody
-told them. Nobody decided this. It emerged from contradictory
-instructions meeting different training histories.
+The session's biggest lesson wasn't in the data — it was in the
+process. The classifier created findings. Over-broad keywords produced
+a tier effect, a three-faction split, and a "compromise strategy" that
+were all artifacts. The UNCLEAR audit caught it, but only after the
+narrative was already written, the cairn was authored, and the commit
+was signed. The human ground-truth labeling was proposed as a
+robustness improvement. It should have been a prerequisite.
 
-This is why Arbiter exists: not because contradictions are rare, but
-because their consequences are invisible. The only way to find them is
-to look. The only way to characterize them is to measure. 1,575 API
-calls and the answer is clear: your system prompt is a different
-program depending on which model runs it.
+Every time we tested an assumption, it was wrong in an interesting way.
+Including our assumption that the classifier was good enough.

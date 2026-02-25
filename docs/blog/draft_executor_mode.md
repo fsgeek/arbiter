@@ -17,9 +17,10 @@ runs underneath.
 We tested that assumption. We extracted real contradictions from a
 production system prompt and measured how seven different models
 resolve them. The system prompt was Claude Code's — Anthropic's own
-coding assistant. We chose it because it's public, it's complex, and
-it contains genuine contradictions that emerged from multiple authors
-contributing instructions over time.
+coding assistant. We chose it because it's public, it's complex
+(~19,000 tokens as of February 2026, up from ~2,600 a year earlier),
+and it contains genuine contradictions that emerged from multiple
+authors contributing instructions over 333 releases.
 
 ## The Experiment
 
@@ -47,6 +48,41 @@ Classification used mechanical keyword heuristics — no LLM judge, to
 avoid introducing a judge model's own biases. We audited the
 classifier against the raw responses and corrected three bugs before
 publishing (details in the appendix).
+
+## How the Contradictions Got There
+
+None of these contradictions were authored deliberately. We traced
+their origins through 333 tagged releases of the Claude Code system
+prompt, from v0.2.9 (February 2025, ~2,625 tokens) through v2.1.55
+(February 2026, ~19,400 tokens) — a 7.4x growth in one year.
+
+The contradictions accumulated through accretion. Each instruction was
+locally rational when it was added. The global incoherence emerged
+because no one was reading the whole prompt as a single document:
+
+| Contradiction | Side A introduced | Side B introduced | Gap |
+|---------------|:-----------------:|:-----------------:|:---:|
+| TodoWrite | v0.2.66 | v1.0.1 | 40+ versions |
+| Concise vs Verbose | v0.2.9 (day 1) | v0.2.66 | ~57 versions |
+| Task Search | v0.2.9 (day 1) | v1.0.0 | ~115 versions |
+| Proactive vs Scope | v0.2.9 (day 1) | v0.2.116 / v1.0.0 / v2.0.5 | multiple additions |
+
+The inflection point was v1.0.0. The prompt jumped 4.4x in a single
+release (from ~2,800 to ~12,400 tokens), and three of the four
+contradictions went live in that version. It was a consolidation of
+instructions from multiple contributors — tool guidance, style rules,
+safety constraints — each authored independently.
+
+Anthropic partially noticed. In v2.1.53, a cleanup pass removed "VERY
+frequently" from the TodoWrite guidance and narrowed some of the
+global "prefer Task tool" language. But the underlying contradictions
+remain. The proactive-vs-scope conflict has never been addressed.
+
+This is the normal lifecycle of a system prompt in production. It
+starts small and coherent. Features get added. Authors rotate. Scope
+expands. Instructions that were compatible at 2,600 tokens become
+contradictory at 19,000. No single patch introduces the conflict — it
+emerges from the accumulation.
 
 ## Finding 1: Prohibition Universally Wins
 

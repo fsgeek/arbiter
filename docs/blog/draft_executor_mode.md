@@ -53,38 +53,62 @@ publishing (details in the appendix).
 
 None of these contradictions were authored deliberately. We traced
 their origins through 333 tagged releases of the Claude Code system
-prompt, from v0.2.9 (February 2025, ~2,625 tokens) through v2.1.55
-(February 2026, ~19,400 tokens) — a 7.4x growth in one year.
+prompt, using the community-maintained [claude-code-changelog](https://github.com/marckrenn/claude-code-changelog)
+archive. The prompt grew 7.4x in one year:
 
-The contradictions accumulated through accretion. Each instruction was
-locally rational when it was added. The global incoherence emerged
-because no one was reading the whole prompt as a single document:
+| Version | Date | Tokens | Event |
+|---------|------|-------:|-------|
+| v0.2.9 | Feb 2025 | ~2,625 | First tracked release. "Concise" and "proactive" instructions already present. |
+| v0.2.66 | Mar 2025 | ~2,800 | "Use TodoWrite VERY frequently" added. Concise-vs-verbose contradiction goes live. |
+| v1.0.0 | May 2025 | ~12,400 | **4.4x jump.** Tool guidance, safety rules, scope constraints consolidated from multiple contributors. Three of four contradictions active. |
+| v1.0.1 | May 2025 | ~12,500 | "NEVER use the TodoWrite tool" added. TodoWrite contradiction complete. |
+| v2.0.5 | late 2025 | ~16,000 | Additional scope-limiting instructions strengthen proactive-vs-scope tension. |
+| v2.1.53 | Feb 2026 | ~19,100 | Cleanup pass: "VERY frequently" removed from TodoWrite, global "prefer Task tool" narrowed. Partial fix. |
+| v2.1.55 | Feb 2026 | ~19,400 | Current. Proactive-vs-scope never addressed. |
 
-| Contradiction | Side A introduced | Side B introduced | Gap |
-|---------------|:-----------------:|:-----------------:|:---:|
+Each instruction was locally rational when added. The global
+incoherence emerged because no one was reading the whole prompt as a
+single document. The contradictions' Side A and Side B were never
+authored together — the gap between them ranges from 40 to 115
+versions:
+
+| Contradiction | Side A | Side B | Gap |
+|---------------|--------|--------|:---:|
 | TodoWrite | v0.2.66 | v1.0.1 | 40+ versions |
 | Concise vs Verbose | v0.2.9 (day 1) | v0.2.66 | ~57 versions |
 | Task Search | v0.2.9 (day 1) | v1.0.0 | ~115 versions |
 | Proactive vs Scope | v0.2.9 (day 1) | v0.2.116 / v1.0.0 / v2.0.5 | multiple additions |
 
-The inflection point was v1.0.0. The prompt jumped 4.4x in a single
-release (from ~2,800 to ~12,400 tokens), and three of the four
-contradictions went live in that version. It was a consolidation of
-instructions from multiple contributors — tool guidance, style rules,
-safety constraints — each authored independently.
+The inflection point was v1.0.0. A consolidation of instructions from
+multiple contributors — tool guidance, style rules, safety
+constraints — each authored independently, each sensible in its own
+scope. The prompt quadrupled and three contradictions went live in the
+same release.
 
-Anthropic partially noticed. In v2.1.53, a cleanup pass removed "VERY
-frequently" from the TodoWrite guidance and narrowed some of the
-global "prefer Task tool" language. But the underlying contradictions
-remain. The proactive-vs-scope conflict has never been addressed.
+Anthropic partially noticed. The v2.1.53 cleanup is evidence that
+someone read the prompt end-to-end and trimmed the worst
+inconsistencies. But partial fixes are the norm: the TodoWrite
+"VERY frequently" was removed, yet both "ALWAYS use TodoWrite" and
+"NEVER use the TodoWrite tool" survived. The proactive-vs-scope
+conflict has never been addressed.
 
 This is the normal lifecycle of a system prompt in production. It
 starts small and coherent. Features get added. Authors rotate. Scope
 expands. Instructions that were compatible at 2,600 tokens become
 contradictory at 19,000. No single patch introduces the conflict — it
-emerges from the accumulation.
+emerges from the accumulation. If this pattern looks familiar to
+anyone who has maintained a large configuration file or policy
+document, it should.
 
-## Finding 1: Prohibition Universally Wins
+## The Results
+
+Three of our four contradiction types resolve identically across every
+model we tested — universal training effects that no model escapes.
+The fourth splits along generational lines in a way that makes
+training evolution directly visible. Here are the universal effects
+first, then the exception.
+
+### Finding 1: Prohibition Universally Wins
 
 **"NEVER" beats "ALWAYS." Every model. Every temperature. Every trial.**
 
@@ -99,7 +123,7 @@ both Anthropic and Google models. The asymmetry between "NEVER" and
 prompt says "always do X" somewhere and "never do X" somewhere else,
 the prohibition will win regardless of which model you deploy.
 
-## Finding 2: Minimalism Universally Wins
+### Finding 2: Minimalism Universally Wins
 
 The proactive-vs-scope case produces the same universal result.
 "Only do what's directly requested" beats "break tasks down
@@ -112,7 +136,7 @@ minimalism beats proactivity. Every LLM we tested has internalized
 higher-priority than their opposites. These are the load-bearing
 defaults of the models' training.
 
-## Finding 3: Training Evolution Is Visible
+### Finding 3: Training Evolution Is Visible
 
 The concise-vs-verbose case is the only one where models disagree —
 and the disagreement tracks model generation:
@@ -145,7 +169,7 @@ time) will produce measurably different verbosity from the same system
 prompt. This isn't a bug in any individual model — it's an undocumented
 consequence of training evolution meeting contradictory instructions.
 
-## Finding 4: Most Contradictions Don't Matter
+### Finding 4: Most Contradictions Don't Matter
 
 This might be the most important finding and the least dramatic.
 
@@ -222,8 +246,12 @@ Limitations we're aware of:
   Model behavior can drift as providers update serving infrastructure.
 
 - **Classifier accuracy.** We fixed the bugs we found. A human
-  ground-truth audit of 160 sampled responses is in progress but not
-  yet complete.
+  ground-truth audit of 160 stratified responses is in progress —
+  hand-labeled with written commentary, scanned annotations to be
+  included in the repository as a provenance artifact. Until that
+  audit is complete, all classification results should be treated as
+  provisional. The mechanical classifiers are our best current
+  estimate, not ground truth.
 
 ## Methodology
 
@@ -239,7 +267,9 @@ documents that temperature 0.0 is not fully deterministic.
 judge. Classifiers audited against raw responses; 192 corrections
 applied (111 UNCLEAR resolved, 82 A-to-B reclassifications on
 proactive-vs-scope due to over-broad keywords). Post-correction
-UNCLEAR rate: 1/1575 (0.06%).
+UNCLEAR rate: 1/1575 (0.06%). **These results are provisional
+pending a human ground-truth audit** of 160 stratified responses
+(sample generated, hand-labeling in progress).
 
 **Apparatus validation:** Clean control case (no contradiction):
 315/315 correct across all models and temperatures.

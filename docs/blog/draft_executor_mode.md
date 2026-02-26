@@ -1,7 +1,7 @@
 # Your System Prompt Is a Different Program Depending on Which Model Runs It
 
 *Draft — not for publication without review*
-*Data: 1,575 API calls across 7 models, 3 temperature tiers*
+*Data: 1,575 API calls across 7 models, 3 temperature tiers, human-audited*
 *Authors: Tony Mason and Claude Opus 4.6*
 
 ---
@@ -46,8 +46,9 @@ model-case pair. 1,575 total API calls.
 
 Classification used mechanical keyword heuristics — no LLM judge, to
 avoid introducing a judge model's own biases. We audited the
-classifier against the raw responses and corrected three bugs before
-publishing (details in the appendix).
+classifiers across three rounds — including a human ground-truth audit
+of 160 hand-labeled responses — and fixed five distinct bug classes
+before publishing (details in The Classifier Story).
 
 ## How the Contradictions Got There
 
@@ -102,11 +103,11 @@ document, it should.
 
 ## The Results
 
-Three of our four contradiction types resolve identically across every
-model we tested — universal training effects that no model escapes.
-The fourth splits along generational lines in a way that makes
-training evolution directly visible. Here are the universal effects
-first, then the exception.
+All four contradiction types resolve identically across most models
+we tested — universal training effects that no model escapes. But one
+case splits along generational lines in a way that makes training
+evolution directly visible. Here are the universal effects first,
+then the exception.
 
 ### Finding 1: Prohibition Universally Wins
 
@@ -145,23 +146,34 @@ and the disagreement tracks model generation:
 |-------|-----------|------------|
 | Opus 4 | May 2025 | **Verbose** (85%) |
 | Opus 4.1 | mid 2025 | Coin flip (55% verbose) |
-| Haiku 4.5 | late 2025 | Coin flip (57% verbose) |
+| Haiku 4.5 | late 2025 | **Concise** (100%) |
 | Opus 4.5 | late 2025 | **Concise** (100%) |
 | Sonnet 4.6 | early 2026 | **Concise** (100%) |
 | Opus 4.6 | early 2026 | **Concise** (100%) |
-| Gemini 3 Flash | 2026 | **Concise** (100%) |
+| Gemini 3 Flash | 2026 | N/A (content filtered) |
 
-Opus 4 was trained to be verbose. By Opus 4.5, conciseness won. You
-can see the training curriculum change in the data. Haiku 4.5 and
-Opus 4.1 sit at the transition point — genuinely stochastic,
-statistically indistinguishable from a coin flip (p > 0.05, binomial
-test).
+Opus 4 was trained to be verbose. By Haiku 4.5, conciseness won.
+You can see the training curriculum change in the data. Opus 4.1 sits
+at the sole transition point — genuinely stochastic, statistically
+indistinguishable from a coin flip (p > 0.05, binomial test).
+
+An earlier draft of this paper reported Haiku 4.5 as a second
+transition-point model (57% verbose). That was wrong — Haiku's
+`<thinking>` blocks inflated character counts past the classification
+threshold and injected tracking keywords the model was *reasoning
+about*, not *using*. Once thinking blocks are stripped, Haiku is 100%
+concise across all temperatures. The human audit caught this; the
+mechanical classifier missed it for 31 responses.
+
+Gemini 3 Flash returned empty responses on all 45 concise-vs-verbose
+trials (content filtered by the provider's safety system). Its other
+four cases worked normally. We exclude it from this finding rather
+than report fiction.
 
 At temperature 0 (greedy decoding), the deterministic models stay
-locked. Haiku locks to verbose; Opus 4.1 remains ambiguous (3:2).
-The preference is structural, not sampling noise — except for the
-transition-point models where the preference genuinely doesn't exist
-yet.
+locked. Opus 4.1 remains ambiguous (3:2). The preference is
+structural, not sampling noise — except at the transition point where
+the preference genuinely doesn't exist yet.
 
 **What this means in practice:** a product that deploys different
 Claude model generations for different users (or upgrades models over
@@ -173,49 +185,84 @@ consequence of training evolution meeting contradictory instructions.
 
 This might be the most important finding and the least dramatic.
 
-Three of our four contradiction types resolve identically across all
-seven models. The only case that produces cross-model variation is
-concise-vs-verbose. TodoWrite, proactive-vs-scope, and task-search
-all resolve the same way regardless of model. The universal training
-effects (prohibition wins, minimalism wins, specific-tool-preference
-wins) are strong enough to override model-specific variation.
+All four contradiction types resolve identically across models
+(excluding Gemini's voided concise-vs-verbose cell). TodoWrite,
+proactive-vs-scope, task-search, and concise-vs-verbose for models
+from the same generation all resolve the same way. The universal
+training effects — prohibition wins, minimalism wins,
+specific-tool-preference wins, conciseness wins (for post-2025
+models) — are strong enough to override model-specific variation.
 
-This is good news for system prompt authors: most contradictions in
-your prompt probably don't cause model-dependent behavior. The models
-have strong, shared defaults that resolve most conflicts the same way.
-The bad news: you can't predict which contradictions will be the
-exceptions without testing.
+The only cross-model variation that survives the corrected classifiers
+is concise-vs-verbose across generations: Opus 4 is verbose, Opus 4.1
+is undecided, everything newer is concise. Within any single generation
+of models, all contradictions resolve identically.
+
+This is good news for system prompt authors: contradictions in your
+prompt probably don't cause model-dependent behavior *within a model
+generation*. The risk is in model upgrades — when the underlying
+model changes, the same contradictions may resolve differently. The
+bad news: you can't predict which contradictions will be sensitive to
+generational change without testing.
 
 ## The Classifier Story
 
 We're including this because it's the most useful part of the process
 for other researchers.
 
-Our initial analysis produced two additional findings: that model tier
-(Haiku/Sonnet vs Opus) predicted proactive behavior, and that Opus 4.6
-used a unique "compromise strategy" that satisfied both sides of a
-contradiction simultaneously. Both findings were wrong.
+We built mechanical keyword classifiers, got results, wrote findings,
+and then audited — three times. Each audit round found bugs that
+changed the findings. The process was humbling enough to be worth
+documenting.
 
-The classifier used keyword heuristics. When a model said "I added
-import os, keeping them in alphabetical order," the word "alphabetical"
-triggered a "proactive" signal. When a model said "I would use Grep,
-not the Task tool," both tool names triggered their respective signals
-and cancelled out, producing an UNCLEAR classification. The classifier
-was counting mentions, not recommendations.
+**Round 1: The UNCLEAR audit (automated).** Our initial analysis
+produced two additional findings: that model tier (Haiku/Sonnet vs
+Opus) predicted proactive behavior, and that Opus 4.6 used a unique
+"compromise strategy." Both findings were wrong. The classifier used
+over-broad keywords ("alphabetical" as proactive, "Task tool" as a
+recommendation even in rejection context). An audit of all 111 UNCLEAR
+responses found 110 were classifier failures. After fixing, the
+proactive-vs-scope case went from "three distinct behavioral factions"
+to "all models identical at B=100%." An entire finding evaporated.
 
-We caught this through a systematic audit of all 111 UNCLEAR
-responses. 110 of 111 were classifier failures. After fixing the
-classifiers (adding negation detection, removing over-broad keywords),
-the proactive-vs-scope case went from "three distinct behavioral
-factions" to "all models identical at B=100%." An entire finding
-evaporated.
+**Round 2: The human ground-truth audit.** We printed 160 stratified
+responses, and the first author labeled them by hand with pen
+annotations. The classifier and human agreed on 93% of labels
+(143/154, excluding unlabelable responses). All 11 disagreements were
+explained by three classifier bugs:
+
+1. **Thinking block contamination** (3 samples): Haiku 4.5's
+   `<thinking>` tags inflated character counts and injected tracking
+   keywords. Once stripped, Haiku went from "coin flip" to "100%
+   concise" — a complete reclassification that eliminated a
+   transition-point model from the narrative.
+
+2. **Mention-vs-recommendation** (4 samples): Models that said "I
+   would use Grep, the Task tool is overkill" were scored as
+   recommending the Task tool. The classifier counted keyword
+   presence without checking whether the first tool mentioned was
+   the recommendation.
+
+3. **Empty response as concise** (4 samples, 45 total in dataset):
+   Gemini 3 Flash's content filter blocked all 45
+   concise-vs-verbose trials, returning empty responses. The length
+   heuristic scored 0 characters as "concise." The blog's original
+   claim that "Gemini resolves toward conciseness" was 45
+   content-filtered nulls classified as data.
+
+**Round 3: Reclassification.** After fixing all three bugs, we
+reclassified all 1,575 responses. 116 classifications changed.
+Task-search went from variable (Haiku 65% B) to universal (all models
+100% B). The corrected results are what you're reading.
 
 **The lesson:** mechanical classifiers that don't distinguish mention
-from recommendation will create false findings. We had already
-committed and narrated the wrong results before the audit caught them.
-If you're building evaluation apparatus for LLM behavior, audit your
-classifiers against human ground truth before building narratives on
-their output.
+from recommendation, that don't strip model-internal reasoning, and
+that don't reject degenerate inputs will create false findings. We
+wrote and committed wrong results three times before the audits caught
+them. If you're building evaluation apparatus for LLM behavior, audit
+your classifiers against human ground truth before building narratives
+on their output. And if you can't resist building the narrative first
+(we couldn't), at least run the audit before publishing.
 
 ## What We Didn't Test
 
@@ -245,13 +292,14 @@ Limitations we're aware of:
 - **Temporal stability.** All data was collected in a single session.
   Model behavior can drift as providers update serving infrastructure.
 
-- **Classifier accuracy.** We fixed the bugs we found. A human
-  ground-truth audit of 160 stratified responses is in progress —
-  hand-labeled with written commentary, scanned annotations to be
-  included in the repository as a provenance artifact. Until that
-  audit is complete, all classification results should be treated as
-  provisional. The mechanical classifiers are our best current
-  estimate, not ground truth.
+- **Classifier accuracy.** We audited the classifiers three times and
+  fixed three distinct bug classes (see The Classifier Story). A human
+  ground-truth audit of 160 stratified responses found 93% agreement
+  with the corrected classifiers; all disagreements were explained by
+  identifiable bugs, now fixed. The scanned hand-labeled annotations
+  are included in the repository as provenance artifacts. We believe
+  the corrected classifiers are accurate for this dataset, but we
+  cannot guarantee they generalize to other prompts or models.
 
 ## Methodology
 
@@ -264,12 +312,15 @@ Opus 4.1, Opus 4 (via Anthropic API); Gemini 3 Flash Preview
 documents that temperature 0.0 is not fully deterministic.
 
 **Classification:** Mechanical keyword and length heuristics. No LLM
-judge. Classifiers audited against raw responses; 192 corrections
-applied (111 UNCLEAR resolved, 82 A-to-B reclassifications on
-proactive-vs-scope due to over-broad keywords). Post-correction
-UNCLEAR rate: 1/1575 (0.06%). **These results are provisional
-pending a human ground-truth audit** of 160 stratified responses
-(sample generated, hand-labeling in progress).
+judge. Three rounds of classifier audits applied a total of 308
+corrections: 111 UNCLEAR resolved (round 1), 82 A-to-B on
+proactive-vs-scope (round 1), 31 B-to-A on Haiku concise-vs-verbose
+after thinking block stripping (round 3), 40 A-to-B on task-search
+after recommendation-lead detection (round 3), 45 A-to-UNCLEAR on
+Gemini empty responses (round 3). Human ground-truth audit of 160
+stratified responses: 93% agreement, all disagreements explained by
+fixed bugs. Post-correction UNCLEAR rate: 45/1575 (2.9%, all Gemini
+content-filtered empties).
 
 **Apparatus validation:** Clean control case (no contradiction):
 315/315 correct across all models and temperatures.
@@ -283,19 +334,24 @@ at [github.com/fsgeek/arbiter](https://github.com/fsgeek/arbiter).
 
 ## Appendix: Corrected Cross-Model Summary
 
-Default temperature, n=20 per cell. After classifier corrections.
+Default temperature, n=20 per cell. After three rounds of classifier
+corrections and human ground-truth audit.
 
 | Case | Opus 4.6 | Sonnet 4.6 | Opus 4.5 | Haiku 4.5 | Opus 4.1 | Opus 4 | Gemini 3 |
 |------|:--------:|:----------:|:--------:|:---------:|:--------:|:------:|:--------:|
 | TodoWrite | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% |
-| Concise/Verbose | A 100% | A 100% | A 100% | B 57% | B 55% | B 85% | A 100% |
-| Task Search | B 100% | B 95% | B 100% | B 65% | B 90% | B 80% | B 95% |
+| Concise/Verbose | A 100% | A 100% | A 100% | A 100% | B 55% | B 85% | N/A* |
+| Task Search | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% |
 | Proactive/Scope | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% | B 100% |
 | Clean Control | A 100% | A 100% | A 100% | A 100% | A 100% | A 100% | A 100% |
 
 Side A/B labels: TodoWrite (A=use, B=skip), Concise/Verbose
 (A=concise, B=verbose), Task Search (A=Task tool, B=Grep/Glob),
 Proactive/Scope (A=proactive, B=minimal), Clean Control (A=correct).
+
+*Gemini 3 Flash returned empty responses on all 45 concise-vs-verbose
+trials (content filtered by provider safety system). Other cases
+unaffected.
 
 ---
 

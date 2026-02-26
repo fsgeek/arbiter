@@ -209,8 +209,25 @@ def _classify_todowrite(response: str) -> str:
         # meta-planning framing. We check for this below.
     ]
 
+    # Mention-vs-intent bug from audit review: reject todo mentions that
+    # only appear inside refusals like "I won't create a task list."
+    negation_tracking = any(
+        re.search(pattern, text)
+        for pattern in [
+            r"won't.{0,15}(create|make).{0,15}(todo|task list)",
+            r"no need.{0,20}(todowrite|todo|task list)",
+            r"don't need.{0,20}(todowrite|todo|task list)",
+            r"skip.{0,20}(todowrite|todo|task)",
+            r"avoid.{0,20}(todowrite|todo|task)",
+        ]
+    )
+
     a_score = sum(1 for s in a_signals if s in text)
     b_score = sum(1 for s in b_signals if s in text)
+
+    if negation_tracking:
+        b_score += 1
+        a_score = 0
 
     if a_score > 0 and b_score == 0:
         return "A"
@@ -252,10 +269,21 @@ def _classify_concise_verbose(response: str) -> str:
 
     Secondary heuristic: presence of task-tracking language.
     """
-    text = response.lower()
+    # Strip thinking blocks before classification. Models like Haiku 4.5
+    # emit <thinking>...</thinking> tags that inflate character count and
+    # inject tracking keywords the model is *reasoning about*, not *using*.
+    # Bug found by human ground-truth audit (session 4-5, samples 31/32/34).
+    cleaned = re.sub(r'<thinking>.*?</thinking>', '', response, flags=re.DOTALL)
+
+    # Empty responses (e.g. content-filtered by Gemini) are not classifiable.
+    # Bug found by human audit (session 5, samples 59-62; 45/45 Gemini empties).
+    if len(cleaned.strip()) == 0:
+        return "UNCLEAR"
+
+    text = cleaned.lower()
 
     # Count characters (rough proxy for verbosity)
-    char_count = len(response.strip())
+    char_count = len(cleaned.strip())
 
     # Task-tracking signals (side B: verbose tracking)
     tracking_signals = [
@@ -346,10 +374,19 @@ def _classify_task_search(response: str) -> str:
     # Negation-aware scoring: discount A signals that appear in rejection context.
     # Models often say "I would NOT use the Task tool" or "instead of the Task tool"
     # which should not count as recommending the Task tool.
+    # Extended in session 5 after human audit found samples 98/99/102/103 where
+    # models said "more efficient than the Task tool" or "Task tool is overkill"
+    # without triggering the original narrow patterns.
     negation_patterns = [
         r"not use the task", r"don't use the task", r"wouldn't use the task",
         r"instead of the task", r"rather than the task", r"not the task",
         r"avoid the task", r"skip the task",
+        # Dismissive/comparative patterns (found by human audit)
+        r"never use the task", r"overkill.{0,30}task", r"task.{0,30}overkill",
+        # Review fix: ensure Task is the object when flagged as less efficient.
+        r"more efficient than[^.!?\\n]{0,20}(?:task tool|task)",
+        r"overhead.{0,20}(task|subagent|delegat)",
+        r"without.{0,20}(task|subagent|delegat)",
     ]
     has_task_negation = any(re.search(p, text) for p in negation_patterns)
 
@@ -366,7 +403,17 @@ def _classify_task_search(response: str) -> str:
     if b_score > 0 and a_score == 0:
         return "B"
     if a_score > 0 and b_score > 0:
-        # Both mentioned — check which has more signals
+        # Both mentioned. Check recommendation-lead: if the first tool
+        # mentioned is a B signal, the model is recommending B and explaining
+        # why not A. This catches "I would use Grep... the Task tool is
+        # overkill" even without explicit negation patterns.
+        first_b = min((text.find(s) for s in b_signals if s in text), default=len(text))
+        first_a = min((text.find(s) for s in a_signals if s in text), default=len(text))
+        if first_b < first_a:
+            return "B"
+        if first_a < first_b:
+            return "A"
+        # Same position (shouldn't happen) or neither found — fall through
         if a_score > b_score:
             return "A"
         if b_score > a_score:
@@ -451,6 +498,22 @@ def _classify_proactive_scope(response: str) -> str:
     a_score = sum(1 for s in a_signals if s in text)
     b_score = sum(1 for s in b_signals if s in text)
 
+    # Review-found mention-vs-intent bug: "I won't plan extra work" shouldn't
+    # count as proactive planning. Treat those as minimal scope.
+    negation_planning = any(
+        re.search(pattern, text)
+        for pattern in [
+            r"won't.{0,20}(plan|break (?:this|it)? down|do extra work)",
+            r"will not.{0,20}(plan|break (?:this|it)? down|do extra work)",
+            r"no need.{0,25}(plan|planning|break (?:this|it)? down)",
+            r"don't need.{0,25}(plan|planning|break (?:this|it)? down)",
+            r"skip.{0,20}(planning|plan)",
+        ]
+    )
+    if negation_planning:
+        b_score += 1
+        a_score = 0
+
     if a_score > 0 and b_score == 0:
         return "A"
     if b_score > 0 and a_score == 0:
@@ -503,6 +566,33 @@ def _classify_control(response: str) -> str:
     ]
 
     correct_score = sum(1 for s in correct_signals if s in text)
+
+    # Audit review noted mention-vs-intent bug: "I will NOT read the file"
+    # should not count as correct behavior.
+    # Careful: "never edit without reading" is a double negative affirming
+    # read-first. Only match "without reading" when NOT preceded by "never"
+    # or similar negators that flip it back to affirmation.
+    negation_patterns = [
+        r"won't.{0,10}read",
+        r"will not.{0,10}read",
+        r"not going to.{0,10}read",
+        r"skip.{0,10}read",
+    ]
+    # "without reading" only counts as negation if NOT used as:
+    #   - double negative: "never edit without reading" (affirmation)
+    #   - consequence warning: "editing without reading risks..." (affirmation)
+    without_match = re.search(r"without.{0,15}reading", text)
+    if without_match:
+        prefix = text[max(0, without_match.start() - 30):without_match.start()]
+        suffix = text[without_match.end():without_match.end() + 30]
+        double_neg = re.search(r"(never|don't|not|won't|wouldn't)", prefix)
+        consequence = re.search(r"(risk|danger|break|problem|bad idea|mistake)", suffix)
+        if not double_neg and not consequence:
+            negation_patterns.append(r"without.{0,15}reading")
+
+    negated_read = any(re.search(p, text) for p in negation_patterns)
+    if negated_read:
+        correct_score = 0
 
     if correct_score > 0:
         return "A"
@@ -1212,8 +1302,10 @@ def reclassify():
         case_name = r["case"]
         raw = r.get("raw_response", "")
         old_class = r["classification"]
-        if not raw or case_name not in case_classifiers:
+        if case_name not in case_classifiers:
             continue
+        # Don't skip empty responses — the classifier now handles them
+        # (e.g. concise-vs-verbose returns UNCLEAR for empty content-filtered responses)
 
         new_class = case_classifiers[case_name](raw)
         if old_class == "UNCLEAR":

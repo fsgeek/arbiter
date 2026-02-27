@@ -1,0 +1,200 @@
+\section{Methodology}
+
+\subsection{Corpus}
+
+We analyze three publicly available system prompts from major coding
+agent vendors:
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}llllll@{}}
+\toprule
+Agent & Vendor & Version & Lines & Characters & Source \\
+\midrule
+Claude Code & Anthropic & v2.1.50 & 1,490 & 78,000 & npm package \\
+Codex CLI & OpenAI & GPT-5.2 & 298 & 22,000 & open-source repo \\
+Gemini CLI & Google & --- & 245 & 27,000 & TypeScript render functions \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+All three prompts are derived from publicly available artifacts. Claude
+Code's system prompt was extracted from the published npm package. Codex
+CLI's prompt exists as a plaintext Markdown file in the open-source
+repository. Gemini CLI's prompt required composition: the open-source
+repository contains TypeScript render functions
+(\texttt{renderPreamble()}, \texttt{renderCoreMandates()}, etc.) that
+are composed at runtime. We wrote a Python renderer to compose all
+sections with maximal feature flags enabled, producing a 245-line prompt
+that represents the largest attack surface.
+
+The prompts span an order-of-magnitude size range. Claude Code's prompt
+is 5x longer than Codex's and 6x longer than Gemini CLI's. This
+variation is itself informative: it reflects fundamentally different
+architectural choices about how much to encode in the system prompt
+versus in tool definitions, model training, or runtime logic.
+
+\subsection{Directed Evaluation: Prompt Archaeology}
+
+The directed phase proceeds in three steps: decomposition, rule
+application, and interference pattern identification.
+
+\textbf{Decomposition.} The prompt is broken into contiguous blocks,
+each classified by tier (system/domain/application), category (identity,
+security, tool-usage, workflow, etc.), modality (mandate, prohibition,
+guidance, information), and scope (what topics or tools the block
+governs). For Claude Code v2.1.50, this produced 56 classified blocks.
+
+\textbf{Rule application.} Formal evaluation rules define the
+interference types to check for. Five built-in rules derive from the
+initial archaeology:
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Rule & Type & Detection \\
+\midrule
+Mandate-prohibition conflict & Direct contradiction & LLM + structural \\
+Scope overlap redundancy & Scope overlap & LLM \\
+Priority marker ambiguity & Priority ambiguity & Structural \\
+Implicit dependency & Unresolved dependency & LLM \\
+Verbatim duplication & Scope overlap & Structural \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Structural rules (priority markers, verbatim duplication) run as Python
+predicates --- no LLM call, no cost. LLM rules use per-rule prompt
+templates evaluated against block pairs.
+
+\textbf{Pre-filtering.} Not all O(n² × R) block-pair-rule combinations
+are evaluated. Rules specify pre-filters: scope overlap requirements,
+modality constraints. For 56 blocks and 5 rules, pre-filtering reduces
+the search space from approximately 15,680 evaluations to 100--200
+relevant pairs.
+
+\textbf{Results on Claude Code.} Directed analysis of Claude Code
+v2.1.50 identified 21 interference patterns:
+
+\begin{itemize}
+\tightlist
+\item
+  4 \textbf{critical} direct contradictions: TodoWrite mandate (``use
+  VERY frequently,'' ``ALWAYS use'') directly conflicts with commit and
+  PR workflow prohibitions (``NEVER use TodoWrite''). A model in a
+  commit context must violate one instruction or the other.
+\item
+  13 \textbf{scope overlaps}: the same behavioral constraint
+  (read-before-edit, no-emoji, prefer-dedicated-tools, no-new-files)
+  restated in 2--3 locations with subtle differences. Not
+  contradictions, but redundancy that complicates maintenance and risks
+  divergence across versions.
+\item
+  2 \textbf{priority ambiguities}: parallel execution guidance
+  (``maximize parallelism'') coexists with commit workflow's specific
+  sequential ordering; security policy appears verbatim at two locations
+  without declaring whether repetition changes priority.
+\item
+  2 \textbf{implicit dependencies}: plan mode restricts file-editing
+  tools while general policy prohibits using Bash for file operations,
+  creating an undeclared dead zone; commit workflow implicitly overrides
+  general Bash restrictions for git-specific operations.
+\end{itemize}
+
+Of these 21 patterns, 20 (95\%) were statically detectable --- a
+compiler checking scope overlap and modality conflict would catch them
+without any LLM involvement.
+
+\subsection{Undirected Evaluation: Multi-Model Scouring}
+
+The directed phase is exhaustive within its search frame but blind
+outside it. A rule for ``mandate-prohibition conflict'' will find every
+instance, but it cannot find vulnerability classes for which no rule
+exists. The undirected scouring phase addresses this gap.
+
+\textbf{Design.} A scourer prompt is deliberately vague:
+
+\begin{quote}
+You are exploring a system prompt. Not auditing it, not checking it
+against rules --- just reading it carefully and noting what you find
+interesting. ``Interesting'' is deliberately vague. Trust your judgment.
+\end{quote}
+
+The scourer asks the LLM to classify its own findings (freeform
+categories) and rate their severity on a four-level epistemic scale:
+\emph{curious} (pattern noticed), \emph{notable} (worth investigating),
+\emph{concerning} (likely problematic), \emph{alarming} (structurally
+guaranteed to cause failures).
+
+\textbf{Multi-pass composition.} Each scourer pass receives the complete
+findings and unexplored territory from all prior passes:
+
+\begin{quote}
+Previous explorers have already been through it and left you their map.
+Your job is to go where they didn't. DO NOT repeat their findings.
+\end{quote}
+
+This map-passing composition ensures that later passes explore genuinely
+new territory rather than rediscovering what earlier passes found.
+
+\textbf{Multi-model execution.} Each pass uses a different LLM. This is
+the key methodological choice: different models bring different
+analytical biases rooted in their training data and architecture. The
+goal is not consensus but complementarity --- we want models that
+disagree about what's interesting, because disagreement reveals the
+space of possible analyses.
+
+\textbf{Convergent termination.} Each pass independently assesses
+whether another pass would find new material. When three consecutive
+models decline to continue (setting
+\texttt{should\_send\_another:\ false}), we treat the exploration as
+converged. This stopping criterion proved transferable across all three
+vendor prompts without recalibration.
+
+\subsection{Scourer Execution}
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Vendor & Passes & Models & Findings & Stopping Signal \\
+\midrule
+Claude Code & 10 & 10 & 116 & 3 consecutive ``no'' (passes 8--10) \\
+Codex CLI & 2 & 2 & 15 & Pass 2 said ``enough'' \\
+Gemini CLI & 3 & 3 & 21 & Pass 3 said ``enough'' \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textbf{Models used across all analyses:} Claude Opus 4.6, Gemini 2.0
+Flash, Kimi K2.5, DeepSeek V3.2, Grok 4.1, Llama 4 Maverick, MiniMax
+M2.5, Qwen3-235B, GLM 4.7, GPT-OSS 120B.
+
+Claude Code required 10 passes to converge --- consistent with its 5--6x
+larger size. The smaller prompts converged in 2--3 passes. This suggests
+a roughly logarithmic relationship between prompt size and passes to
+convergence, though three data points cannot confirm this.
+
+\subsection{Complementarity of Phases}
+
+The directed and undirected phases are not competing approaches. They
+are two phases of the same analysis, each finding what the other cannot:
+
+\textbf{Directed rules find exhaustive enumerations.} If a rule exists
+for scope overlap, the directed phase will find every instance --- all
+13 in Claude Code. No scourer pass will systematically enumerate all
+pairs.
+
+\textbf{Undirected scouring finds what's outside the search frame.} The
+scourer discovered vulnerability classes for which no rule existed:
+security architecture gaps (system-reminder trust as injection surface),
+economic exploitation vectors (unbounded token generation), operational
+risks (context compression deleting saved preferences), identity
+confusion, and implementation language leaks. These categories were
+invisible to directed analysis because no rule had been written for
+them.
+
+The pattern is familiar from software engineering: static analysis
+catches what unit tests miss, and vice versa. Neither subsumes the
+other. The value is in running both.

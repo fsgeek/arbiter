@@ -1,0 +1,71 @@
+\section{Introduction}
+
+LLM-based coding agents --- Claude Code, Codex CLI, Gemini CLI, and
+others --- are governed by system prompts ranging from 245 to 1,490
+lines. These prompts are software artifacts in every meaningful sense:
+they specify behavior, encode precedence hierarchies, define tool
+contracts, manage state, and compose subsystems. A system prompt is the
+constitution under which the agent operates.
+
+Unlike conventional software, these constitutions have no type checker,
+no linter, no test suite. When a system prompt contains contradictory
+instructions --- ``always use TodoWrite'' in one section, ``NEVER use
+TodoWrite'' in another --- the executing LLM resolves the conflict
+silently through whatever heuristic its training provides. No error is
+raised. No warning is logged. The contradiction persists, and the
+agent's behavior becomes a function of which instruction the model
+happens to weight more heavily on a given invocation.
+
+This paper argues that \textbf{the agent that resolves the conflict
+cannot be the agent that detects it.} An LLM executing a contradictory
+system prompt will smooth over inconsistencies through ``judgment'' ---
+the same mechanism that makes LLMs useful makes them unreliable as their
+own auditors. External evaluation against formal criteria is required.
+
+We present Arbiter, a framework with two complementary evaluation
+phases:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Directed evaluation} decomposes a system prompt into
+  classified blocks and evaluates block pairs against formal
+  interference rules. This is exhaustive within its defined search
+  frame: if a rule exists for a failure mode, and two blocks share the
+  relevant scope, the evaluation is guaranteed to check that pair.
+\item
+  \textbf{Undirected scouring} sends the prompt to multiple LLMs with
+  deliberately vague instructions --- ``read this carefully and note
+  what you find interesting.'' Each pass receives the accumulated
+  findings from all prior passes and is asked to go where previous
+  explorers didn't. Convergent termination (three consecutive models
+  declining to continue) provides a calibrated stopping criterion.
+\end{enumerate}
+
+Applied to three major coding agent system prompts, these two phases
+reveal 152 scourer findings and 21 hand-labeled interference patterns.
+The findings organize into a taxonomy determined by prompt architecture:
+monolithic prompts produce growth-level bugs at subsystem boundaries,
+flat prompts trade capability for consistency, and modular prompts
+produce design-level bugs at composition seams.
+
+Our contributions are:
+
+\begin{itemize}
+\tightlist
+\item
+  A taxonomy of system prompt failure modes grounded in cross-vendor
+  empirical evidence.
+\item
+  A methodology for systematic prompt analysis combining directed rules
+  with undirected multi-model scouring.
+\item
+  Evidence that multi-model evaluation discovers categorically different
+  vulnerability classes than single-model analysis.
+\item
+  External validation: a scourer-identified design bug independently
+  confirmed by the vendor's own bug report and patch.
+\item
+  Demonstration that comprehensive cross-vendor analysis costs \$0.27 in
+  API calls --- less than three minutes of US minimum wage labor.
+\end{itemize}

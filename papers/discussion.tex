@@ -1,0 +1,170 @@
+\section{Discussion}
+
+\subsection{Prompts as Software Artifacts}
+
+The analogy between system prompts and software systems is not
+metaphorical. The same structural taxonomy (monolith, modular, flat)
+applies to both, and it predicts the same classes of failure:
+
+\begin{itemize}
+\tightlist
+\item
+  Monoliths accumulate contradictions at internal subsystem boundaries.
+\item
+  Modular systems produce bugs at composition seams.
+\item
+  Flat systems trade capability for consistency.
+\end{itemize}
+
+This is not a coincidence. It is Conway's Law applied to a new medium:
+the structure of the prompt reflects the structure of the team that
+produced it. Claude Code's monolithic prompt --- with its TodoWrite
+subsystem contradicting its commit workflow --- reads like the output of
+separate teams adding capabilities to a shared artifact without
+cross-team integration testing.
+
+The implication is that system prompts need the same engineering
+infrastructure that conventional software has: linters for internal
+consistency, tests for behavioral contracts, CI/CD pipelines that catch
+regressions when one section is edited. Arbiter's directed evaluation
+rules are a prototype of this infrastructure.
+
+\subsection{The Observer's Paradox}
+
+The executing LLM smooths over contradictions via ``judgment.'' When
+Claude Code encounters ``ALWAYS use TodoWrite'' and ``NEVER use
+TodoWrite'' in the same context, it picks one. The system works --- most
+of the time. This is precisely why the contradictions persist: they
+cause no visible errors, only invisible inconsistency.
+
+An external evaluator with formal rules surfaces what execution hides.
+This is directly analogous to static analysis catching bugs that unit
+tests miss: the code ``works'' in the sense that tests pass, but the
+analyzer identifies structural issues that will eventually manifest as
+runtime failures under the right conditions.
+
+The thesis --- \textbf{the agent that resolves the conflict cannot be
+the agent that detects it} --- has a precise formulation: the heuristic
+that enables an LLM to navigate contradictory instructions is the same
+heuristic that prevents it from recognizing those instructions as
+contradictory. Detection requires a different vantage point.
+
+\subsection{Severity and Epistemic Confidence}
+
+The directed and undirected phases use different severity scales, and
+this difference is informative.
+
+\textbf{Directed analysis} uses an impact scale: \emph{critical}
+(structurally guaranteed to cause incorrect behavior), \emph{major}
+(will cause problems under specific conditions), \emph{minor}
+(maintenance concern). This is appropriate for known interference
+patterns with clearly defined failure modes.
+
+\textbf{Undirected scouring} uses an epistemic confidence scale:
+\emph{curious} (pattern noticed, no judgment on impact), \emph{notable}
+(worth investigating), \emph{concerning} (likely problematic),
+\emph{alarming} (structurally guaranteed to fail). This is appropriate
+for discoveries where the impact depends on runtime behavior that static
+analysis cannot determine.
+
+These scales are orthogonal. A finding can be epistemically ``curious''
+but operationally critical, or epistemically ``alarming'' but
+operationally irrelevant. The multi-model scouring provides epistemic
+provenance --- which model found which finding --- enabling downstream
+consumers to weight findings by the reliability of their source.
+
+\subsection{Cost}
+
+The total cost of analyzing all three vendor prompts was \$0.27 USD,
+verified against OpenRouter billing records:
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Vendor & Passes & Actual Cost \\
+\midrule
+Claude Code & 10 & \$0.236 \\
+Codex CLI & 2 & \$0.012 \\
+Gemini CLI & 3 & \$0.014 \\
+\textbf{Total} & \textbf{15} & \textbf{\$0.263} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Claude Opus 4.6 (pass 1, Claude Code) was billed via Anthropic
+subscription and is excluded. Including a pro-rated subscription
+allocation would not materially change the total.
+
+The largest cost drivers were Kimi K2.5 (\$0.054, including one retry
+that hit an output length limit), Qwen3-235B (\$0.053, including one
+anomalous 175K-token prompt), and GLM 4.7 (\$0.039). GPT-OSS 120B was
+the cheapest model at \$0.003 total across four calls. Initial per-model
+estimates underestimated total cost by 3.8× because they assumed one API
+call per model rather than accounting for retries, growing prompt sizes
+as accumulated findings are passed to subsequent models, and reasoning
+token overhead.
+
+The cost per finding across all three analyses is \$0.002. At US federal
+minimum wage (\$7.25/hour), the entire cross-vendor campaign costs less
+than three minutes of human labor. This is not a methodological footnote
+--- it is a result. It means that system prompt analysis at this level
+of thoroughness is accessible to any developer with API access, not just
+teams with dedicated security budgets.
+
+\subsection{Limitations}
+
+\textbf{Static analysis only.} This work analyzes system prompt text,
+not runtime behavior. A contradiction in the prompt may or may not
+manifest as incorrect behavior, depending on how the executing LLM
+resolves it. We identify the structural conditions for failure, not the
+failures themselves.
+
+\textbf{Scourer findings are LLM-generated.} The undirected scourer asks
+LLMs to analyze prompts, and LLMs can fabricate observations. We
+mitigate this through multi-model execution (fabrications from one model
+are unlikely to be independently confirmed by another) and through human
+review of all findings. However, we cannot guarantee that every scourer
+finding corresponds to a real problem.
+
+\textbf{Directed analysis limited to one vendor.} The 56-block
+decomposition and 21-pattern ground truth exist only for Claude Code.
+Extending directed analysis to Codex and Gemini CLI requires additional
+manual labeling effort.
+
+\textbf{Gemini CLI prompt is composed.} Unlike Claude Code and Codex
+CLI, whose prompts were captured as-is, Gemini CLI's prompt was composed
+from TypeScript render functions with all feature flags enabled. The
+actual runtime prompt depends on which features are active and may be
+shorter or differently composed.
+
+\textbf{Cost data excludes subscription allocation.} API costs are
+verified against OpenRouter billing records, but Claude Opus 4.6 (one
+pass) was billed via Anthropic subscription. The reported \$0.27 is a
+lower bound; including subscription amortization would increase it
+marginally.
+
+\textbf{Three vendors.} The architectural taxonomy
+(monolith/flat/modular) is grounded in three examples. Additional
+vendors may reveal architectures that don't fit this taxonomy.
+
+\subsection{Responsible Disclosure}
+
+Two findings have potential user impact:
+
+\textbf{Gemini CLI: save\_memory data loss.} The structural guarantee
+that saved preferences are deleted during history compression affects
+real users who rely on the memory feature for long sessions. This
+finding has been independently confirmed: Google filed and patched a
+related symptom (issue \#16213, PR \#16914) without addressing the
+schema-level root cause. The schema bug remains in the publicly
+available source code as of February 2026.
+
+\textbf{Claude Code: recursive agent spawning.} The Task tool's
+\texttt{Tools:\ *} specification includes the Task tool itself, enabling
+unbounded recursive agent spawning. This is a known architectural choice
+(depth is controlled by other mechanisms) but the system prompt does not
+make this explicit.
+
+Both findings derive from publicly available artifacts. We have not
+tested whether these structural conditions manifest as runtime failures.

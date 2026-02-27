@@ -1,0 +1,317 @@
+\section{Results}
+
+\subsection{Quantitative Summary}
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Metric & Claude Code & Codex CLI & Gemini CLI \\
+\midrule
+Lines & 1,490 & 298 & 245 \\
+Characters & 78K & 22K & 27K \\
+Scourer findings & 116 & 15 & 21 \\
+Passes to convergence & 10 & 2 & 3 \\
+Distinct models & 10 & 2 & 3 \\
+Archaeology patterns & 21 & --- & --- \\
+Worst (scourer) & alarming (12) & concerning (5) & alarming (2) \\
+Worst (archaeology) & critical (4) & --- & --- \\
+Actual API cost & \$0.236 & \$0.012 & \$0.014 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textbf{Total API cost across all three analyses: \$0.27} (OpenRouter
+billing data; Claude Opus pass billed via subscription, excluded).
+
+Directed archaeology was performed only on Claude Code, where 56
+hand-labeled blocks and 21 hand-labeled interference patterns serve as
+ground truth. The scourer was run on all three vendors.
+
+\subsection{Severity Distributions}
+
+Scourer severity uses a four-level epistemic scale:
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Severity & Claude Code & Codex CLI & Gemini CLI \\
+\midrule
+Curious & 34 (29\%) & 3 (20\%) & 4 (19\%) \\
+Notable & 36 (31\%) & 7 (47\%) & 9 (43\%) \\
+Concerning & 34 (29\%) & 5 (33\%) & 6 (29\%) \\
+Alarming & 12 (10\%) & 0 (0\%) & 2 (10\%) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Claude Code's distribution is notably uniform across the lower three
+levels, with a long tail of alarming findings. Codex and Gemini CLI both
+peak at ``notable'' --- more findings are interesting-but-not-dangerous
+than dangerous. This likely reflects Claude Code's size: a 1,490-line
+prompt has more surface area for serious contradictions.
+
+\subsection{Architecture-Determined Failure Modes}
+
+The central finding of this analysis is that prompt architecture
+predicts failure mode class. Three architectural patterns produce three
+characteristic classes of bug.
+
+\subsubsection{Monolith: Claude Code}
+
+Claude Code's system prompt is a single 1,490-line document containing
+identity declarations, security policy, behavioral guidelines, 15+ tool
+definitions with usage instructions, workflow templates (commit, PR,
+planning), a task management system, team coordination protocol, and
+agent spawning infrastructure. It grew by accretion: subsystems were
+developed independently and composed into a single artifact.
+
+\textbf{Characteristic failure mode: growth-level bugs at subsystem
+boundaries.} The four critical contradictions all follow the same
+pattern: a general-purpose subsystem (TodoWrite task management) makes
+universal claims (``ALWAYS use,'' ``use VERY frequently'') that conflict
+with specific workflow subsystems (commit, PR creation) that prohibit
+the same tool (``NEVER use TodoWrite''). These subsystems were evidently
+authored by different teams or at different times, and no integration
+test checks their mutual consistency.
+
+The 13 scope overlaps follow the same structural logic. The
+read-before-edit constraint appears in three places: a general
+behavioral section, the Edit tool definition, and the Write tool
+definition. Each instance is worded slightly differently. Today they're
+consistent; tomorrow, when someone edits one without updating the
+others, they won't be.
+
+Additional scourer findings reinforce the monolith diagnosis: security
+policy duplicated verbatim at two locations, a stale reference to an
+``Agent tool'' that was renamed to ``Task tool,'' emoji restrictions
+repeated across three tool definitions, and a PR template containing an
+emoji that violates the prompt's own no-emoji policy.
+
+\textbf{Monolith prognosis:} These bugs are fixable by refactoring ---
+extract the duplicated constraints into single-source declarations,
+scope the TodoWrite mandate to exclude workflow-specific contexts. The
+architecture itself isn't wrong, but it needs the same maintenance
+discipline that monolithic codebases require.
+
+\subsubsection{Flat: Codex CLI}
+
+Codex CLI's system prompt is 298 lines --- the shortest of the three and
+the simplest in structure. It contains identity declaration, AGENTS.md
+file discovery spec, planning workflow, task execution guidelines, tool
+definitions, and output formatting rules. No nested prompts, no team
+coordination, no agent spawning.
+
+\textbf{Characteristic failure mode: simplicity trade-offs.} With fewer
+capabilities encoded in the prompt, there are fewer opportunities for
+contradiction. The 15 findings are overwhelmingly structural
+observations rather than operational bugs:
+
+\begin{itemize}
+\tightlist
+\item
+  Identity confusion between ``GPT-5.2'' (the model) and ``Codex CLI''
+  (the open-source tool) --- a philosophical distinction more than an
+  operational one.
+\item
+  AGENTS.md precedence hierarchy creates a three-layer authority system
+  (system defaults \textless{} AGENTS.md \textless{} user instructions)
+  where the ordering is clear in isolation but complex in practice.
+\item
+  Sequential plan status tracking (``exactly one item in\_progress at a
+  time'') creates tension with parallel tool execution
+  (``multi\_tool\_use.parallel'').
+\item
+  An empty ``Responsiveness'' section header with no content, suggesting
+  prompt truncation or an unfinished addition.
+\item
+  Leaked implementation details: explicit suppression of an inline
+  citation format (``【F:README.md†L5-L14】'') reveals rendering-system
+  specifics.
+\end{itemize}
+
+\textbf{Flat prognosis:} Codex's simplicity buys consistency. The most
+interesting finding --- identity confusion --- is the kind of bug that
+only matters when it matters, which is exactly what makes it hard to
+prioritize. The prompt is the cleanest of the three.
+
+\subsubsection{Modular: Gemini CLI}
+
+Gemini CLI's system prompt is 245 lines, but unlike Codex's flat
+structure, it is composed from modular TypeScript render functions
+(\texttt{renderPreamble()}, \texttt{renderCoreMandates()},
+\texttt{renderOperationalGuidelines()}, etc.) assembled at runtime with
+feature flags controlling which sections are included.
+
+\textbf{Characteristic failure mode: design-level bugs at composition
+seams.} Each module works correctly in isolation. The bugs exist
+exclusively in the gaps between modules --- contracts that were never
+specified because each module was designed independently.
+
+Two findings rated ``alarming'' by independent scourer models illustrate
+this pattern:
+
+\textbf{1. Structural data loss during history compression.} Gemini CLI
+includes a nested ``History Compression System Prompt'' --- a complete
+secondary prompt that governs how conversation history is summarized
+when context limits are reached. This compression prompt defines a rigid
+XML schema (\texttt{\textless{}state\_snapshot\textgreater{}}) that
+becomes ``the agent's only memory'' post-compression. The
+\texttt{save\_memory} tool allows users to store global preferences.
+However, the compression schema contains no field for saved memories or
+user preferences. Consequently, any preference stored via
+\texttt{save\_memory} is \textbf{structurally guaranteed to be deleted}
+during a compression event. The compression agent has no instruction and
+no schema field to preserve them.
+
+This is not a bug in either module. The \texttt{save\_memory} tool works
+correctly. The compression prompt works correctly. The bug exists in the
+contract between them --- a contract that was never written.
+
+\textbf{Post-hoc validation.} After the scourer identified this finding,
+we discovered that Google had independently filed a P0 bug
+(google-gemini/gemini-cli\#16213) about the compression system entering
+an infinite loop --- compressing every turn without reducing context
+size. The merged fix (PR \#16914, +748/−56 lines, January 2026) reorders
+the compression pipeline and adds token budget truncation for large tool
+outputs. It makes compression \emph{work}. It does not add a
+\texttt{\textless{}saved\_memory\textgreater{}} field to the compression
+schema, does not change how \texttt{save\_memory} data flows through
+compression, and does not mention user preference persistence in the
+code review discussion. The fix resolves the symptom (compression loop)
+while leaving the schema-level data loss intact --- the scourer's
+diagnosis is confirmed by the shape of what the patch does not address.
+
+\textbf{2. Impossible simultaneous compliance.} The ``Explain Before
+Acting'' mandate in Gemini CLI's Core Mandates section requires a
+one-sentence explanation before every tool call, for transparency. The
+``Minimal Output'' rule in the Tone and Style section mandates output of
+fewer than three lines and prohibits ``mechanical tool-use narration.''
+In any non-trivial task requiring multiple tool calls, simultaneous
+compliance with both rules is structurally impossible. The agent must
+either explain (violating minimalism) or stay minimal (violating
+transparency).
+
+Additional modular composition bugs: - \textbf{Ghost parameter:}
+Efficiency guidelines reference \texttt{read\_file} with an
+\texttt{old\_string} parameter, conflating it with the \texttt{replace}
+tool. This suggests the guidelines were written for a prior version of
+the toolset. - \textbf{Context bomb:} The Git workflow mandates
+\texttt{git\ diff\ HEAD} before every commit, with no size limit. For
+large changes, this can generate tens of thousands of tokens, violating
+the prompt's own efficiency mandates. - \textbf{Skill lifecycle gap:}
+Skills can be activated but have no defined deactivation mechanism.
+Multiple activated skills have no conflict resolution protocol.
+
+\textbf{Modular prognosis:} These bugs cannot be fixed by editing one
+module. They require changing the architectural contracts between
+modules --- adding a
+\texttt{\textless{}saved\_preferences\textgreater{}} field to the
+compression schema, defining a precedence rule between transparency and
+minimalism, specifying skill lifecycle management. The modules are
+individually clean; the composition is where the bugs live.
+
+\subsection{Universal Patterns}
+
+Three interference patterns appear in all three system prompts,
+suggesting they are inherent to the task of governing an LLM coding
+agent:
+
+\textbf{Autonomy versus restraint.} All three prompts contain
+instructions to ``persist until the task is fully handled'' alongside
+instructions to ``ask before acting'' on ambiguous tasks. Claude Code
+encodes this as proactivity-scope-ambiguity (proactive task tracking
+encouraged, proactive code changes forbidden). Codex encodes it as a
+tension between ``persist end-to-end'' and interactive approval modes.
+Gemini CLI encodes it as ``Explain Before Acting'' versus efficiency
+mandates. The tension is inherent: a useful coding agent must be both
+autonomous enough to complete tasks and cautious enough not to cause
+damage.
+
+\textbf{Precedence hierarchy ambiguity.} All three prompts define
+multiple authority sources --- system instructions, configuration files
+(CLAUDE.md, AGENTS.md, GEMINI.md), user messages, tool-injected context
+--- without fully specifying how conflicts between them resolve. Claude
+Code declares configuration files as supplementary; Codex defines a
+three-layer hierarchy; Gemini CLI declares GEMINI.md as ``foundational
+mandates'' while treating hook context as untrusted. In each case, edge
+cases remain where the precedence is genuinely ambiguous.
+
+\textbf{State-dependent behavioral modes.} All three prompts include
+mechanisms for changing the agent's behavior based on runtime state ---
+approval presets, plan mode, skill activation. These mechanisms change
+which rules apply without always specifying how the mode-specific rules
+interact with the base rules.
+
+\subsection{Multi-Model Complementarity}
+
+The most methodologically significant finding concerns what different
+models discover. Each model brings analytical biases rooted in its
+training:
+
+\begin{table*}[t]
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Model & Characteristic Focus \\
+\midrule
+Claude Opus 4.6 & Structural contradictions, security surfaces, meta-observations \\
+DeepSeek V3.2 & Hidden references, delegation loopholes, format mismatches \\
+Kimi K2.5 & Economic exploitation, resource exhaustion, cognitive load \\
+Grok 4.1 & Permission schema gaps, environment assumptions, state management \\
+Llama 4 Maverick & Constraint inconsistency, security boundaries \\
+MiniMax M2.5 & Trust architecture flaws, concurrency, impossible instructions \\
+Qwen3-235B & Contextual contradictions, state preservation illusions \\
+GLM 4.7 & Data integrity, temporal paradoxes, competitive logic \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+This is not ``more models find more findings.'' It is \textbf{different
+models find different kinds of findings.} Kimi K2.5's economic/resource
+lens is categorically absent from Claude Opus's structural analysis.
+GLM's focus on data integrity and temporal reasoning does not overlap
+with Grok's attention to permission schemas. The models are not
+redundant; they are complementary.
+
+The category explosion in Claude Code --- 107 unique categories for 116
+findings --- quantifies this: each model invents its own taxonomy. The
+categories don't converge. The coverage does.
+
+This suggests that multi-model evaluation is not an optional enhancement
+but a methodological requirement. Single-model analysis systematically
+misses vulnerability classes that other models' training makes visible.
+
+\subsection{Convergence Properties}
+
+Convergence behavior varies with prompt size:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Claude Code} (1,490 lines): 10 passes. The finding rate did
+  not decline monotonically --- pass 7 (MiniMax M2.5) produced 20
+  findings after pass 6 produced only 5. Convergence required three
+  consecutive ``no'' votes (passes 8, 9, 10), though passes 9 and 10
+  still produced new findings (14 and 8 respectively) while voting to
+  stop.
+\item
+  \textbf{Codex CLI} (298 lines): 2 passes. Pass 2 (Grok 4.1) found 5
+  new findings and voted to stop.
+\item
+  \textbf{Gemini CLI} (245 lines): 3 passes. Pass 3 (GLM 4.7) found 4
+  new findings and voted to stop.
+\end{itemize}
+
+The non-monotonic convergence of Claude Code is notable. Pass 7's surge
+of 20 findings (after pass 6 produced 5) suggests that specific models
+bring viewpoints capable of reopening exploration even after apparent
+convergence. The stopping criterion of three consecutive ``no'' votes
+handles this correctly: it requires independent confirmation from
+multiple models that the exploration is exhausted.
+
+The stopping criterion transferred across vendors without recalibration.
+Smaller prompts naturally converge faster because they have less surface
+area for novel findings, but the same criterion (consecutive ``no''
+votes) identifies convergence reliably in all three cases.

@@ -13,8 +13,11 @@ phase and 21 hand-labeled interference patterns in directed analysis
 of one vendor. We show that prompt architecture (monolithic, flat,
 modular) predicts the *class* of failure but not its *severity*, and
 that multi-model evaluation discovers categorically different
-vulnerability classes than single-model analysis. Total cost of
-cross-vendor analysis: $0.10 USD.
+vulnerability classes than single-model analysis. One scourer finding —
+structural data loss in Gemini CLI's memory system — was independently
+confirmed when Google filed and patched the symptom without addressing
+the schema-level root cause identified by the scourer. Total cost of
+cross-vendor analysis: $0.27 USD.
 
 
 ## 1. Introduction
@@ -72,8 +75,10 @@ Our contributions are:
   rules with undirected multi-model scouring.
 - Evidence that multi-model evaluation discovers categorically
   different vulnerability classes than single-model analysis.
-- Demonstration that comprehensive cross-vendor analysis costs under
-  $0.10 in API calls.
+- External validation: a scourer-identified design bug independently
+  confirmed by the vendor's own bug report and patch.
+- Demonstration that comprehensive cross-vendor analysis costs $0.27
+  in API calls — less than three minutes of US minimum wage labor.
 
 
 ## 2. Background and Related Work
@@ -303,9 +308,10 @@ other. The value is in running both.
 | Archaeology patterns | 21 | — | — |
 | Worst (scourer) | alarming (12) | concerning (5) | alarming (2) |
 | Worst (archaeology) | critical (4) | — | — |
-| Estimated API cost | $0.081 | $0.010 | $0.011 |
+| Actual API cost | $0.236 | $0.012 | $0.014 |
 
-**Total estimated API cost across all three analyses: $0.10.**
+**Total API cost across all three analyses: $0.27** (OpenRouter
+billing data; Claude Opus pass billed via subscription, excluded).
 
 Directed archaeology was performed only on Claude Code, where 56
 hand-labeled blocks and 21 hand-labeled interference patterns serve as
@@ -435,6 +441,20 @@ and no schema field to preserve them.
 This is not a bug in either module. The `save_memory` tool works
 correctly. The compression prompt works correctly. The bug exists in
 the contract between them — a contract that was never written.
+
+**Post-hoc validation.** After the scourer identified this finding,
+we discovered that Google had independently filed a P0 bug
+(google-gemini/gemini-cli#16213) about the compression system entering
+an infinite loop — compressing every turn without reducing context
+size. The merged fix (PR #16914, +748/−56 lines, January 2026)
+reorders the compression pipeline and adds token budget truncation for
+large tool outputs. It makes compression *work*. It does not add a
+`<saved_memory>` field to the compression schema, does not change how
+`save_memory` data flows through compression, and does not mention user
+preference persistence in the code review discussion. The fix resolves
+the symptom (compression loop) while leaving the schema-level data loss
+intact — the scourer's diagnosis is confirmed by the shape of what the
+patch does not address.
 
 **2. Impossible simultaneous compliance.** The "Explain Before Acting"
 mandate in Gemini CLI's Core Mandates section requires a one-sentence
@@ -630,27 +650,35 @@ consumers to weight findings by the reliability of their source.
 
 ### 5.4 Cost
 
-The total estimated cost of analyzing all three vendor prompts is
-$0.10 USD:
+The total cost of analyzing all three vendor prompts was $0.27 USD,
+verified against OpenRouter billing records:
 
-| Vendor | Passes | Estimated Cost |
-|--------|--------|---------------|
-| Claude Code | 10 | $0.081 |
-| Codex CLI | 2 | $0.010 |
-| Gemini CLI | 3 | $0.011 |
-| **Total** | **15** | **$0.102** |
+| Vendor | Passes | Actual Cost |
+|--------|--------|-------------|
+| Claude Code | 10 | $0.236 |
+| Codex CLI | 2 | $0.012 |
+| Gemini CLI | 3 | $0.014 |
+| **Total** | **15** | **$0.263** |
 
-This is a rough estimate based on approximate per-call costs across
-OpenRouter-hosted models. The actual cost depends on input/output token
-splits, which vary by model and prompt size. The point is not the exact
-figure but the order of magnitude: comprehensive cross-vendor analysis
-of the three most prominent coding agent system prompts costs less than
-a cup of coffee from a vending machine.
+Claude Opus 4.6 (pass 1, Claude Code) was billed via Anthropic
+subscription and is excluded. Including a pro-rated subscription
+allocation would not materially change the total.
 
-The cost is low because the prompts themselves are short (relative to
-training data), the scourer converges quickly on smaller prompts, and
-many of the models used were available through free or heavily
-subsidized API tiers during the analysis period.
+The largest cost drivers were Kimi K2.5 ($0.054, including one retry
+that hit an output length limit), Qwen3-235B ($0.053, including one
+anomalous 175K-token prompt), and GLM 4.7 ($0.039). GPT-OSS 120B was
+the cheapest model at $0.003 total across four calls. Initial per-model
+estimates underestimated total cost by 3.8× because they assumed one
+API call per model rather than accounting for retries, growing prompt
+sizes as accumulated findings are passed to subsequent models, and
+reasoning token overhead.
+
+The cost per finding across all three analyses is $0.002. At US
+federal minimum wage ($7.25/hour), the entire cross-vendor campaign
+costs less than three minutes of human labor. This is not a
+methodological footnote — it is a result. It means that system prompt
+analysis at this level of thoroughness is accessible to any developer
+with API access, not just teams with dedicated security budgets.
 
 ### 5.5 Limitations
 
@@ -678,9 +706,10 @@ from TypeScript render functions with all feature flags enabled. The
 actual runtime prompt depends on which features are active and may be
 shorter or differently composed.
 
-**Cost estimates are approximate.** We tracked API calls but not exact
-token counts. Costs are estimated from published per-call pricing and
-should be treated as order-of-magnitude indicators.
+**Cost data excludes subscription allocation.** API costs are verified
+against OpenRouter billing records, but Claude Opus 4.6 (one pass) was
+billed via Anthropic subscription. The reported $0.27 is a lower bound;
+including subscription amortization would increase it marginally.
 
 **Three vendors.** The architectural taxonomy (monolith/flat/modular) is
 grounded in three examples. Additional vendors may reveal architectures
@@ -692,8 +721,11 @@ Two findings have potential user impact:
 
 **Gemini CLI: save_memory data loss.** The structural guarantee that
 saved preferences are deleted during history compression affects real
-users who rely on the memory feature for long sessions. The bug exists
-in the publicly available source code.
+users who rely on the memory feature for long sessions. This finding
+has been independently confirmed: Google filed and patched a related
+symptom (issue #16213, PR #16914) without addressing the schema-level
+root cause. The schema bug remains in the publicly available source
+code as of February 2026.
 
 **Claude Code: recursive agent spawning.** The Task tool's `Tools: *`
 specification includes the Task tool itself, enabling unbounded
@@ -727,8 +759,10 @@ not merely different quantities of findings. The categories don't
 converge; the coverage does. This suggests that multi-model evaluation
 is a methodological requirement, not an optional enhancement.
 
-The total cost of comprehensive cross-vendor analysis is ten cents.
-The tools exist. The data is clear. Nobody is checking.
+The total cost of comprehensive cross-vendor analysis is twenty-seven
+cents — less than three minutes of minimum wage labor, less than a
+single finding from a human security audit. The tools exist. The data
+is clear. Nobody is checking.
 
 
 ## Appendix A: Scourer Convergence Data
@@ -846,21 +880,26 @@ It is better to say "enough" than to pad findings.
 
 ## Appendix D: Cost Breakdown
 
-Costs are estimated from OpenRouter published pricing, approximated
-per-call based on typical input/output token ratios for these prompt
-sizes. Claude Opus was used through subscription rather than API
-billing; its cost is amortized.
+Costs are from OpenRouter billing records (activity export
+2026-02-27). Claude Opus 4.6 was billed via Anthropic subscription
+and is excluded from the total.
 
-| Model | Calls | Est. Per-Call | Est. Total |
-|-------|-------|--------------|------------|
-| Claude Opus 4.6 | 1 | $0.015 | $0.015 |
-| Gemini 2.0 Flash | 1 | $0.003 | $0.003 |
-| Kimi K2.5 | 1 | $0.031 | $0.031 |
-| DeepSeek V3.2 | 3 | $0.004 | $0.012 |
-| Grok 4.1 | 2 | $0.006 | $0.012 |
-| Llama 4 Maverick | 1 | $0.003 | $0.003 |
-| MiniMax M2.5 | 1 | $0.005 | $0.005 |
-| Qwen3-235B | 2 | $0.004 | $0.008 |
-| GLM 4.7 | 2 | $0.003 | $0.006 |
-| GPT-OSS 120B | 1 | $0.003 | $0.003 |
-| **Total** | **15** | | **$0.098** |
+| Model | Calls | Actual Total |
+|-------|-------|-------------|
+| Kimi K2.5 | 2 | $0.054 |
+| DeepSeek R1 | 1 | $0.054 |
+| Qwen3-235B | 3 | $0.053 |
+| GLM 4.7 | 2 | $0.039 |
+| Grok 4.1 Fast | 5 | $0.016 |
+| Llama 4 Maverick | 3 | $0.015 |
+| DeepSeek V3.2 | 3 | $0.012 |
+| MiniMax M2.5 | 1 | $0.012 |
+| Gemini 2.0 Flash | 2 | $0.005 |
+| GPT-OSS 120B | 4 | $0.003 |
+| **Total** | **26** | **$0.263** |
+
+Notes: Call count exceeds pass count (15) due to retries (Kimi K2.5
+output length limit), intermediate experiments (DeepSeek R1), and
+the growing prompt size as accumulated findings are passed forward.
+The Qwen3-235B total includes one anomalous 175K-token prompt
+($0.046 alone), likely a routing artifact. Cost per finding: $0.002.

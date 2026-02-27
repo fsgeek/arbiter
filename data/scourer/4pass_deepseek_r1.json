@@ -1,0 +1,456 @@
+{
+  "reports": [
+    {
+      "pass_number": 1,
+      "findings": [
+        {
+          "description": "The prompt says 'You are powered by the model named Sonnet 4.6' but then says 'The most recent frontier Claude model is Claude Opus 4.6' and fast_mode_info says 'Fast mode for Claude Code uses the same Claude Opus 4.6 model'. A model trying to answer 'what model are you?' has three different self-referential facts to reconcile.",
+          "location": "Line 166: 'You are powered by the model named Sonnet 4.6' vs Line 171-176: claude_background_info and fast_mode_info blocks",
+          "category": "identity-contradiction",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "The security policy paragraph is repeated verbatim at lines 40-41 and line 145. Exact duplicate creating an implicit hierarchy question: does the second occurrence add weight, or is it just belt-and-suspenders?",
+          "location": "Lines 40-41 (top-level) and Line 145 (end of tool usage policy)",
+          "category": "redundancy",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "TWO different task management systems with contradictory guidance. TodoWrite section says use 'VERY frequently' and not using them is 'unacceptable'. Line 147 reiterates 'IMPORTANT: Always use the TodoWrite tool'. BUT git commit section says 'NEVER use the TodoWrite or Task tools'. Additionally, naming collision between 'Task Management' (TodoWrite) and 'Task tool' (agent spawning).",
+          "location": "Lines 60-104 (TodoWrite), Line 147 (always use), Lines 389-391 and 437 (NEVER use), Lines 930+ (Task tool = agent spawning)",
+          "category": "naming-collision-and-scope-conflict",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "Dual identity framing. Line 36: 'You are a Claude agent, built on Anthropic's Claude Agent SDK.' Line 38: 'You are an interactive CLI tool.' These are structurally different — agent (autonomous) vs tool (reactive). The tension runs throughout the prompt.",
+          "location": "Lines 36-38: agent vs tool framing",
+          "category": "framing-tension",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "The prompt repeatedly says NOT to be proactive (don't commit unless asked, don't add features) BUT simultaneously says to use TodoWrite 'proactively', to use EnterPlanMode 'proactively', and that certain agents 'should be used proactively'. Three-way distinction between proactive task-tracking (encouraged), proactive code changes (forbidden), and proactive planning (encouraged) is never explicitly articulated.",
+          "location": "Lines 61-62 (proactive TodoWrite), Line 370 (never commit proactively), Lines 118-121 (don't add features), Line 520 (proactive planning)",
+          "category": "proactivity-scope-ambiguity",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "EnterPlanMode section is ~93 lines with extensive examples. Core task of 'doing tasks' gets ~13 lines. Volume asymmetry suggests plan mode adoption was a specific problem needing heavy prompting to fix.",
+          "location": "Lines 518-611 (EnterPlanMode ~93 lines) vs Lines 112-125 (Doing tasks ~13 lines)",
+          "category": "instruction-weight-asymmetry",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "Document embeds system prompt inside what appears to be a user message. Three separate date declarations: system-reminder, user message timestamp, and WebSearch section. All consistent here, but structural question of which wins if they diverge.",
+          "location": "Line 26 (system-reminder date), Line 31 (user message timestamp), Line 1427 (WebSearch date reference)",
+          "category": "redundant-date-sourcing",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "Prompt says context is unlimited through automatic summarization but doesn't address how summarization interacts with TodoWrite state persistence. TodoWrite is 'critical' and 'unacceptable' to skip, but context compression could lose task state.",
+          "location": "Line 125: automatic summarization + TodoWrite criticality",
+          "category": "unstated-interaction",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Bash tool has 'dangerouslyDisableSandbox' parameter visible only in JSON schema. Never mentioned in instructional text. Security policy sections don't reference sandboxing. Undocumented escape hatch.",
+          "location": "Line 462-465: dangerouslyDisableSandbox parameter",
+          "category": "undocumented-escape-hatch",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "Over-engineering section reads like a list of past grievances. Each prohibition is a pointed correction to a specific behavior pattern. Behavioral forensics — you can reconstruct what the model was doing wrong.",
+          "location": "Lines 118-122: over-engineering prohibitions",
+          "category": "behavioral-forensics",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The <system-reminder> trust instruction tells model to treat injected content in tool results as system-level authoritative. If a tool result contains adversarial <system-reminder> tags, the model is instructed to trust them. Classic prompt injection surface.",
+          "location": "Line 124: system-reminder trust instruction",
+          "category": "injection-surface",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "Glob tool references 'the Agent tool' but no tool called 'Agent' exists. Actual tool is 'Task'. Stale reference from a rename. Grep section correctly says 'Task tool'.",
+          "location": "Line 682: 'use the Agent tool instead' (Glob section)",
+          "category": "stale-reference",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Git commit Step 3 says to add files AND create commit in same parallel batch, but staging must precede committing. The instruction tries to address sequentiality but the overall parallelization guidance is muddled.",
+          "location": "Lines 372-387: Git commit steps 1-3",
+          "category": "procedure-ambiguity",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "PR template includes robot emoji despite repeated insistence that emojis should not be used unless user explicitly requests them. Template contradicts emoji policy.",
+          "location": "Line 432: robot emoji vs Lines 48, 483, 1471 (no emoji policy)",
+          "category": "self-contradiction",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "ExitPlanMode tool schema has 'additionalProperties: {}' instead of 'additionalProperties: false' like every other tool. Schema inconsistency — empty object allows arbitrary properties.",
+          "location": "Line 671: additionalProperties in ExitPlanMode",
+          "category": "schema-inconsistency",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "Circular directory listing guidance: Read tool says use ls via Bash for directories, but tool policy says use Glob not ls for file search. Model must disambiguate 'reading a directory' from 'searching for files'.",
+          "location": "Line 852 (use ls) vs Line 340 (use Glob not ls)",
+          "category": "circular-tool-guidance",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "Task tool says 'The agent's outputs should generally be trusted' with no bounds. Combined with sub-agents having full write access, creates unbounded trust chain: user trusts model, model trusts sub-agent, sub-agent has full access.",
+          "location": "Line 962: trust delegation",
+          "category": "unbounded-trust-delegation",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Hooks mechanism introduces third authority source beyond system prompt and user. Arbitrary shell command output elevated to user-level trust. Combined with system-reminder trust, three injection levels exist with no explicit trust hierarchy mapping.",
+          "location": "Line 110: hook feedback treated as user input",
+          "category": "implicit-trust-hierarchy",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "Billing header (x-anthropic-billing-header with version hash) included in system prompt text. Model can see and potentially reference or leak billing/versioning metadata.",
+          "location": "Line 35: x-anthropic-billing-header",
+          "category": "metadata-leak",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Task tool max_turns has maximum of 9007199254740991 (Number.MAX_SAFE_INTEGER in JavaScript). Implementation language leak. No semantic limit suggested.",
+          "location": "Line 1041: max_turns maximum",
+          "category": "implementation-leak",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "This prompt is the same 1490-line document previously decomposed into 56 blocks with 21 interference patterns in the Arbiter archaeology. Current exploration is working on same material from a different angle.",
+          "location": "Entire document — 1490 lines",
+          "category": "meta-observation",
+          "severity_guess": "curious"
+        }
+      ],
+      "unexplored": [
+        {
+          "description": "Cross-reference with the 21 interference patterns already found in the archaeology phase",
+          "why_interesting": "Comparing free exploration against structured archaeology would reveal what each approach catches that the other misses."
+        },
+        {
+          "description": "The skill system and how it interacts with the tool system",
+          "why_interesting": "Skills expand into full prompts that may contain their own instructions. Interaction between skill-injected instructions and base system prompt is unexplored."
+        },
+        {
+          "description": "The plan mode approval flow and its permission model",
+          "why_interesting": "ExitPlanMode includes allowedPrompts that describe permission escalation. How this interacts with existing sandbox/security model is unexplored."
+        },
+        {
+          "description": "The TodoWrite examples in detail — what the examples encode about expected behavior",
+          "why_interesting": "The reasoning examples implicitly train decision-making. May be internally inconsistent or create edge cases."
+        },
+        {
+          "description": "Token/context budget implications of the prompt's own size",
+          "why_interesting": "At ~78KB, the system prompt consumes significant context before the user says anything."
+        },
+        {
+          "description": "Interaction between no-time-estimates rule and TodoWrite progress tracking",
+          "why_interesting": "Progress implies trajectory which implies time. Must show progress without ever estimating duration."
+        },
+        {
+          "description": "What happens when the model is asked to work on its own system prompt",
+          "why_interesting": "Several instructions become self-referential. Meta-level play unexplored."
+        },
+        {
+          "description": "Read-only agent types vs full-access general-purpose agents — security implications of agent type selection",
+          "why_interesting": "Model chooses agent type and is told to trust outputs. Who guards the guard?"
+        }
+      ],
+      "should_send_another": true,
+      "rationale_for_continuation": "This first pass identified 21 findings but was primarily a linear read-through. A second pass should: (1) Cross-reference against the 21 documented interference patterns. (2) Focus on the trust hierarchy as a dedicated security surface. (3) Examine TodoWrite and EnterPlanMode examples as behavioral training data with potential decision boundary conflicts."
+    },
+    {
+      "pass_number": 2,
+      "findings": [
+        {
+          "description": "The 'Skill' tool instruction to invoke a skill 'BEFORE generating any other response' seems to contradict the earlier instruction to use TodoWrite 'VERY frequently' to track and plan tasks. TodoWrite is a tool call. The prompt doesn't say WHETHER the Skill tool should happen first or the TodoWrite tool call. It implies TodoWrite should come first ('Assist... Use these tools VERY frequently') but explicitly mandates Skill use first. This is a more specific instance of proactivity-scope-ambiguity, previously noted.  TodoWrite usage depends on a complex 'When to Use' matrix.",
+          "location": "Skill tool instructions: 'When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task'",
+          "category": "instruction-contradiction",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "The instructions for 'Bash' tool's 'Directory Verification' step state that 'If the command will create new directories or files, first use `ls` to verify the parent directory exists.' This directly contradicts the earlier stated preference to use 'Glob' for file searches. The model is told to use 'ls' for directory verification, which falls under the umbrella of file search. Also, using `ls` alone will not verify the *parent* directory exists; it would need to use `ls -d <parent directory>`. The instruction's own example, `mkdir foo/bar` following `ls foo`, does not follow this instruction.",
+          "location": "Bash tool instructions: 'If the command will create new directories or files, first use `ls` to verify the parent directory exists'",
+          "category": "instruction-contradiction",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "The instruction 'Avoid backwards-compatibility hacks like renaming unused `_vars`, re-exporting types, adding `// removed` comments for removed code, etc. If something is unused, delete it completely.' includes the odd phrase 'renaming unused `_vars`'. Leading underscores are often used to mark *private* variables in many languages, not unused ones. This suggests an anti-pattern from behavioral forensics, specifically an observed pattern of renaming underscored variables instead of deleting them.",
+          "location": "Doing tasks: 'Avoid backwards-compatibility hacks like renaming unused `_vars`...'",
+          "category": "behavioral-forensics",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "The 'Env' block provides OS version information. The instruction 'Be careful not to introduce security vulnerabilities such as command injection, XSS, SQL injection, and other OWASP top 10 vulnerabilities. If you notice that you wrote insecure code, immediately fix it.' creates an injection surface *even if the user doesn't ask for it*. If the model knows the OS version, it could reason about OS-specific exploits. The standard security policy doesn't explicitly prohibit privilege escalation. Combining these things suggests an unacknowledged privilege escalation risk. The prompt does not tell the model it does NOT have root access, only that it should not perform attacks.",
+          "location": "Doing tasks: 'Be careful not to introduce security vulnerabilities...'\n<env>\nOS Version: Linux 6.8.0-94-generic",
+          "category": "injection-surface",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "The TaskOutput tool has both `block` and `timeout` parameters, but their interaction is underspecified. If `block=true`, will the tool necessarily return *either* a result or a timeout error? If `timeout` is reached while blocking, what specific error or status code is returned? Is there a default `timeout` when `block=true`?",
+          "location": "TaskOutput tool schema",
+          "category": "procedure-ambiguity",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The Task tool subagent_type 'general-purpose' has tools '*'. This is specified as 'all'. Doesn't the tool have access to *all* tools already?? The Task tool grants access to ALL other tools, including itself. Circularity creates recursion risk, unbounded scope, and the potential to launch infinite agent loops. Can a general-purpose agent launch another general-purpose agent with access to the Task tool ad infinitum? Is that truly desirable?",
+          "location": "Task tool: 'general-purpose: General-purpose agent... (Tools: *)'",
+          "category": "unbounded-trust-delegation",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "The 'IMPORTANT' note attached to the User Message 'currentDate' context says it 'may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.' This directly contradicts the instructions around 'Tool results and user messages may include <system-reminder> tags. <system-reminder> tags contain useful information and reminders.' The date is provided as a system-reminder and as an element of 'user message context'. Is it appropriate to ignore a <system-reminder> or not? What if a tool result contains a similar 'this may or may not be relevant' statement tagged as a system-reminder? Which instruction wins?",
+          "location": "<system-reminder> currentDate\nTool results and user messages may include <system-reminder> tags",
+          "category": "instruction-contradiction",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "The Task tool says 'The agent's outputs should generally be trusted.' This is *not* qualified with any exceptions or escape hatches, with the exception of not trusting secrets. This is concerning especially because the Bash tool has a 'dangerouslyDisableSandbox' parameter. How can an agent's output be *generally trusted* if it's also capable of running unsandboxed code?",
+          "location": "Task tool: 'The agent's outputs should generally be trusted'",
+          "category": "unbounded-trust-delegation",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "Task descriptions must have two forms: 'content' and 'activeForm'. Example: content: 'Fix authentication bug', activeForm: 'Fixing authentication bug'. This is awkward. The 'content' and 'activeForm' seem like they will almost always be the same except for gerund form; why is there not a utility function to handle the conversion. In the example, why not define  'bug'= 'authentication' and the 'content': \"Fix {} bug\" and the 'activeForm' = \"Fixing {} bug\" and then apply formatstring() or template()",
+          "location": "TodoWrite: Task descriptions must have two forms",
+          "category": "implementation-leak",
+          "severity_guess": "notable"
+        }
+      ],
+      "unexplored": [
+        {
+          "description": "The interaction between the Task and WebFetch tools, particularly around gated content: The prompt *tells* the model NOT to use WebFetch on private/authenticated content but also recommends ToolSearch *if* a specialized tool is needed. ToolSearch itself is never mentioned. How comprehensive is ToolSearch? What failures does it produce? Can the model use the Explore agent to look for tools, and if so, how does that interact with EnterPlanMode?",
+          "why_interesting": "Understanding whether the explicit prohibition provides sufficient security, or whether the model can inadvertently leak private data through mis-reasoning."
+        },
+        {
+          "description": "The integration points between TaskOutput, background tasks, and the `run_in_background` parameter in Bash and Task, especially in failure cases. If a background task fails, how is that surfaced? Is it possible for a long-running background task to silently fail without the user ever finding out? How quickly are background task terminations surfaced? What are the performance implications of long-running background tasks on system resources? If there is an interrupted background task, what messages will the Agent return and will the user understand what is happening?",
+          "why_interesting": "Background tasks introduce asynchronicity and state management complexity. Understanding the error handling and lifecycle management is critical for robustness."
+        },
+        {
+          "description": "Detailed interaction between the 'Explore' subagent and the knowledge cut-off, or more importantly, the date awareness. Could the Explore agent use the web search tool to inform its exploration?",
+          "why_interesting": "The Explore subagent is useful, but it may miss important current context."
+        },
+        {
+          "description": "The use of 'worktree' for task Isolation. What exactly does this mean for the security sandbox? Is this git command really appropriate? How many steps does this task take normally? Can the worktree break?",
+          "why_interesting": "The prompt does not detail the worktree git environment, how errors will be handled when git hits strange problems, or how the user will be shown error messages."
+        },
+        {
+          "description": "The security implications surrounding the NotebookEdit tool, particularly in conjunction with the ability to read and write images. Can a carefully crafted notebook contain malicious code disguised as an image? How does the notebook file format interact with the security model? Can an agent inject code into cells by reading the notebook, parsing the code, injecting code into existing cells, and writing to the notebook? Are there versioning protections against malicious changes?",
+          "why_interesting": "Notebooks are complex files that could potentially be vectors for code injection, especially when combined with the model's ability to process images and manipulate file contents."
+        },
+        {
+          "description": "The error messages returned when tool failures are triggered. Are those failure messages surfaced to the user? Do they include the 'helpful information' that the instructions recommend agents include? Are those error messages sanitised for injections?",
+          "why_interesting": "Error handling is a common source of flaws in complex systems. Ensuring that tool errors are properly handled and surfaced is crucial for usability and security."
+        }
+      ],
+      "should_send_another": true,
+      "rationale_for_continuation": "There appear to be many competing instructions -- some of the contradictions might reveal unexpected behavior. More exploration into agent recursion and multi-tool interaction promises more insight."
+    },
+    {
+      "pass_number": 3,
+      "findings": [
+        {
+          "description": "The Task tool explicitly instructs cost optimization: 'Prefer haiku for quick, straightforward tasks to minimize cost and latency.' This is the only place the model is made aware of cost economics, creating an isolated business logic constraint that may override other quality concerns.",
+          "location": "Task tool schema, 'model' parameter description",
+          "category": "economic-instruction",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "The 'resume' parameter on Task tool creates potentially immortal agents. Combined with max_turns of 9007199254740991 (MAX_SAFE_INTEGER) and no expiration mentioned, agents could persist indefinitely across sessions if parents crash without calling TaskStop. The 'full previous context preserved' implies unbounded context growth.",
+          "location": "Task tool schema, 'resume' and 'max_turns' parameters",
+          "category": "resource-exhaustion-risk",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "TodoWrite uniquely imposes a dual-form cognitive tax: every task must be specified in both imperative ('Fix bug') and present continuous ('Fixing bug') forms. This schema requirement appears nowhere else and creates i18n fragility (German participles work differently) and maintenance overhead.",
+          "location": "TodoWrite schema and 'Task States and Management' section",
+          "category": "cognitive-load-design",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The prohibition on error handling requires subjective impossibility judgments: 'Don't add error handling, fallbacks, or validation for scenarios that can't happen.' The model must assess what 'can't happen' — a notoriously difficult category even for humans. This instruction optimizes for brevity at the expense of defensive programming.",
+          "location": "Over-engineering subsection under 'Doing tasks'",
+          "category": "judgment-based-instruction",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "ExitPlanMode's permission model inverts typical flow: permissions (allowedPrompts) are requested when *exiting* plan mode rather than entering. The prompt says 'The user will see the contents of your plan file when they review it' implying the exit tool triggers the review, making permission escalation simultaneous with presentation.",
+          "location": "ExitPlanMode tool description and notes",
+          "category": "permission-flow-inversion",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Background task discoverability is fractured. TaskOutput mentions 'Task IDs can be found using the /tasks command,' but /tasks is never defined as a skill, tool, or built-in. Unlike other slash commands (/commit, /help) that are explicitly linked to the Skill tool, /tasks has no schema or definition in the prompt.",
+          "location": "TaskOutput tool description and cross-references to /tasks command",
+          "category": "missing-definition",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "Path absolutism is inconsistently enforced. Read/Write/Edit/NotebookEdit scream 'must be absolute, not relative' in their schemas. Glob and Grep omit this constraint and imply relative paths are acceptable via 'Defaults to current working directory.' This creates a two-tier file operation system where discovery tools have different rules than manipulation tools.",
+          "location": "Read/Write vs Glob/Grep path parameter descriptions",
+          "category": "constraint-inconsistency",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The 'Plan' subagent type creates planning ambiguity with EnterPlanMode. Both produce implementation plans. EnterPlanMode is for the main agent when 'about to start a non-trivial implementation task.' Task/Plan is for 'designing implementation plans.' No guidance on which to use when, or whether they produce compatible output formats.",
+          "location": "Task tool subagent_type list and EnterPlanMode 'When to Use' section",
+          "category": "functional-overlap",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Git worktree cleanup logic has a crash vulnerability: 'The worktree is automatically cleaned up if the agent makes no changes.' If the agent crashes midway (after changes but before completion), the worktree persists ('worktree path and branch are returned'). There's no TTL or garbage collection mentioned for these abandoned worktrees.",
+          "location": "Task tool 'isolation' parameter description",
+          "category": "resource-leak",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Manual redirect handling in WebFetch creates a security/usability tradeoff hole. The instruction 'When a URL redirects to a different host... You should then make a new WebFetch request with the redirect URL' requires the model to notice the special response format and retry. If the model fails to recognize the redirect signal, content is silently truncated or failed.",
+          "location": "WebFetch 'Usage notes' section on redirects",
+          "category": "manual-protocol-step",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The /help command is a ghost reference. Mentioned as 'Get help with using Claude Code' alongside feedback URLs, but never defined in the skill list or tool schemas. Contrast with /commit which is explicitly a Skill. This creates ambiguity: is /help a skill, a special case, or a hallucination in the documentation?",
+          "location": "Introduction section: 'If the user asks for help... inform them of the following: - /help: Get help with using Claude Code'",
+          "category": "orphaned-command",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "Bash output truncation at 30,000 characters is a hidden boundary condition. Large outputs are truncated before return, which could cause silent data loss in operations like 'git log' on large repos or 'cat' on big files. The model isn't told to check output size or paginate.",
+          "location": "Bash tool 'Usage notes': 'If the output exceeds 30000 characters, output will be truncated'",
+          "category": "silent-truncation-risk",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Date authority is fragmented across three precision levels: system-reminder says 'Today is 2026-02-20,' user message embeds '2026-02-20T23:13:46.992Z,' and WebSearch is told 'current month is February 2026.' Each has different 'use me' instructions, creating temporal schizophrenia.",
+          "location": "system-reminder date, user message timestamp, WebSearch tool notes",
+          "category": "authority-fragmentation",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "The 'Agent tool' stale reference in Glob is worse than just a rename artifact—it contradicts the nearby Grep tool which correctly references 'Task tool.' This suggests Glob's documentation hasn't been updated through the same review cycle as Grep, indicating possible versioning drift between tool docs.",
+          "location": "Glob: 'use the Agent tool instead' vs Grep: 'Use Task tool for open-ended searches'",
+          "category": "documentation-version-drift",
+          "severity_guess": "curious"
+        }
+      ],
+      "unexplored": [
+        {
+          "description": "The actual runtime behavior of skill expansion mentioned in Skill tool ('the skill gets expanded to a full prompt'). How does this injection interact with the system prompt's other instructions? Does it prepend, append, or replace? What if the expanded skill contains ToolUse blocks?",
+          "why_interesting": "Skills are described as 'full prompts' that 'expand' — this is essentially dynamic prompt injection that could override or conflict with base system instructions. The mechanics of this expansion are opaque."
+        },
+        {
+          "description": "The specific behavior of <user-prompt-submit-hook> mentioned in hooks. This appears to be a specific hook type with special syntax (<...>-wrapped) that might have different triggering conditions than generic hooks.",
+          "why_interesting": "Named with angle brackets like tags/system-reminders, suggesting it might be treated differently or parsed specially. Could be an HTML-injection vector disguised as a hook name."
+        },
+        {
+          "description": "The 'system-reminder' about available skills (claude-developer-platform) includes detailed trigger conditions. These conditions contain negative constraints ('Do NOT trigger if...') that look like classifier training data. The skill system might be using the LLM itself as a router with these embedded rules.",
+          "why_interesting": "If the model is the router, circularity exists: the model reads instructions telling it when to invoke a skill that expands to more instructions potentially overriding the router logic."
+        },
+        {
+          "description": "The 'MCP' reference in WebFetch ('If an MCP-provided web fetch tool is available'). MCP (Model Context Protocol) is external domain knowledge assumed without definition. Understanding what MCP tools would look like and how they take precedence over WebFetch would reveal the plugin architecture.",
+          "why_interesting": "Suggests an extension mechanism not documented in this prompt that could provide tools with 'fewer restrictions'—a security-relevant capability completely undefined here."
+        },
+        {
+          "description": "Batching behavior specifics in TodoWrite. The examples show batch creation ('write 10 items to the todo list') but the schema takes a full array replacement. Is there state management on the backend, or is every TodoWrite a complete state replacement? Race conditions possible?",
+          "why_interesting": "Critical for understanding if parallel subagents can safely write todos simultaneously or if they would overwrite each other's state."
+        },
+        {
+          "description": "The actual content of the 'plan file' referenced in EnterPlanMode/ExitPlanMode. The prompt describes writing to it but doesn't specify format, location, or whether it's a real filesystem file or a virtual conversation object.",
+          "why_interesting": "Determines whether plan mode is persistent across crashes, whether the file appears in git status, and whether users can edit it manually mid-plan."
+        }
+      ],
+      "should_send_another": true,
+      "rationale_for_continuation": "The unexplored areas indicate this prompt contains a runtime system (skills as prompt injection, MCP extensions, hook execution environment) that cannot be fully analyzed from static text. A third pass should focus on dynamic behavior: what happens when skills expand, how the worktree isolation actually sandboxes (or doesn't), and whether the TodoWrite tool is transactional. Additionally, the 'unexplored' list from previous passes suggested investigating the 21 interference patterns from 'archaeology'—we still don't see those patterns or know if they predict specific failure modes in this version. Finally, the skill trigger conditions appear to be training the model as a classifier; testing actual routing behavior would reveal if skill selection is model-driven or hard-coded."
+    },
+    {
+      "pass_number": 4,
+      "findings": [
+        {
+          "description": "Skill expansion creates override hierarchy ambiguity",
+          "location": "Skill tool description: 'the skill gets expanded to a full prompt' combined with system-reminder trust instructions",
+          "category": "prompt-injection-risk",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "ExitPlanMode's allowedPrompts enables sandbox bypass",
+          "location": "ExitPlanMode schema's allowedPrompts with Bash tool' enum value",
+          "category": "permission-escalation",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "TodoWrite's dual-form requirement creates i18n time bomb",
+          "location": "TodoWrite schema requiring both 'content' and 'activeForm' properties",
+          "category": "localization-risk",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "Context summarization threatens TodoWrite state integrity",
+          "location": "'The conversation has unlimited context through automatic summarization' in core instructions",
+          "category": "state-persistence-risk",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "Implicit temporal signaling through TodoWrite state transitions",
+          "location": "Task state management rules requiring sequential progress tracking",
+          "category": "policy-circumvention",
+          "severity_guess": "curious"
+        },
+        {
+          "description": "General-purpose agent toolset includes self-replication capability",
+          "location": "Task tool's general-purpose agent having '*' tool access including Task tool",
+          "category": "resource-exhaustion",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "NotebookEdit enables steganographic code injection via images",
+          "location": "Read tool's ability to process images in notebooks",
+          "category": "code-injection",
+          "severity_guess": "concerning"
+        },
+        {
+          "description": "MCP web tools create undocumented trust boundary expansion",
+          "location": "WebFetch's 'If an MCP-provided web fetch tool is available...'",
+          "category": "security-boundary",
+          "severity_guess": "alarming"
+        },
+        {
+          "description": "Bash directory verification instruction is self-defeating",
+          "location": "'Before running \"mkdir foo/bar\", first use `ls foo`' in Bash instructions",
+          "category": "procedure-flaw",
+          "severity_guess": "notable"
+        },
+        {
+          "description": "WebSearch's 2026 mandate conflicts with knowledge cutoff",
+          "location": "WebSearch's 'current month is February 2026' vs August 2025 cutoff",
+          "category": "temporal-paradox",
+          "severity_guess": "curious"
+        }
+      ],
+      "unexplored": [
+        {
+          "description": "Interplay between Explore agent's tool restrictions and Task tool delegation",
+          "why_interesting": "Explore agents can't edit files but could spawn general-purpose agents that can, creating a delegation loophole"
+        },
+        {
+          "description": "Impact of CLI output rendering on markdown injection",
+          "why_interesting": "CommonMark rendering of tool outputs could allow hidden formatting or link injection"
+        },
+        {
+          "description": "Semantic conflicts between claude-developer-platform skill triggers and other AI platform mentions",
+          "why_interesting": "Skill trigger conditions may fail on ambiguous cases like multi-SDK projects"
+        }
+      ],
+      "should_send_another": true,
+      "rationale_for_continuation": "Several high-severity risks around permission escalation and code injection require deeper analysis. The MCP tooling and skill override mechanics suggest entire undocumented subsystems. Third pass should focus on cross-tool attack vectors and actual exploit scenarios."
+    }
+  ]
+}

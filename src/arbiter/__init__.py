@@ -4,6 +4,7 @@ __version__ = "0.1.0"
 
 from .block_evaluator import BlockEvaluator, BlockScore
 from .decomposer import Decomposer, DecompositionError
+from .episode import DeclaredLoss, Episode, EpisodeStore, TensorAnchor
 from .heuristic_decomposer import heuristic_decompose
 from .llm_caller import LLMCaller
 from .interference_tensor import InterferenceTensor, TensorEntry

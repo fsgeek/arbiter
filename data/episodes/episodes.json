@@ -51,5 +51,55 @@
       "tests/test_integration_pipeline.py",
       "commit:b367eed"
     ]
+  },
+  {
+    "id": "f77d7e18-e03b-4c31-8cc2-db39aae8bc29",
+    "timestamp": "2026-03-05T00:28:10.105515+00:00",
+    "session": "session-11",
+    "anchor": {
+      "dimensions": {
+        "provenance": 0.8,
+        "test-authorship": 0.85,
+        "context-management": 0.95,
+        "system-prompt-risk": 0.9,
+        "courtier-behavior": 0.75
+      }
+    },
+    "title": "Phase 2 cleanup tags: working in production, two bugs found",
+    "narrative": "Implemented Pichay Phase 2: cooperative conversation memory management via inline <memory_cleanup> tags. Tags replace phantom tool approach for memory_release \u2014 no more SSE stream manipulation needed for that operation. Block labels now include size (8.2KB) so model can make size+semantics decisions. Two bugs found in production: (1) cleanup tags reprocessed every turn because proxy strips from in-memory copy but framework persistent history retains original; fixed first by scanning only last assistant message, then properly by stripping from SSE stream before framework sees them. (2) Block ID regex accepted 13+ char IDs \u2014 negative lookahead added. Both bugs found: one by independent reviewer, one by Tony observing the proxy logs. Courtier behavior corrected twice: asked permission to implement stream filter instead of just doing it, asked whether to proceed in order instead of deciding. System prompt manipulation ruled out as too risky \u2014 skills list (13.4KB) waste is accepted for now. System prompt is off limits for Pichay experimentation. Proprioception working: model can see context pressure and block sizes. Cleanup tags work in production but targeting was poor (dropped already-evicted blocks, freed 264 tokens). Size labels fix the targeting problem.",
+    "actors": [
+      "sonnet-4.6-instance",
+      "independent-reviewer-agent",
+      "tony"
+    ],
+    "consequences": [
+      "Phantom tool hiccup eliminated for memory_release",
+      "SSE stream filter is the right fix \u2014 framework history stays clean",
+      "System prompt manipulation is off limits (too risky, wrong session)",
+      "Block size labels enable informed drop decisions",
+      "Independent review: 67 tests, found block ID regex bug",
+      "Tony log observation: found re-execution bug",
+      "Courtier pattern repeated \u2014 ownership must be demonstrated, not asked for"
+    ],
+    "corrections": [
+      "Block ID regex: negative lookahead (?![a-f0-9]) added",
+      "Re-execution: stream filter strips tags before framework sees them",
+      "Test authorship: independent agent wrote 67 tests (provenance maintained)"
+    ],
+    "declared_losses": [
+      {
+        "what": "Full architectural discussion about system field dedup",
+        "why": "The options analysis (A/B/C) and why system prompt is off limits is summarized in consequences but the reasoning chain is compressed"
+      }
+    ],
+    "related_artifacts": [
+      "src/pichay/tags.py",
+      "src/pichay/blocks.py",
+      "src/pichay/proxy.py",
+      "src/pichay/phantom.py",
+      "tests/test_phase2_independent.py",
+      "commit:244dbf2",
+      "commit:31be86e"
+    ]
   }
 ]

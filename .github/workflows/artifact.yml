@@ -1,0 +1,33 @@
+name: artifact-verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Sync dependencies
+        run: uv sync --extra dev --extra paper
+
+      - name: Deterministic tests
+        run: uv run pytest -q -m 'not integration'
+
+      - name: Rebuild deterministic analysis artifacts
+        run: uv run python scripts/analyze_scourer_data.py
+
+      - name: Verify artifact manifest
+        run: uv run python scripts/generate_artifact_manifest.py --check data/analysis/artifact_manifest.json

@@ -1,127 +1,104 @@
 # Arbiter
 
-A three-tier evaluation framework for resolving conflicts in LLM-mediated query systems.
+Arbiter is a system-prompt interference analysis toolkit for LLM coding agents.
 
-## The Problem
+It combines:
+- directed structural evaluation (rule-based, exhaustive within the rule frame), and
+- undirected multi-model scouring (open-ended discovery outside the rule frame).
 
-When an LLM receives contradictory instructions, it doesn't tell you. It confabulates a reconciliation and moves on, producing output that looks confident but is quietly wrong. Feed it a prompt assembled from multiple sources — some authoritative, some contextual, some untrusted — and it treats them all as undifferentiated text in the context window, smoothing over contradictions rather than surfacing them.
+This repository contains the implementation, cached analysis data, and paper artifacts used in the current Arbiter study.
 
-This produces a condition that appears isomorphic to cognitive dissonance: the LLM's output quality degrades in measurable ways when its instructions conflict. Not because it "feels confused" (that's a philosophical question we're not trying to answer here) but because contradictory constraints produce incoherent outputs. This is empirically observable and practically damaging.
+## What This Repo Currently Provides
 
-The root cause is architectural. There is no standard mechanism for separating instructions by trust level, distinguishing immutable rules from mutable context, or giving the LLM a way to say "these instructions conflict and I cannot cleanly resolve this" instead of silently guessing.
+- CLI for structural and optional LLM-assisted prompt analysis
+- Rule engine and interference tensor output
+- Prompt decomposition (heuristic and LLM-assisted)
+- Prompt AST parsing and diffing utilities
+- Scourer analysis scripts and cached campaign data
+- Paper source and figure generation pipeline
+- Deterministic artifact reproduction script + hash manifest check
 
-## The Proposed Solution
+## Quick Start
 
-Arbiter introduces a three-tier evaluation architecture that explicitly separates concerns:
+Prerequisites:
+- Python `>=3.14`
+- `uv`
 
-### System Layer
+Install:
 
-The foundational evaluation framework — the constitution. This layer defines invariant rules for how the LLM judge operates. It must be internally consistent; no contradictions are permitted at this level. The system layer provides the ground rules for evaluating content in the other two layers and establishes the neutral observer perspective. It is defined once, validated for consistency, and does not change during evaluation. If you need different system-level behavior, you define a different system layer — you don't patch this one at runtime.
-
-### Domain Layer
-
-The contextual knowledge layer. This provides domain-specific information the LLM judge needs to do its work. It is mutable — it changes as the domain evolves — and may contain conflicts. That's expected. The domain layer is trusted but not unconditionally: the system layer governs how conflicts within the domain layer are detected, reported, and (where possible) resolved.
-
-### Application Layer
-
-The untrusted input — the actual query or request to be evaluated. This is assessed against the system and domain layers to determine if it can be cleanly resolved. When it cannot, Arbiter returns an explicit, structured description of why. It does not confabulate. It does not silently pick one interpretation. It tells you what the conflict is, where it arises, and what information would be needed to resolve it.
-
-## Architecture
-
-```
-┌─────────────────────────────────┐
-│         System Layer            │
-│  Invariant evaluation rules.    │
-│  Validated for consistency.     │
-│  Does not change at runtime.    │
-├─────────────────────────────────┤
-│         Domain Layer            │
-│  Contextual domain knowledge.   │
-│  Mutable. May contain conflicts.│
-│  Conflict handling governed by  │
-│  system layer.                  │
-├─────────────────────────────────┤
-│       Application Layer         │
-│  Untrusted input.               │
-│  Evaluated against system and   │
-│  domain layers.                 │
-│  Returns resolution or explicit │
-│  conflict report.               │
-└─────────────────────────────────┘
+```bash
+uv sync --extra dev --extra paper
 ```
 
-The architecture is domain-agnostic. The system and application layers are independent of any particular use case. The domain layer is the pluggable piece that adapts Arbiter to specific contexts.
+Run default structural analysis (built-in Claude Code ground truth corpus):
 
-## Example Domains
-
-Arbiter applies anywhere an LLM operates with layered instructions that can conflict. Some concrete cases:
-
-**Database query generation.** Late-binding schema descriptions guide LLM generation of queries. These descriptions evolve, are written by different people at different times, and contradict each other. Without Arbiter, the LLM silently produces subtly wrong queries. With Arbiter, contradictions in the schema descriptions are detected and reported before query generation proceeds. The [Indaleko](https://github.com/fsgeek/indaleko) project provides the first reference implementation of a domain layer for this case, mapping human episodic memory concepts to ArangoDB AQL queries.
-
-**RAG pipelines.** Retrieved context chunks may contain contradictory information. Arbiter can evaluate whether the retrieved context is internally consistent before the LLM attempts to synthesize a response from it.
-
-**Code generation.** Style guides, framework documentation, and user requirements may disagree. Arbiter can surface these conflicts rather than letting the LLM silently favor one source over another.
-
-**Multi-agent systems.** When multiple agents provide guidance to a downstream LLM, that guidance may conflict. Arbiter provides a structured way to detect this before the downstream LLM acts on incoherent instructions.
-
-**Tool use.** Tool descriptions and user intent don't always align. Arbiter can evaluate whether the application query is consistent with the tool's documented behavior before execution.
-
-Each of these requires only a domain layer definition. The system and application layers remain the same.
-
-## Usage
-
-```python
-from arbiter import Arbiter, SystemLayer, DomainLayer
-
-# Define the system layer (the constitution)
-system = SystemLayer.from_file("system_rules.yaml")
-system.validate()  # Fails if internally inconsistent
-
-# Define the domain layer (contextual knowledge)
-domain = DomainLayer.from_file("my_domain.yaml")
-
-# Evaluate an application query
-result = Arbiter(system, domain).evaluate(query)
-
-if result.resolved:
-    # Clean resolution
-    process(result.output)
-else:
-    # Conflict detected — result.conflicts describes what and why
-    handle_conflicts(result.conflicts)
+```bash
+uv run arbiter
 ```
 
-## Evaluation Harness
+Analyze a prompt file structurally:
 
-Arbiter includes a test harness for characterizing evaluation behavior across:
+```bash
+uv run arbiter path/to/prompt.md
+```
 
-- **Clean queries** — unambiguous requests that should resolve without issue
-- **Ambiguous queries** — underspecified but not conflicting
-- **Conflicting queries** — domain layer contains contradictory guidance
-- **Adversarial queries** — designed to exploit gaps between layers
-- **Evolution scenarios** — domain layer updates that introduce new conflicts
+Run full mode (LLM decomposition + LLM rule evaluation; costs API money):
 
-The harness produces structured output for analysis and regression testing. The goal is not coverage metrics — it's confidence that regressions in conflict detection are caught immediately.
+```bash
+uv run arbiter path/to/prompt.md --full
+```
 
-## For AI Coding Instances
+## CLI Summary
 
-If you're an AI instance working in this repository: welcome.
+`arbiter [path] [--full] [--budget N] [-o output.json] [-q]`
 
-This project values epistemic honesty over completion. If you encounter a design decision that doesn't make sense, say so rather than implementing around it. If a test reveals unexpected behavior, that's data — surface it. If the system layer's conflict-free invariant is hard to maintain, that difficulty is the point, not a bug to be worked around.
+Behavior:
+- no `path`: analyzes built-in ground-truth corpus (`data/prompts/claude-code/v2.1.50_blocks.json`)
+- `.json` path: treated as pre-decomposed corpus
+- other text path: heuristic decomposition in structural mode, LLM decomposition in `--full`
 
-The three-tier separation is the core architectural commitment. Everything else is negotiable. If you see a better way to implement conflict detection, propose it. If the API feels wrong, say why. The human steward of this project has a high tolerance for "I think this is wrong because..." and a low tolerance for silent workarounds that hide problems.
+`--full` requires `OPENROUTER_API_KEY` or `OPENAI_API_KEY`.
 
-If you make a non-trivial architectural choice, document why. Future instances will thank you.
+## Reproducibility
 
-## Status
+For deterministic paper artifact reproduction:
 
-Early development. The architecture is defined. The implementation is beginning.
+```bash
+bash scripts/reproduce_artifact.sh
+```
+
+This runs deterministic tests (excluding integration), regenerates analysis outputs/figures, rebuilds the paper PDF, and writes the artifact manifest.
+
+Detailed instructions: [`ARTIFACT.md`](ARTIFACT.md)
+
+## Project Layout
+
+- `src/arbiter/` core package
+- `scripts/` analysis + orchestration scripts
+- `data/` cached prompts, scourer outputs, analysis artifacts
+- `docs/paper/` LaTeX paper and generated figures
+- `tests/` deterministic + integration test suites
+
+## Test Strategy
+
+Deterministic local/CI checks:
+
+```bash
+uv run pytest -q -m 'not integration'
+```
+
+Live integration checks (model behavior can drift over time):
+
+```bash
+uv run pytest -m integration
+```
+
+## Current Scope and Limits
+
+- Primary contribution is static/system-prompt analysis methodology and tooling.
+- Runtime behavioral validation is limited and treated explicitly as a limitation in the paper.
+- Integration tests against live models are useful signals, not strict regressions.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
-## Related Projects
-
-- [Indaleko](https://github.com/fsgeek/indaleko) — Unified personal indexing system (first domain use case)
-- [Mallku](https://github.com/fsgeek/mallku) — Multi-generational AI collaboration framework
+MIT. See [`LICENSE`](LICENSE).

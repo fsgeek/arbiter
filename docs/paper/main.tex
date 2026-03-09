@@ -36,7 +36,7 @@
 \title{\textbf{Arbiter: Detecting Interference in LLM Agent System Prompts}\\[0.5em]
 \large A Cross-Vendor Analysis of Architectural Failure Modes}
 
-\author{Project Arbiter}
+\author{Tony Mason \\ the University of British Columbia \\ the Georgia Institute of Technology \\ fsgeek@\{cs.ubc.ca,gatech.edu,wamason.com\} }
 
 \date{March 2026}
 
@@ -55,7 +55,8 @@ prompts---Claude Code (Anthropic), Codex CLI (OpenAI), and Gemini CLI
 (Google)---we identify 152 findings across the undirected scouring
 phase and 21 hand-labeled interference patterns in directed analysis
 of one vendor. We show that prompt architecture (monolithic, flat,
-modular) predicts the \emph{class} of failure but not its
+modular) strongly correlates with observed \emph{failure class} but not
+with
 \emph{severity}, and that multi-model evaluation discovers
 categorically different vulnerability classes than single-model
 analysis. One scourer finding---structural data loss in Gemini CLI's
@@ -111,7 +112,7 @@ phases:
 
 Applied to three major coding agent system prompts, these two phases
 reveal 152 scourer findings and 21 hand-labeled interference patterns.
-The findings organize into a taxonomy determined by prompt
+The findings organize into a taxonomy correlated with prompt
 architecture: monolithic prompts produce growth-level bugs at subsystem
 boundaries, flat prompts trade capability for consistency, and modular
 prompts produce design-level bugs at composition seams.
@@ -295,7 +296,9 @@ v2.1.50 identified 21 interference patterns:
 
 Of these 21 patterns, 20 (95\%) were statically detectable---a
 compiler checking scope overlap and modality conflict would catch them
-without any LLM involvement.
+without any LLM involvement. The one non-static pattern was the
+plan-mode dead zone (implicit dependency), which requires semantic
+reasoning over cross-section interactions rather than local syntax.
 
 
 \subsection{Undirected Evaluation: Multi-Model Scouring}
@@ -511,7 +514,8 @@ prompt has more surface area for serious contradictions.
 \label{sec:architecture}
 
 The central finding of this analysis is that prompt architecture
-predicts failure mode class. Three architectural patterns produce three
+strongly correlates with observed failure mode class. Three
+architectural patterns produce three
 characteristic classes of bug.
 
 
@@ -681,6 +685,8 @@ redundant; they are complementary.
 The category explosion in Claude Code---107 unique categories for 116
 findings---quantifies this: each model invents its own taxonomy. The
 categories don't converge. The coverage does.
+The ten meta-categories in \Cref{fig:heatmap} are analyst-curated for
+interpretability, and alternative groupings are possible.
 
 \begin{figure}[H]
 \centering
@@ -844,17 +850,17 @@ evaluation rules are a prototype of this infrastructure.
 
 \subsection{The Observer's Paradox}
 
-The executing LLM smooths over contradictions via ``judgment.'' When
-Claude Code encounters ``ALWAYS use TodoWrite'' and ``NEVER use
-TodoWrite'' in the same context, it picks one. The system
-works---most of the time. This is precisely why the contradictions
-persist: they cause no visible errors, only invisible inconsistency.
-
 The thesis---\textbf{the agent that resolves the conflict cannot be the
 agent that detects it}---has a precise formulation: the heuristic that
 enables an LLM to navigate contradictory instructions is the same
 heuristic that prevents it from recognizing those instructions as
 contradictory. Detection requires a different vantage point.
+
+The executing LLM smooths over contradictions via ``judgment.'' When
+Claude Code encounters ``ALWAYS use TodoWrite'' and ``NEVER use
+TodoWrite'' in the same context, it picks one. The system
+works---most of the time. This is precisely why the contradictions
+persist: they cause no visible errors, only invisible inconsistency.
 
 \subsection{Severity and Epistemic Confidence}
 
@@ -954,8 +960,9 @@ enabled.
 is a lower bound.
 
 \textbf{Three vendors.} The architectural taxonomy is grounded in three
-examples. Additional vendors may reveal architectures that don't fit
-this taxonomy.
+examples. The architecture--failure-mode claim should be read as a
+strong correlation in this sample, not a universal law. Additional
+vendors may reveal architectures that don't fit this taxonomy.
 
 
 \subsection{Responsible Disclosure}
@@ -1005,6 +1012,21 @@ The total cost of comprehensive cross-vendor analysis is twenty-seven
 cents---less than three minutes of minimum wage labor, less than a
 single finding from a human security audit. The tools exist. The data
 is clear. Nobody is checking.
+
+
+% ============================================================
+\section{Code and Data Availability}
+\label{sec:availability}
+
+Code, analysis scripts, and reproducibility artifacts are available at
+\url{https://github.com/<org-or-user>/arbiter} (paper snapshot:
+tag \texttt{vX.Y-paper}, commit \texttt{<commit-hash>}).
+
+A frozen archival snapshot is available via Zenodo DOI:
+\url{https://doi.org/<zenodo-doi>}.
+
+The deterministic reproduction workflow and artifact manifest checks are
+documented in \texttt{ARTIFACT.md} in the repository.
 
 
 % ============================================================

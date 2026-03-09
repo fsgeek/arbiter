@@ -293,6 +293,46 @@ The pattern is familiar from software engineering: static analysis
 catches what unit tests miss, and vice versa. Neither subsumes the
 other. The value is in running both.
 
+### 3.6 Structural Analysis: Prompt AST
+
+Both the directed and undirected phases analyze what the prompt *says*.
+A third analytical layer examines what the prompt *is* — its structural
+properties as a document.
+
+We built a two-layer parser that produces an abstract syntax tree (AST)
+for any system prompt:
+
+**Structural layer.** The parser decomposes a prompt into a tree of
+typed nodes: Document → Section → (Paragraph | Directive | List |
+CodeBlock | Metadata). This is vendor-neutral — it operates on the
+document's physical structure (headings, bullet lists, code fences),
+not on any vendor's conventions.
+
+**Semantic layer.** Each node is classified by semantic role (identity,
+policy, safety, tool_usage, workflow, format, memory_policy,
+environment, meta) and assigned to a channel (behavior, tool_schema,
+memory, environment). Role assignment uses the node's content and its
+position in the section hierarchy — a "NEVER" under a Safety heading
+carries different semantics than a "NEVER" under Tone and Style.
+
+**Structural hashing.** Each node receives a content-independent
+structural hash based on its type, depth, and position among siblings.
+This enables clone detection across prompt versions: two nodes with the
+same structural hash occupy the same position in the document skeleton,
+regardless of whether their content has changed.
+
+**AST diffing.** Given two ASTs, the differ classifies every node as
+added, removed, modified (same structural hash, different content), or
+moved (same content hash, different structural hash). This produces a
+precise changelog between prompt versions without relying on line-level
+text diffing, which is confounded by reformatting.
+
+The parser was validated against all three vendor prompts and two
+versions of Claude Code (v2.1.50 and v2.1.71). Classification accuracy
+was assessed by manual review of the semantic role assignments; the
+"unknown" rate (nodes that could not be classified) serves as a quality
+metric for both the parser and the prompt's structural clarity.
+
 
 ## 4. Results
 

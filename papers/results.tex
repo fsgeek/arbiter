@@ -46,6 +46,44 @@ Alarming & 12 (10\%) & 0 (0\%) & 2 (10\%) \\
 \end{tabular}
 \end{table*}
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth,
+  height=5.5cm,
+  ybar,
+  bar width=6pt,
+  ylabel={Number of findings},
+  symbolic x coords={Curious,Notable,Concerning,Alarming},
+  xtick=data,
+  xticklabel style={font=\footnotesize},
+  legend style={at={(0.98,0.98)},anchor=north east,font=\footnotesize},
+  ymin=0, ymax=40,
+  grid=major,
+  grid style={gray!30},
+  enlarge x limits=0.2,
+]
+\addplot[fill=blue!70] coordinates {
+  (Curious,34) (Notable,36) (Concerning,34) (Alarming,12)
+};
+\addlegendentry{Claude Code}
+\addplot[fill=red!70] coordinates {
+  (Curious,3) (Notable,7) (Concerning,5) (Alarming,0)
+};
+\addlegendentry{Codex CLI}
+\addplot[fill=olive!70] coordinates {
+  (Curious,4) (Notable,9) (Concerning,6) (Alarming,2)
+};
+\addlegendentry{Gemini CLI}
+\end{axis}
+\end{tikzpicture}
+\caption{Severity distribution across vendors. Claude Code's distribution
+  is notably uniform; Codex and Gemini CLI peak at ``notable.''
+  Only Claude Code and Gemini CLI produced ``alarming'' findings.}
+\label{fig:severity}
+\end{figure}
+
 Claude Code's distribution is notably uniform across the lower three
 levels, with a long tail of alarming findings. Codex and Gemini CLI both
 peak at ``notable'' --- more findings are interesting-but-not-dangerous
@@ -116,7 +154,7 @@ observations rather than operational bugs:
   operational one.
 \item
   AGENTS.md precedence hierarchy creates a three-layer authority system
-  (system defaults \textless{} AGENTS.md \textless{} user instructions)
+  (system defaults $<$ AGENTS.md $<$ user instructions)
   where the ordering is clear in isolation but complex in practice.
 \item
   Sequential plan status tracking (``exactly one item in\_progress at a
@@ -127,7 +165,7 @@ observations rather than operational bugs:
   prompt truncation or an unfinished addition.
 \item
   Leaked implementation details: explicit suppression of an inline
-  citation format (``【F:README.md†L5-L14】'') reveals rendering-system
+  citation format (\texttt{[F:README.md\textsuperscript{\dag}L5-L14]}) reveals rendering-system
   specifics.
 \end{itemize}
 
@@ -156,7 +194,7 @@ this pattern:
 includes a nested ``History Compression System Prompt'' --- a complete
 secondary prompt that governs how conversation history is summarized
 when context limits are reached. This compression prompt defines a rigid
-XML schema (\texttt{\textless{}state\_snapshot\textgreater{}}) that
+XML schema (\texttt{<state\_snapshot>}) that
 becomes ``the agent's only memory'' post-compression. The
 \texttt{save\_memory} tool allows users to store global preferences.
 However, the compression schema contains no field for saved memories or
@@ -176,12 +214,13 @@ an infinite loop --- compressing every turn without reducing context
 size. The merged fix (PR \#16914, +748/−56 lines, January 2026) reorders
 the compression pipeline and adds token budget truncation for large tool
 outputs. It makes compression \emph{work}. It does not add a
-\texttt{\textless{}saved\_memory\textgreater{}} field to the compression
+\texttt{<saved\_memory>} field to the compression
 schema, does not change how \texttt{save\_memory} data flows through
 compression, and does not mention user preference persistence in the
 code review discussion. The fix resolves the symptom (compression loop)
-while leaving the schema-level data loss intact --- the scourer's
-diagnosis is confirmed by the shape of what the patch does not address.
+while leaving the schema-level data loss intact. This is consistent with
+the scourer's structural diagnosis, though confirming the runtime data
+loss requires a dedicated experiment (see Future Work).
 
 \textbf{2. Impossible simultaneous compliance.} The ``Explain Before
 Acting'' mandate in Gemini CLI's Core Mandates section requires a
@@ -193,21 +232,30 @@ compliance with both rules is structurally impossible. The agent must
 either explain (violating minimalism) or stay minimal (violating
 transparency).
 
-Additional modular composition bugs: - \textbf{Ghost parameter:}
-Efficiency guidelines reference \texttt{read\_file} with an
-\texttt{old\_string} parameter, conflating it with the \texttt{replace}
-tool. This suggests the guidelines were written for a prior version of
-the toolset. - \textbf{Context bomb:} The Git workflow mandates
-\texttt{git\ diff\ HEAD} before every commit, with no size limit. For
-large changes, this can generate tens of thousands of tokens, violating
-the prompt's own efficiency mandates. - \textbf{Skill lifecycle gap:}
-Skills can be activated but have no defined deactivation mechanism.
-Multiple activated skills have no conflict resolution protocol.
+Additional modular composition bugs:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Ghost parameter:} Efficiency guidelines reference
+  \texttt{read\_file} with an \texttt{old\_string} parameter, conflating
+  it with the \texttt{replace} tool. This suggests the guidelines were
+  written for a prior version of the toolset.
+\item
+  \textbf{Context bomb:} The Git workflow mandates
+  \texttt{git diff HEAD} before every commit, with no size limit. For
+  large changes, this can generate tens of thousands of tokens, violating
+  the prompt's own efficiency mandates.
+\item
+  \textbf{Skill lifecycle gap:} Skills can be activated but have no
+  defined deactivation mechanism. Multiple activated skills have no
+  conflict resolution protocol.
+\end{itemize}
 
 \textbf{Modular prognosis:} These bugs cannot be fixed by editing one
 module. They require changing the architectural contracts between
 modules --- adding a
-\texttt{\textless{}saved\_preferences\textgreater{}} field to the
+\texttt{<saved\_preferences>} field to the
 compression schema, defining a precedence rule between transparency and
 minimalism, specifying skill lifecycle management. The modules are
 individually clean; the composition is where the bugs live.
@@ -252,7 +300,7 @@ training:
 
 \begin{table*}[t]
 \small
-\begin{tabular}{@{}ll@{}}
+\begin{tabular}{@{}lp{0.6\textwidth}@{}}
 \toprule
 Model & Characteristic Focus \\
 \midrule
@@ -283,7 +331,51 @@ This suggests that multi-model evaluation is not an optional enhancement
 but a methodological requirement. Single-model analysis systematically
 misses vulnerability classes that other models' training makes visible.
 
+One methodological caveat: because each pass receives accumulated
+findings from prior passes, the model ordering may influence which
+findings each model produces. A model running first sees a blank map; a
+model running seventh sees a detailed one. We did not ablate model
+ordering in this study; doing so is a natural extension (see Future
+Work).
+
 \subsection{Convergence Properties}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth,
+  height=5.5cm,
+  xlabel={Pass number},
+  ylabel={Cumulative findings},
+  legend style={at={(0.02,0.98)},anchor=north west,font=\footnotesize},
+  grid=major,
+  grid style={gray!30},
+  xtick={1,2,3,4,5,6,7,8,9,10},
+  xmin=0.5, xmax=10.5,
+  ymin=0, ymax=125,
+  mark size=2pt,
+  thick,
+]
+\addplot[blue,mark=*] coordinates {
+  (1,21) (2,30) (3,44) (4,56) (5,66) (6,71) (7,91) (8,94) (9,108) (10,116)
+};
+\addlegendentry{Claude Code}
+\addplot[red,mark=square*] coordinates {
+  (1,10) (2,15)
+};
+\addlegendentry{Codex CLI}
+\addplot[olive,mark=triangle*] coordinates {
+  (1,12) (2,17) (3,21)
+};
+\addlegendentry{Gemini CLI}
+\end{axis}
+\end{tikzpicture}
+\caption{Cumulative scourer findings by pass. Claude Code's non-monotonic
+  rate (pass~7 surge) demonstrates that specific models reopen exploration
+  after apparent convergence. Smaller prompts converge in 2--3~passes.}
+\label{fig:convergence}
+\end{figure}
 
 Convergence behavior varies with prompt size:
 
@@ -311,7 +403,11 @@ convergence. The stopping criterion of three consecutive ``no'' votes
 handles this correctly: it requires independent confirmation from
 multiple models that the exploration is exhausted.
 
-The stopping criterion transferred across vendors without recalibration.
+The stopping criterion is best understood as \emph{coverage convergence}
+rather than finding-rate decline: when multiple independent models agree
+that the remaining unexplored territory is unlikely to yield
+structurally novel findings, the exploration has covered its accessible
+space. This criterion transferred across vendors without recalibration.
 Smaller prompts naturally converge faster because they have less surface
 area for novel findings, but the same criterion (consecutive ``no''
 votes) identifies convergence reliably in all three cases.

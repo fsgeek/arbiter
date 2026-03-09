@@ -16,9 +16,9 @@ applies to both, and it predicts the same classes of failure:
   Flat systems trade capability for consistency.
 \end{itemize}
 
-This is not a coincidence. It is Conway's Law~\cite{conway1968committees}
-applied to a new medium: the structure of the prompt reflects the
-structure of the team that produced it. Claude Code's monolithic prompt --- with its TodoWrite
+This is not a coincidence. It is Conway's Law applied to a new medium:
+the structure of the prompt reflects the structure of the team that
+produced it. Claude Code's monolithic prompt --- with its TodoWrite
 subsystem contradicting its commit workflow --- reads like the output of
 separate teams adding capabilities to a shared artifact without
 cross-team integration testing.
@@ -105,12 +105,16 @@ call per model rather than accounting for retries, growing prompt sizes
 as accumulated findings are passed to subsequent models, and reasoning
 token overhead.
 
-The cost per finding across all three analyses is \$0.002. At US federal
-minimum wage (\$7.25/hour), the entire cross-vendor campaign costs less
-than three minutes of human labor. This is not a methodological footnote
---- it is a result. It means that system prompt analysis at this level
-of thoroughness is accessible to any developer with API access, not just
-teams with dedicated security budgets.
+The cost per finding across all three analyses is \$0.002. The \$0.27
+figure reflects the marginal cost of running the analysis --- the API
+calls required once the methodology is established. Human time for
+initial prompt decomposition and findings triage is additional, but this
+cost amortizes: analyzing a new prompt version or a new vendor's prompt
+requires only API calls, not re-engineering. At U.S. federal minimum
+wage (\$7.25/hour), the marginal cost of the entire cross-vendor
+campaign is less than three minutes of labor. This means that system
+prompt analysis at this level of thoroughness is accessible to any
+developer with API access, and can be run on every release.
 
 \subsection{Limitations}
 
@@ -145,8 +149,14 @@ lower bound; including subscription amortization would increase it
 marginally.
 
 \textbf{Three vendors.} The architectural taxonomy
-(monolith/flat/modular) is grounded in three examples. Additional
-vendors may reveal architectures that don't fit this taxonomy.
+(monolith/flat/modular) is grounded in three examples. However, as of
+February 2026, Claude Code, Codex CLI, and Gemini CLI are the only
+major coding agents whose complete system prompts are publicly available
+--- via published packages, open-source repositories, or inspectable
+source code. This is not a sample from a larger population; it is the
+population. Additional vendors may publish system prompts in the future,
+and their architectures may not fit this taxonomy, but the current
+analysis covers the available universe of inspectable artifacts.
 
 \subsection{Responsible Disclosure}
 
@@ -155,8 +165,8 @@ Two findings have potential user impact:
 \textbf{Gemini CLI: save\_memory data loss.} The structural guarantee
 that saved preferences are deleted during history compression affects
 real users who rely on the memory feature for long sessions. This
-finding has been independently confirmed: Google filed and patched a
-related symptom (issue \#16213, PR \#16914) without addressing the
+finding is consistent with a vendor-filed P0 bug report: Google patched
+a related symptom (issue \#16213, PR \#16914) without addressing the
 schema-level root cause. The schema bug remains in the publicly
 available source code as of February 2026.
 
@@ -168,3 +178,49 @@ make this explicit.
 
 Both findings derive from publicly available artifacts. We have not
 tested whether these structural conditions manifest as runtime failures.
+
+\subsection{Future Work}
+
+Several extensions follow directly from this analysis:
+
+\textbf{Model ordering ablation.} The scouring phase runs models in a
+fixed order, with each pass receiving accumulated findings. Does the
+order matter? Running the same model set in permuted orders would reveal
+whether early models prime later ones or whether coverage converges
+regardless of ordering. A secondary question: does the stopping
+criterion (three consecutive ``no'' votes) remain stable under
+reordering?
+
+\textbf{Convergence criterion analysis.} The current stopping criterion
+was chosen by inspection and transferred across three prompts without
+recalibration. A more principled analysis would characterize the
+relationship between prompt size, model diversity, and passes to
+convergence --- determining whether the criterion reflects coverage
+saturation or model fatigue.
+
+\textbf{Runtime validation.} This work identifies structural conditions
+for failure. Confirming that these conditions produce actual runtime
+misbehavior requires controlled experiments: presenting an LLM with
+contradictory instructions and measuring which instruction it follows
+across repeated invocations. The Gemini CLI memory loss finding is a
+particularly clean test case.
+
+\textbf{LLM inter-annotator agreement.} The scourer uses multiple models
+but does not measure agreement. Running the same prompt through the same
+model set multiple times would yield inter-annotator reliability
+metrics, distinguishing stable findings from stochastic artifacts.
+
+\textbf{Thematic analysis.} The 152 scourer findings across three
+vendors have not been thematically coded. A systematic coding pass would
+reveal whether the vulnerability categories discovered independently by
+different models converge into a stable taxonomy.
+
+\textbf{Longitudinal prompt analysis.} System prompts evolve across
+releases. Applying Arbiter to multiple versions of the same prompt would
+track whether interference patterns accumulate, migrate, or get resolved
+over time --- and whether fixes introduce new contradictions.
+
+\textbf{Data auditor judge.} The current review pipeline (Rikuy) lacks a
+judge that verifies numerical claims against source data. Adding a data
+auditor would catch the class of errors where text claims diverge from
+the tables and appendices that support them.

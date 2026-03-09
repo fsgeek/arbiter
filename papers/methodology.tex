@@ -104,7 +104,10 @@ v2.1.50 identified 21 interference patterns:
 
 Of these 21 patterns, 20 (95\%) were statically detectable --- a
 compiler checking scope overlap and modality conflict would catch them
-without any LLM involvement.
+without any LLM involvement. This is itself a central finding: the
+majority of system prompt interference does not require AI to detect.
+Conventional static analysis techniques, adapted to the prompt domain,
+would catch most of what we found.
 
 \subsection{Undirected Evaluation: Multi-Model Scouring}
 
@@ -177,6 +180,55 @@ a roughly logarithmic relationship between prompt size and passes to
 convergence, though three data points cannot confirm this.
 
 \subsection{Complementarity of Phases}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, minimum width=1.9cm,
+    minimum height=0.7cm, align=center, font=\scriptsize},
+  phase/.style={box, fill=blue!10, minimum width=2.4cm},
+  io/.style={box, fill=gray!15},
+  arr/.style={->, thick, >=stealth},
+  every node/.style={font=\footnotesize},
+]
+% Input
+\node[io] (prompt) at (0,0) {System\\Prompt};
+
+% Directed phase
+\node[phase] (decomp) at (-1.9,-1.5) {Decompose\\into blocks};
+\node[phase] (rules) at (-1.9,-3.0) {Apply rules\\to pairs};
+\node[io] (dir_out) at (-1.9,-4.5) {Interference\\patterns};
+
+% Undirected phase
+\node[phase] (scout1) at (1.9,-1.5) {Scourer\\pass $n$};
+\node[phase] (accum) at (1.9,-3.0) {Accumulate\\findings};
+\node[io] (undir_out) at (1.9,-4.5) {Scourer\\findings};
+
+% Output
+\node[io, fill=green!10, minimum width=3cm] (combined) at (0,-5.8)
+  {Combined\\analysis};
+
+% Arrows
+\draw[arr] (prompt) -- (decomp);
+\draw[arr] (prompt) -- (scout1);
+\draw[arr] (decomp) -- (rules);
+\draw[arr] (rules) -- (dir_out);
+\draw[arr] (scout1) -- (accum);
+\draw[arr] (accum) -- (undir_out);
+\draw[arr] (dir_out) -- (combined);
+\draw[arr] (undir_out) -- (combined);
+
+% Loop arrow for multi-pass
+\draw[arr] (accum.east) -- ++(0.6,0) |- (scout1.east)
+  node[midway, right, font=\scriptsize] {next model};
+
+\end{tikzpicture}
+\caption{Arbiter's two-phase architecture. The directed phase (left)
+  exhaustively checks block pairs against formal rules. The undirected
+  phase (right) iterates multiple LLMs until coverage converges. Both
+  phases feed a combined analysis.}
+\label{fig:pipeline}
+\end{figure}
 
 The directed and undirected phases are not competing approaches. They
 are two phases of the same analysis, each finding what the other cannot:

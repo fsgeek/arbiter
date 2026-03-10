@@ -56,7 +56,7 @@ uv run arbiter path/to/prompt.md --full
 
 ## CLI
 
-`arbiter [path] [--full] [--budget N] [--model MODEL] [--base-url URL] [-o output.json] [-q]`
+`arbiter [path] [--full] [--budget N] [--model MODEL] [--base-url URL] [--tau-reject X] [--tau-clarify X] [--tau-rewrite X] [-o output.json] [-q]`
 
 Behavior:
 - no `path`: analyzes built-in corpus `data/prompts/claude-code/v2.1.50_blocks.json`
@@ -67,6 +67,11 @@ Exit codes:
 - `0`: no findings
 - `1`: findings detected
 - `2`: error
+
+Decision policy knobs:
+- `--tau-reject`: conflict threshold for `reject` routing (default `0.80`)
+- `--tau-clarify`: indeterminacy threshold for `clarify` routing (default `0.60`)
+- `--tau-rewrite`: moderate conflict/ambiguity threshold for `rewrite` routing (default `0.45`)
 
 ## Reproduce Paper Artifacts
 

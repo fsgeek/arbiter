@@ -68,24 +68,29 @@
 - `run_ids`:
   - `2026-03-10-scalar-tensor-ablation-v0`
   - `2026-03-10-e1-parseability-openrouter-gpt4o-mini-8cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-40cases`
 - `summary`:
   - real structural slice: 327 comparisons, 0 decision differences (0.00% discrimination gain)
   - synthetic collapse slice: 6 comparisons, 3 decision differences (50.00% discrimination gain)
   - E1 parseability batch (8 cases, OpenRouter gpt-4o-mini): 100% optional-channel coverage, 0% JSON failures
+  - E2 semantic-augmented run (40 LLM cases + structural baseline): 361 comparisons, 17 decision differences (4.71% discrimination gain)
 - `effect_sizes`:
   - discrimination gain (real): `0.00`
   - discrimination gain (synthetic): `0.50`
+  - discrimination gain (semantic-augmented real): `0.0471`
 - `confidence_intervals`: `not computed in baseline harness`
 - `unexpected_outcomes`:
   - real structural baseline produced no scalar-vs-tensor separation, indicating current structural-only channel lacks sufficient ambiguity signal
+  - semantic augmentation improved real discrimination but remains below promotion threshold (`0.10`)
 
 ## 7. Decision
 
 - `decision`: `hold`
-- `rationale`: baseline harness validated mechanics; real-corpus discrimination is zero until evaluator-native declared-loss channels are introduced.
+- `rationale`: mechanics validated and semantic augmentation yields non-zero real gain, but current gain (`0.0471`) remains below promotion threshold (`0.10`).
 - `follow_up_actions`:
   - add evaluator prompt templates that request declared losses and decision traces
-  - rerun ablation with semantic/LLM-enriched entries
+  - rerun E2 with larger case budget and second model family
+  - investigate high-impact transition categories (`reject->clarify`, `rewrite->clarify`) for threshold tuning
 - `owner_signoff`: `arbiter (provisional)`
 
 ## 8. Artifact Links
@@ -97,6 +102,8 @@
   - `data/analysis/scalar_tensor_ablation_v0.md`
   - `data/analysis/e1_parseability_report.json`
   - `data/analysis/e1_parseability_report.md`
+  - `data/analysis/e2_semantic_ablation_report.json`
+  - `data/analysis/e2_semantic_ablation_report.md`
 - `incident_records`: `none`
 
 ## 9. Notes

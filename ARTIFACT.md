@@ -2,6 +2,8 @@
 
 This repository contains the implementation and cached datasets used to produce the paper artifacts in `docs/paper/`.
 
+This project is a reconstruction/extension of earlier exploratory work; this guide documents what is reproducible from the materials in this repository today.
+
 ## Scope
 
 This guide reproduces deterministic outputs from pinned local inputs:
@@ -11,7 +13,7 @@ This guide reproduces deterministic outputs from pinned local inputs:
 - PDF build of the paper
 - Local non-integration test signal
 
-It does **not** re-run live LLM API campaigns; those are non-deterministic and require credentials/cost.
+It does **not** re-run live LLM API campaigns, guarantee historical model parity, or guarantee stable API pricing/availability; those are non-deterministic and time-varying.
 
 ## Prerequisites
 
@@ -46,6 +48,9 @@ This executes:
 - `docs/paper/figures/per_pass.pdf`
 - `docs/paper/figures/cost.pdf`
 - `docs/paper/main.pdf`
+
+Archived artifact DOI:
+- https://doi.org/10.5281/zenodo.18929834
 
 ## Machine verification
 

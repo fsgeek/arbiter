@@ -3,20 +3,24 @@
 Arbiter is a system-prompt interference analysis toolkit for LLM coding agents.
 
 It combines:
-- directed structural evaluation (rule-based, exhaustive within the rule frame), and
+- directed structural evaluation (rule-based, exhaustive within the defined rule frame), and
 - undirected multi-model scouring (open-ended discovery outside the rule frame).
 
-This repository contains the implementation, cached analysis data, and paper artifacts used in the current Arbiter study.
+## Provenance and Reproducibility
 
-## What This Repo Currently Provides
+This project is a reconstruction and extension of earlier exploratory work whose published materials were not fully reproducible as-is.
 
-- CLI for structural and optional LLM-assisted prompt analysis
-- Rule engine and interference tensor output
-- Prompt decomposition (heuristic and LLM-assisted)
-- Prompt AST parsing and diffing utilities
-- Scourer analysis scripts and cached campaign data
-- Paper source and figure generation pipeline
-- Deterministic artifact reproduction script + hash manifest check
+This repository is intended to be reproducible for the deterministic parts of the pipeline:
+- prompt parsing/decomposition utilities,
+- directed rule checks and interference tensor generation,
+- cached cross-vendor scourer analysis outputs used in the paper,
+- figure generation and LaTeX paper build,
+- deterministic test suite and artifact manifest verification.
+
+What is intentionally *not* claimed as deterministic/reproducible:
+- live LLM API behavior,
+- re-running historical multi-model campaigns with identical outputs,
+- pricing/model availability stability over time.
 
 ## Quick Start
 
@@ -24,13 +28,13 @@ Prerequisites:
 - Python `>=3.14`
 - `uv`
 
-Install:
+Install dependencies:
 
 ```bash
 uv sync --extra dev --extra paper
 ```
 
-Run default structural analysis (built-in Claude Code ground truth corpus):
+Run default structural analysis (built-in ground truth corpus):
 
 ```bash
 uv run arbiter
@@ -42,62 +46,68 @@ Analyze a prompt file structurally:
 uv run arbiter path/to/prompt.md
 ```
 
-Run full mode (LLM decomposition + LLM rule evaluation; costs API money):
+Run full mode (LLM decomposition + LLM rule evaluation; uses paid APIs):
 
 ```bash
 uv run arbiter path/to/prompt.md --full
 ```
 
-## CLI Summary
-
-`arbiter [path] [--full] [--budget N] [-o output.json] [-q]`
-
-Behavior:
-- no `path`: analyzes built-in ground-truth corpus (`data/prompts/claude-code/v2.1.50_blocks.json`)
-- `.json` path: treated as pre-decomposed corpus
-- other text path: heuristic decomposition in structural mode, LLM decomposition in `--full`
-
 `--full` requires `OPENROUTER_API_KEY` or `OPENAI_API_KEY`.
 
-## Reproducibility
+## CLI
 
-For deterministic paper artifact reproduction:
+`arbiter [path] [--full] [--budget N] [--model MODEL] [--base-url URL] [-o output.json] [-q]`
+
+Behavior:
+- no `path`: analyzes built-in corpus `data/prompts/claude-code/v2.1.50_blocks.json`
+- `.json` path: treated as a pre-decomposed prompt corpus
+- other text path: heuristic decomposition in structural mode; LLM decomposition in `--full`
+
+Exit codes:
+- `0`: no findings
+- `1`: findings detected
+- `2`: error
+
+## Reproduce Paper Artifacts
+
+One-command deterministic reproduction:
 
 ```bash
 bash scripts/reproduce_artifact.sh
 ```
 
-This runs deterministic tests (excluding integration), regenerates analysis outputs/figures, rebuilds the paper PDF, and writes the artifact manifest.
+This runs deterministic tests (excluding integration), regenerates analysis outputs/figures, rebuilds `docs/paper/main.pdf`, and writes `data/analysis/artifact_manifest.json`.
 
-Detailed instructions: [`ARTIFACT.md`](ARTIFACT.md)
+For details and verification commands, see [`ARTIFACT.md`](ARTIFACT.md).
 
-## Project Layout
+## Repository Layout
 
-- `src/arbiter/` core package
-- `scripts/` analysis + orchestration scripts
-- `data/` cached prompts, scourer outputs, analysis artifacts
-- `docs/paper/` LaTeX paper and generated figures
-- `tests/` deterministic + integration test suites
+- `src/arbiter/`: core package and CLI
+- `scripts/`: orchestration and analysis scripts
+- `data/`: prompts, cached scourer outputs, and analysis artifacts
+- `docs/paper/`: LaTeX source, figures, and built paper outputs
+- `tests/`: deterministic and integration test suites
 
-## Test Strategy
+## Testing
 
-Deterministic local/CI checks:
+Deterministic checks:
 
 ```bash
 uv run pytest -q -m 'not integration'
 ```
 
-Live integration checks (model behavior can drift over time):
+Integration checks against live models (non-deterministic):
 
 ```bash
 uv run pytest -m integration
 ```
 
-## Current Scope and Limits
+## Paper and Artifact
 
-- Primary contribution is static/system-prompt analysis methodology and tooling.
-- Runtime behavioral validation is limited and treated explicitly as a limitation in the paper.
-- Integration tests against live models are useful signals, not strict regressions.
+The paper source lives in `docs/paper/`.
+
+Archived artifact DOI:
+- https://doi.org/10.5281/zenodo.18929834
 
 ## License
 

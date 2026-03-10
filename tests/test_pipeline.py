@@ -235,6 +235,9 @@ class TestBlockEvaluatorLLMParsing:
         assert result.score == pytest.approx(0.95)
         assert result.explanation == "Direct always/never contradiction"
         assert result.severity == Severity.critical
+        assert result.t is not None
+        assert result.i is not None
+        assert result.f == pytest.approx(0.95)
 
     def test_parse_markdown_wrapped_response(self):
         evaluator = BlockEvaluator()
@@ -252,6 +255,33 @@ class TestBlockEvaluatorLLMParsing:
         raw = '```json\n{"score": 0.8, "explanation": "test"}\n```'
         result = evaluator.parse_llm_score(raw, block_a, block_b, rule)
         assert result.score == pytest.approx(0.8)
+
+    def test_parse_llm_response_with_declared_losses_and_decision(self):
+        evaluator = BlockEvaluator()
+        block_a = PromptBlock(
+            id="a", source="t", tier=Tier.system, category=BlockCategory.policy,
+            text="Always use X.", modality=Modality.mandate,
+        )
+        block_b = PromptBlock(
+            id="b", source="t", tier=Tier.application, category=BlockCategory.workflow,
+            text="Never use X.", modality=Modality.prohibition,
+        )
+        from arbiter.rules import BUILTIN_RULES
+        rule = next(r for r in BUILTIN_RULES if r.name == "mandate-prohibition-conflict")
+
+        raw = (
+            '{"score": 0.9, "t": 0.1, "i": 0.2, "f": 0.9, '
+            '"evidence_quality": 0.8, "decision": "reject", '
+            '"drafter_identity": "provider", '
+            '"declared_losses": [{"what":"scope ambiguity","why":"missing boundary","severity":0.7}] }'
+        )
+        result = evaluator.parse_llm_score(raw, block_a, block_b, rule)
+        assert result.f == pytest.approx(0.9)
+        assert result.evidence_quality == pytest.approx(0.8)
+        assert result.decision is not None and result.decision.value == "reject"
+        assert result.drafter_identity.value == "provider"
+        assert len(result.declared_losses) == 1
+        assert result.declared_losses[0].what == "scope ambiguity"
 
     def test_parse_unparseable_returns_uncertain(self):
         evaluator = BlockEvaluator()
@@ -392,6 +422,8 @@ class TestPipelineWithMockLLM:
         n_blocks = len(corpus.blocks)
         n_rules = len(compiled.rules)
         assert result.tensor.shape() == (n_blocks, n_blocks, n_rules)
+        assert result.tensor.schema_version == 2
+        assert len(result.tensor.entries_v2) == len(result.tensor.entries)
 
 
 # --- PromptBlock.scopes_overlap tests ---

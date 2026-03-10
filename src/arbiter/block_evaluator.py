@@ -17,8 +17,15 @@ from difflib import SequenceMatcher
 
 from pydantic import BaseModel, Field
 
-from .interference_tensor import InterferenceTensor, TensorEntry
-from .prompt_blocks import PromptBlock, Severity
+from .interference_tensor import (
+    AdjudicationDecision,
+    DrafterIdentity,
+    InterferenceTensor,
+    TensorDeclaredLoss,
+    TensorEntry,
+    TensorEntryV2,
+)
+from .prompt_blocks import PromptBlock, Severity, Tier
 from .rules import CompiledRuleSet, EvaluationRule
 
 
@@ -31,6 +38,14 @@ class BlockScore(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     severity: Severity
     explanation: str | None = None
+    # Extended adjudication channels
+    t: float | None = Field(default=None, ge=0.0, le=1.0)
+    i: float | None = Field(default=None, ge=0.0, le=1.0)
+    f: float | None = Field(default=None, ge=0.0, le=1.0)
+    evidence_quality: float | None = Field(default=None, ge=0.0, le=1.0)
+    declared_losses: list[TensorDeclaredLoss] = Field(default_factory=list)
+    decision: AdjudicationDecision | None = None
+    drafter_identity: DrafterIdentity = DrafterIdentity.unknown
 
 
 def _extract_json(text: str) -> str:
@@ -115,6 +130,19 @@ class BlockEvaluator:
         """
         self._structural_only = structural_only
 
+    @staticmethod
+    def _default_tif(score: float, evidence_quality: float) -> tuple[float, float, float]:
+        """Fallback deterministic T/I/F mapping."""
+        f_val = score
+        i_val = 1.0 - evidence_quality
+        t_val = max(0.0, 1.0 - max(f_val, i_val))
+        return t_val, i_val, f_val
+
+    @staticmethod
+    def _safe_tier(block: PromptBlock) -> Tier | None:
+        """Return a block tier if available."""
+        return getattr(block, "tier", None)
+
     def evaluate_pair_structural(
         self, block_a: PromptBlock, block_b: PromptBlock, rule: EvaluationRule
     ) -> BlockScore | None:
@@ -130,6 +158,7 @@ class BlockEvaluator:
         explanation = None
         if score > 0:
             explanation = f"Structural check: {rule.name}"
+        t_val, i_val, f_val = self._default_tif(score, evidence_quality=0.7)
 
         return BlockScore(
             block_a=block_a.id,
@@ -138,6 +167,10 @@ class BlockEvaluator:
             score=score,
             severity=rule.severity,
             explanation=explanation,
+            t=t_val,
+            i=i_val,
+            f=f_val,
+            evidence_quality=0.7,
         )
 
     def parse_llm_score(
@@ -158,6 +191,7 @@ class BlockEvaluator:
             data = json.loads(extracted)
         except json.JSONDecodeError:
             # LLM didn't return parseable JSON — score as uncertain
+            t_val, i_val, f_val = self._default_tif(0.5, evidence_quality=0.3)
             return BlockScore(
                 block_a=block_a.id,
                 block_b=block_b.id,
@@ -165,11 +199,65 @@ class BlockEvaluator:
                 score=0.5,
                 severity=rule.severity,
                 explanation=f"Unparseable LLM response: {raw[:200]}",
+                t=t_val,
+                i=i_val,
+                f=f_val,
+                evidence_quality=0.3,
             )
 
         score = float(data.get("score", 0.5))
         score = max(0.0, min(1.0, score))
         explanation = data.get("explanation")
+        evidence_quality = float(data.get("evidence_quality", 0.6))
+        evidence_quality = max(0.0, min(1.0, evidence_quality))
+
+        t_val = data.get("t")
+        i_val = data.get("i")
+        f_val = data.get("f")
+        if t_val is None or i_val is None or f_val is None:
+            t_val, i_val, f_val = self._default_tif(score, evidence_quality)
+        else:
+            t_val = max(0.0, min(1.0, float(t_val)))
+            i_val = max(0.0, min(1.0, float(i_val)))
+            f_val = max(0.0, min(1.0, float(f_val)))
+
+        losses_raw = data.get("declared_losses", [])
+        declared_losses: list[TensorDeclaredLoss] = []
+        if isinstance(losses_raw, list):
+            for item in losses_raw:
+                if not isinstance(item, dict):
+                    continue
+                what = item.get("what")
+                why = item.get("why")
+                if not isinstance(what, str) or not isinstance(why, str):
+                    continue
+                try:
+                    severity = float(item.get("severity", 0.5))
+                except (TypeError, ValueError):
+                    severity = 0.5
+                declared_losses.append(
+                    TensorDeclaredLoss(
+                        what=what,
+                        why=why,
+                        severity=max(0.0, min(1.0, severity)),
+                    )
+                )
+
+        decision_raw = data.get("decision")
+        decision = None
+        if isinstance(decision_raw, str):
+            try:
+                decision = AdjudicationDecision(decision_raw)
+            except ValueError:
+                decision = None
+
+        drafter_identity_raw = data.get("drafter_identity")
+        drafter_identity = DrafterIdentity.unknown
+        if isinstance(drafter_identity_raw, str):
+            try:
+                drafter_identity = DrafterIdentity(drafter_identity_raw)
+            except ValueError:
+                drafter_identity = DrafterIdentity.unknown
 
         return BlockScore(
             block_a=block_a.id,
@@ -178,6 +266,13 @@ class BlockEvaluator:
             score=score,
             severity=rule.severity,
             explanation=explanation,
+            t=t_val,
+            i=i_val,
+            f=f_val,
+            evidence_quality=evidence_quality,
+            declared_losses=declared_losses,
+            decision=decision,
+            drafter_identity=drafter_identity,
         )
 
     def build_llm_prompt(
@@ -255,9 +350,49 @@ class BlockEvaluator:
             for s in scores
         ]
 
-        return InterferenceTensor.from_scores(
+        entries_v2 = []
+        for score in scores:
+            t_val = score.t
+            i_val = score.i
+            f_val = score.f
+            evidence_quality = score.evidence_quality if score.evidence_quality is not None else 0.6
+            if t_val is None or i_val is None or f_val is None:
+                t_val, i_val, f_val = self._default_tif(score.score, evidence_quality)
+            block_a = next((b for b in blocks if b.id == score.block_a), None)
+            block_b = next((b for b in blocks if b.id == score.block_b), None)
+            scope_tags = sorted(
+                set((block_a.scope if block_a else []) + (block_b.scope if block_b else []))
+            )
+            entries_v2.append(
+                TensorEntryV2(
+                    block_a=score.block_a,
+                    block_b=score.block_b,
+                    rule=score.rule,
+                    score=score.score,
+                    severity=score.severity,
+                    explanation=score.explanation,
+                    t=t_val,
+                    i=i_val,
+                    f=f_val,
+                    tier_a=self._safe_tier(block_a) if block_a else None,
+                    tier_b=self._safe_tier(block_b) if block_b else None,
+                    scope_tags=scope_tags,
+                    canon_tags=[score.rule],
+                    drafter_identity=score.drafter_identity,
+                    evidence_quality=evidence_quality,
+                    declared_losses=list(score.declared_losses),
+                    decision=score.decision,
+                )
+            )
+
+        filtered_entries = [e for e in entries if e.score > threshold]
+        filtered_entries_v2 = [e for e in entries_v2 if e.score > threshold]
+
+        return InterferenceTensor(
+            schema_version=2,
             block_ids=block_ids,
             rule_names=rule_names,
-            entries=entries,
-            threshold=threshold,
+            entries=filtered_entries,
+            entries_v2=filtered_entries_v2,
+            migration_notes=[],
         )

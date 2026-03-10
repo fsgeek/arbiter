@@ -109,6 +109,11 @@ The paper source lives in `docs/paper/`.
 Archived artifact DOI:
 - https://doi.org/10.5281/zenodo.18929834
 
+## Research Plan
+
+Current operating plan:
+- [`docs/dual_track_research_plan_2026.md`](docs/dual_track_research_plan_2026.md)
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).

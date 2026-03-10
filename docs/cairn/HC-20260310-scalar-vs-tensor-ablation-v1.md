@@ -69,28 +69,39 @@
   - `2026-03-10-scalar-tensor-ablation-v0`
   - `2026-03-10-e1-parseability-openrouter-gpt4o-mini-8cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-40cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-60cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-120cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-40cases`
 - `summary`:
   - real structural slice: 327 comparisons, 0 decision differences (0.00% discrimination gain)
   - synthetic collapse slice: 6 comparisons, 3 decision differences (50.00% discrimination gain)
   - E1 parseability batch (8 cases, OpenRouter gpt-4o-mini): 100% optional-channel coverage, 0% JSON failures
   - E2 semantic-augmented run (40 LLM cases + structural baseline): 361 comparisons, 17 decision differences (4.71% discrimination gain)
+  - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-4o-mini): 381 comparisons, 33 decision differences (8.66% discrimination gain)
+  - E2 semantic-augmented run (120 LLM cases + structural baseline, gpt-4o-mini): 437 comparisons, 70 decision differences (16.02% discrimination gain)
+  - E2 semantic-augmented run (40 LLM cases + structural baseline, gemini-2.0-flash): 360 comparisons, 6 decision differences (1.67% discrimination gain)
 - `effect_sizes`:
   - discrimination gain (real): `0.00`
   - discrimination gain (synthetic): `0.50`
   - discrimination gain (semantic-augmented real): `0.0471`
+  - discrimination gain (semantic-augmented real, gpt-4o-mini 60-case): `0.0866`
+  - discrimination gain (semantic-augmented real, gpt-4o-mini 120-case): `0.1602`
+  - discrimination gain (semantic-augmented real, gemini-2.0-flash 40-case): `0.0167`
 - `confidence_intervals`: `not computed in baseline harness`
 - `unexpected_outcomes`:
   - real structural baseline produced no scalar-vs-tensor separation, indicating current structural-only channel lacks sufficient ambiguity signal
   - semantic augmentation improved real discrimination but remains below promotion threshold (`0.10`)
+  - cross-model variance is large: gpt-4o-mini run exceeds threshold while gemini run remains low, suggesting model-dependent channel quality
 
 ## 7. Decision
 
 - `decision`: `hold`
-- `rationale`: mechanics validated and semantic augmentation yields non-zero real gain, but current gain (`0.0471`) remains below promotion threshold (`0.10`).
+- `rationale`: mechanics validated and threshold exceeded in one model family (`0.1602`), but cross-model stability is not yet established (`0.0167` on gemini run); hold until robustness criteria are met.
 - `follow_up_actions`:
   - add evaluator prompt templates that request declared losses and decision traces
   - rerun E2 with larger case budget and second model family
   - investigate high-impact transition categories (`reject->clarify`, `rewrite->clarify`) for threshold tuning
+  - run E2 with additional model families and consistent case budgets for fair comparison
 - `owner_signoff`: `arbiter (provisional)`
 
 ## 8. Artifact Links
@@ -104,6 +115,12 @@
   - `data/analysis/e1_parseability_report.md`
   - `data/analysis/e2_semantic_ablation_report.json`
   - `data/analysis/e2_semantic_ablation_report.md`
+  - `data/analysis/e2_semantic_ablation_report_gpt4omini_120.json`
+  - `data/analysis/e2_semantic_ablation_report_gpt4omini_120.md`
+  - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.json`
+  - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
+  - `data/analysis/e2_semantic_ablation_report_gemini20_40.json`
+  - `data/analysis/e2_semantic_ablation_report_gemini20_40.md`
 - `incident_records`: `none`
 
 ## 9. Notes

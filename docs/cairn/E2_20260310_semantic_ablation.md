@@ -31,15 +31,24 @@ Parseability summary (same run):
   - `drafter_identity`: 100.00%
 - malformed declared-loss rate: 0.00%
 
+Additional reruns:
+
+| Run | Model | LLM Cases | Compared | Diff | Discrimination |
+|-----|-------|-----------|----------|------|----------------|
+| E2-R1 | openai/gpt-4o-mini | 40 | 361 | 17 | 4.71% |
+| E2-R2 | openai/gpt-4o-mini | 60 | 381 | 33 | 8.66% |
+| E2-R3 | openai/gpt-4o-mini | 120 | 437 | 70 | 16.02% |
+| E2-R4 | google/gemini-2.0-flash-001 | 40 | 360 | 6 | 1.67% |
+
 ## Gate Read
 
-- Promotion target (`>= 0.10`) not met in this run.
-- Direction is positive versus structural baseline (`0.00% -> 4.71%`).
+- Mixed: one run exceeds promotion target (`16.02%`), another remains low (`1.67%`).
+- Cross-model stability not yet established; hold promotion pending robustness runs.
 
 ## Next
 
 1. Rerun E2 with larger case budget (>=120 LLM cases).
-2. Rerun E2 on second model family for cross-model robustness.
+2. Run at least one additional model family with 120-case budget for fair comparison.
 3. Perform transition-focused review for `clarify` shifts and threshold sensitivity.
 
 ## Artifacts
@@ -47,3 +56,9 @@ Parseability summary (same run):
 - `data/analysis/e2_semantic_ablation_report.json`
 - `data/analysis/e2_semantic_ablation_report.md`
 - `scripts/run_e2_semantic_ablation.py`
+- `data/analysis/e2_semantic_ablation_report_gpt4omini_120.json`
+- `data/analysis/e2_semantic_ablation_report_gpt4omini_120.md`
+- `data/analysis/e2_semantic_ablation_report_gpt4omini_60.json`
+- `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
+- `data/analysis/e2_semantic_ablation_report_gemini20_40.json`
+- `data/analysis/e2_semantic_ablation_report_gemini20_40.md`

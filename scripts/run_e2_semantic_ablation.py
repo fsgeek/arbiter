@@ -26,8 +26,8 @@ from arbiter.rules import default_ruleset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BLOCKS_FILE = REPO_ROOT / "data" / "prompts" / "claude-code" / "v2.1.50_blocks.json"
-OUT_JSON = REPO_ROOT / "data" / "analysis" / "e2_semantic_ablation_report.json"
-OUT_MD = REPO_ROOT / "data" / "analysis" / "e2_semantic_ablation_report.md"
+DEFAULT_OUT_JSON = REPO_ROOT / "data" / "analysis" / "e2_semantic_ablation_report.json"
+DEFAULT_OUT_MD = REPO_ROOT / "data" / "analysis" / "e2_semantic_ablation_report.md"
 
 
 def _resolve_client_and_model(model: str | None, base_url: str | None) -> tuple[openai.OpenAI, str, str]:
@@ -92,6 +92,8 @@ def _render_md(report: dict) -> str:
     lines.append("# E2 Semantic-Augmented Ablation Report")
     lines.append("")
     lines.append(f"Model: `{report['model']}` ({report['provider']})")
+    if report.get("run_tag"):
+        lines.append(f"Run tag: `{report['run_tag']}`")
     lines.append(f"Pending LLM cases available: {report['pending_total']}")
     lines.append(f"LLM cases executed: {report['llm_cases_executed']}")
     lines.append(f"Tensor entries total: {report['tensor_entries_total']}")
@@ -126,6 +128,8 @@ def main() -> None:
     parser.add_argument("--max-cases", type=int, default=40, help="Max LLM pair evaluations")
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--base-url", type=str, default=None)
+    parser.add_argument("--run-tag", type=str, default=None, help="Optional suffix for output filenames")
+    parser.add_argument("--timeout-seconds", type=float, default=60.0, help="Per-call timeout")
     args = parser.parse_args()
 
     client, model, provider = _resolve_client_and_model(args.model, args.base_url)
@@ -146,6 +150,7 @@ def main() -> None:
         response = client.chat.completions.create(
             model=model,
             max_tokens=3072,
+            timeout=args.timeout_seconds,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = response.choices[0].message.content
@@ -158,6 +163,7 @@ def main() -> None:
     report = {
         "provider": provider,
         "model": model,
+        "run_tag": args.run_tag,
         "pending_total": pending_total,
         "llm_cases_executed": len(pending),
         "structural_scores": len(structural_scores),
@@ -167,12 +173,18 @@ def main() -> None:
         "parseability": evaluator.parseability_report(),
     }
 
-    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(json.dumps(report, indent=2))
-    OUT_MD.write_text(_render_md(report))
+    out_json = DEFAULT_OUT_JSON
+    out_md = DEFAULT_OUT_MD
+    if args.run_tag:
+        out_json = REPO_ROOT / "data" / "analysis" / f"e2_semantic_ablation_report_{args.run_tag}.json"
+        out_md = REPO_ROOT / "data" / "analysis" / f"e2_semantic_ablation_report_{args.run_tag}.md"
 
-    print(f"Wrote {OUT_JSON}")
-    print(f"Wrote {OUT_MD}")
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(report, indent=2))
+    out_md.write_text(_render_md(report))
+
+    print(f"Wrote {out_json}")
+    print(f"Wrote {out_md}")
 
 
 if __name__ == "__main__":

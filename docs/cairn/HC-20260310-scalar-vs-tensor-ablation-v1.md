@@ -67,9 +67,11 @@
 
 - `run_ids`:
   - `2026-03-10-scalar-tensor-ablation-v0`
+  - `2026-03-10-e1-parseability-openrouter-gpt4o-mini-8cases`
 - `summary`:
   - real structural slice: 327 comparisons, 0 decision differences (0.00% discrimination gain)
   - synthetic collapse slice: 6 comparisons, 3 decision differences (50.00% discrimination gain)
+  - E1 parseability batch (8 cases, OpenRouter gpt-4o-mini): 100% optional-channel coverage, 0% JSON failures
 - `effect_sizes`:
   - discrimination gain (real): `0.00`
   - discrimination gain (synthetic): `0.50`
@@ -93,6 +95,8 @@
 - `reports`:
   - `data/analysis/scalar_tensor_ablation_v0.json`
   - `data/analysis/scalar_tensor_ablation_v0.md`
+  - `data/analysis/e1_parseability_report.json`
+  - `data/analysis/e1_parseability_report.md`
 - `incident_records`: `none`
 
 ## 9. Notes

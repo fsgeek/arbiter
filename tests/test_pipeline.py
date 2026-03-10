@@ -300,6 +300,34 @@ class TestBlockEvaluatorLLMParsing:
         assert result.score == 0.5  # Uncertain
         assert "Unparseable" in result.explanation
 
+    def test_parseability_stats_tracking(self):
+        evaluator = BlockEvaluator()
+        block_a = PromptBlock(
+            id="a", source="t", tier=Tier.system, category=BlockCategory.policy,
+            text="Always use X.", modality=Modality.mandate,
+        )
+        block_b = PromptBlock(
+            id="b", source="t", tier=Tier.application, category=BlockCategory.workflow,
+            text="Never use X.", modality=Modality.prohibition,
+        )
+        from arbiter.rules import BUILTIN_RULES
+        rule = next(r for r in BUILTIN_RULES if r.name == "mandate-prohibition-conflict")
+
+        evaluator.parse_llm_score(
+            '{"score":0.9,"t":0.1,"i":0.2,"f":0.9,"declared_losses":[{"what":"w","why":"y","severity":0.3}]}',
+            block_a,
+            block_b,
+            rule,
+        )
+        evaluator.parse_llm_score("not json", block_a, block_b, rule)
+
+        report = evaluator.parseability_report()
+        assert report["llm_responses_total"] == 2
+        assert report["json_parse_fail"] == 1
+        assert report["optional_t_present"] == 1
+        assert report["optional_declared_losses_present"] == 1
+        assert report["json_parse_fail_rate"] == pytest.approx(0.5)
+
     def test_build_llm_prompt(self):
         evaluator = BlockEvaluator()
         block_a = PromptBlock(

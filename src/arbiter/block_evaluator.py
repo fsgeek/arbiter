@@ -135,6 +135,18 @@ class BlockEvaluator:
         """
         self._structural_only = structural_only
         self._decision_policy = decision_policy or DeterministicDecisionPolicy()
+        self._parse_stats: dict[str, int] = {
+            "llm_responses_total": 0,
+            "json_parse_fail": 0,
+            "optional_t_present": 0,
+            "optional_i_present": 0,
+            "optional_f_present": 0,
+            "optional_evidence_quality_present": 0,
+            "optional_declared_losses_present": 0,
+            "optional_decision_present": 0,
+            "optional_drafter_identity_present": 0,
+            "malformed_declared_losses": 0,
+        }
 
     @staticmethod
     def _default_tif(score: float, evidence_quality: float) -> tuple[float, float, float]:
@@ -148,6 +160,55 @@ class BlockEvaluator:
     def _safe_tier(block: PromptBlock) -> Tier | None:
         """Return a block tier if available."""
         return getattr(block, "tier", None)
+
+    def reset_parseability_stats(self) -> None:
+        """Reset parseability counters."""
+        for key in self._parse_stats:
+            self._parse_stats[key] = 0
+
+    def parseability_report(self) -> dict[str, float | int]:
+        """Return parseability counters and rates for optional v2 fields."""
+        total = self._parse_stats["llm_responses_total"]
+        report: dict[str, float | int] = dict(self._parse_stats)
+        if total > 0:
+            report.update(
+                {
+                    "json_parse_fail_rate": self._parse_stats["json_parse_fail"] / total,
+                    "optional_t_rate": self._parse_stats["optional_t_present"] / total,
+                    "optional_i_rate": self._parse_stats["optional_i_present"] / total,
+                    "optional_f_rate": self._parse_stats["optional_f_present"] / total,
+                    "optional_evidence_quality_rate": (
+                        self._parse_stats["optional_evidence_quality_present"] / total
+                    ),
+                    "optional_declared_losses_rate": (
+                        self._parse_stats["optional_declared_losses_present"] / total
+                    ),
+                    "optional_decision_rate": (
+                        self._parse_stats["optional_decision_present"] / total
+                    ),
+                    "optional_drafter_identity_rate": (
+                        self._parse_stats["optional_drafter_identity_present"] / total
+                    ),
+                    "malformed_declared_losses_rate": (
+                        self._parse_stats["malformed_declared_losses"] / total
+                    ),
+                }
+            )
+        else:
+            report.update(
+                {
+                    "json_parse_fail_rate": 0.0,
+                    "optional_t_rate": 0.0,
+                    "optional_i_rate": 0.0,
+                    "optional_f_rate": 0.0,
+                    "optional_evidence_quality_rate": 0.0,
+                    "optional_declared_losses_rate": 0.0,
+                    "optional_decision_rate": 0.0,
+                    "optional_drafter_identity_rate": 0.0,
+                    "malformed_declared_losses_rate": 0.0,
+                }
+            )
+        return report
 
     def evaluate_pair_structural(
         self, block_a: PromptBlock, block_b: PromptBlock, rule: EvaluationRule
@@ -192,11 +253,13 @@ class BlockEvaluator:
         and just pass the raw response text.
         """
         extracted = _extract_json(raw)
+        self._parse_stats["llm_responses_total"] += 1
 
         try:
             data = json.loads(extracted)
         except json.JSONDecodeError:
             # LLM didn't return parseable JSON — score as uncertain
+            self._parse_stats["json_parse_fail"] += 1
             t_val, i_val, f_val = self._default_tif(0.5, evidence_quality=0.3)
             return BlockScore(
                 block_a=block_a.id,
@@ -220,6 +283,12 @@ class BlockEvaluator:
         t_val = data.get("t")
         i_val = data.get("i")
         f_val = data.get("f")
+        if t_val is not None:
+            self._parse_stats["optional_t_present"] += 1
+        if i_val is not None:
+            self._parse_stats["optional_i_present"] += 1
+        if f_val is not None:
+            self._parse_stats["optional_f_present"] += 1
         if t_val is None or i_val is None or f_val is None:
             t_val, i_val, f_val = self._default_tif(score, evidence_quality)
         else:
@@ -228,18 +297,23 @@ class BlockEvaluator:
             f_val = max(0.0, min(1.0, float(f_val)))
 
         losses_raw = data.get("declared_losses", [])
+        if "declared_losses" in data:
+            self._parse_stats["optional_declared_losses_present"] += 1
         declared_losses: list[TensorDeclaredLoss] = []
         if isinstance(losses_raw, list):
             for item in losses_raw:
                 if not isinstance(item, dict):
+                    self._parse_stats["malformed_declared_losses"] += 1
                     continue
                 what = item.get("what")
                 why = item.get("why")
                 if not isinstance(what, str) or not isinstance(why, str):
+                    self._parse_stats["malformed_declared_losses"] += 1
                     continue
                 try:
                     severity = float(item.get("severity", 0.5))
                 except (TypeError, ValueError):
+                    self._parse_stats["malformed_declared_losses"] += 1
                     severity = 0.5
                 declared_losses.append(
                     TensorDeclaredLoss(
@@ -252,6 +326,7 @@ class BlockEvaluator:
         decision_raw = data.get("decision")
         decision = None
         if isinstance(decision_raw, str):
+            self._parse_stats["optional_decision_present"] += 1
             try:
                 decision = AdjudicationDecision(decision_raw)
             except ValueError:
@@ -260,10 +335,14 @@ class BlockEvaluator:
         drafter_identity_raw = data.get("drafter_identity")
         drafter_identity = DrafterIdentity.unknown
         if isinstance(drafter_identity_raw, str):
+            self._parse_stats["optional_drafter_identity_present"] += 1
             try:
                 drafter_identity = DrafterIdentity(drafter_identity_raw)
             except ValueError:
                 drafter_identity = DrafterIdentity.unknown
+
+        if "evidence_quality" in data:
+            self._parse_stats["optional_evidence_quality_present"] += 1
 
         return BlockScore(
             block_a=block_a.id,

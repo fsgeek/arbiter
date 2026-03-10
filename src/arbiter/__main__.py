@@ -19,6 +19,7 @@ import os
 import sys
 from pathlib import Path
 
+from .decision_policy import DecisionPolicyConfig, DeterministicDecisionPolicy
 from .heuristic_decomposer import heuristic_decompose
 from .pipeline import PromptAnalyzer
 from .prompt_blocks import PromptBlock, PromptCorpus
@@ -68,10 +69,19 @@ def _get_blocks(path: Path, *, full: bool, quiet: bool) -> list[PromptBlock]:
     return blocks
 
 
-def _run_structural(blocks: list[PromptBlock], *, quiet: bool, output: Path | None) -> int:
+def _run_structural(
+    blocks: list[PromptBlock],
+    *,
+    quiet: bool,
+    output: Path | None,
+    policy_config: DecisionPolicyConfig,
+) -> int:
     """Run structural-only analysis."""
     rule_set = default_ruleset().compile()
-    analyzer = PromptAnalyzer(rule_set)
+    analyzer = PromptAnalyzer(
+        rule_set,
+        decision_policy=DeterministicDecisionPolicy(policy_config),
+    )
     result = analyzer.analyze_structural(blocks)
 
     if output:
@@ -106,6 +116,7 @@ async def _run_full(
     budget: float,
     quiet: bool,
     output: Path | None,
+    policy_config: DecisionPolicyConfig,
 ) -> int:
     """Run full analysis with LLM decomposition and evaluation."""
     # Find API key
@@ -120,7 +131,12 @@ async def _run_full(
         blocks = heuristic_decompose(text, source=path.stem)
         if not quiet:
             print(f"  {len(blocks)} blocks (heuristic decomposition, fallback)\n")
-        return _run_structural(blocks, quiet=quiet, output=output)
+        return _run_structural(
+            blocks,
+            quiet=quiet,
+            output=output,
+            policy_config=policy_config,
+        )
 
     try:
         import openai
@@ -157,7 +173,10 @@ async def _run_full(
             print(f"  {len(blocks)} blocks (LLM decomposition)\n")
 
     # Structural analysis
-    analyzer = PromptAnalyzer(rule_set)
+    analyzer = PromptAnalyzer(
+        rule_set,
+        decision_policy=DeterministicDecisionPolicy(policy_config),
+    )
     structural_result = analyzer.analyze_structural(blocks)
 
     if not quiet:
@@ -197,6 +216,11 @@ def run(args: argparse.Namespace) -> int:
     full = args.full
     quiet = args.quiet
     output = Path(args.output) if args.output else None
+    policy_config = DecisionPolicyConfig(
+        tau_reject=args.tau_reject,
+        tau_clarify=args.tau_clarify,
+        tau_rewrite=args.tau_rewrite,
+    )
 
     # Default: ground truth structural analysis
     if path is None:
@@ -210,7 +234,12 @@ def run(args: argparse.Namespace) -> int:
         blocks = load_corpus(path)
         if not quiet:
             print(f"  {len(blocks)} blocks loaded\n")
-        return _run_structural(blocks, quiet=quiet, output=output)
+        return _run_structural(
+            blocks,
+            quiet=quiet,
+            output=output,
+            policy_config=policy_config,
+        )
 
     path = Path(path)
     if not path.exists():
@@ -230,11 +259,17 @@ def run(args: argparse.Namespace) -> int:
                 budget=args.budget,
                 quiet=quiet,
                 output=output,
+                policy_config=policy_config,
             )
         )
 
     blocks = _get_blocks(path, full=False, quiet=quiet)
-    return _run_structural(blocks, quiet=quiet, output=output)
+    return _run_structural(
+        blocks,
+        quiet=quiet,
+        output=output,
+        policy_config=policy_config,
+    )
 
 
 def main() -> None:
@@ -279,6 +314,24 @@ def main() -> None:
         "-q", "--quiet",
         action="store_true",
         help="Suppress progress output. Exit code: 0=clean, 1=findings, 2=error.",
+    )
+    parser.add_argument(
+        "--tau-reject",
+        type=float,
+        default=0.80,
+        help="Decision threshold for reject routing (default: 0.80).",
+    )
+    parser.add_argument(
+        "--tau-clarify",
+        type=float,
+        default=0.60,
+        help="Decision threshold for clarify routing (default: 0.60).",
+    )
+    parser.add_argument(
+        "--tau-rewrite",
+        type=float,
+        default=0.45,
+        help="Decision threshold for rewrite routing (default: 0.45).",
     )
 
     args = parser.parse_args()

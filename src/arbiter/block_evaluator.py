@@ -17,6 +17,7 @@ from difflib import SequenceMatcher
 
 from pydantic import BaseModel, Field
 
+from .decision_policy import DeterministicDecisionPolicy
 from .interference_tensor import (
     AdjudicationDecision,
     DrafterIdentity,
@@ -121,7 +122,11 @@ class BlockEvaluator:
     Pre-filters block pairs using rule metadata to avoid unnecessary work.
     """
 
-    def __init__(self, structural_only: bool = False) -> None:
+    def __init__(
+        self,
+        structural_only: bool = False,
+        decision_policy: DeterministicDecisionPolicy | None = None,
+    ) -> None:
         """Initialize the evaluator.
 
         Args:
@@ -129,6 +134,7 @@ class BlockEvaluator:
                 Useful for testing and for cheap first-pass analysis.
         """
         self._structural_only = structural_only
+        self._decision_policy = decision_policy or DeterministicDecisionPolicy()
 
     @staticmethod
     def _default_tif(score: float, evidence_quality: float) -> tuple[float, float, float]:
@@ -363,27 +369,28 @@ class BlockEvaluator:
             scope_tags = sorted(
                 set((block_a.scope if block_a else []) + (block_b.scope if block_b else []))
             )
-            entries_v2.append(
-                TensorEntryV2(
-                    block_a=score.block_a,
-                    block_b=score.block_b,
-                    rule=score.rule,
-                    score=score.score,
-                    severity=score.severity,
-                    explanation=score.explanation,
-                    t=t_val,
-                    i=i_val,
-                    f=f_val,
-                    tier_a=self._safe_tier(block_a) if block_a else None,
-                    tier_b=self._safe_tier(block_b) if block_b else None,
-                    scope_tags=scope_tags,
-                    canon_tags=[score.rule],
-                    drafter_identity=score.drafter_identity,
-                    evidence_quality=evidence_quality,
-                    declared_losses=list(score.declared_losses),
-                    decision=score.decision,
-                )
+            entry_v2 = TensorEntryV2(
+                block_a=score.block_a,
+                block_b=score.block_b,
+                rule=score.rule,
+                score=score.score,
+                severity=score.severity,
+                explanation=score.explanation,
+                t=t_val,
+                i=i_val,
+                f=f_val,
+                tier_a=self._safe_tier(block_a) if block_a else None,
+                tier_b=self._safe_tier(block_b) if block_b else None,
+                scope_tags=scope_tags,
+                canon_tags=[score.rule],
+                drafter_identity=score.drafter_identity,
+                evidence_quality=evidence_quality,
+                declared_losses=list(score.declared_losses),
+                decision=score.decision,
             )
+            if entry_v2.decision is None:
+                entry_v2.decision = self._decision_policy.decide(entry_v2)
+            entries_v2.append(entry_v2)
 
         filtered_entries = [e for e in entries if e.score > threshold]
         filtered_entries_v2 = [e for e in entries_v2 if e.score > threshold]

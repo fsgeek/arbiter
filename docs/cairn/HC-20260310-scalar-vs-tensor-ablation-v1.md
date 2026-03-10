@@ -3,7 +3,7 @@
 ## 1. Header
 
 - `card_id`: `HC-20260310-scalar-vs-tensor-ablation-v1`
-- `status`: `proposed`
+- `status`: `in_progress`
 - `owner`: `arbiter`
 - `date_created`: `2026-03-10`
 - `related_track`: `A+B`
@@ -65,25 +65,35 @@
 
 ## 6. Results
 
-- `run_ids`: `pending`
-- `summary`: `pending`
-- `effect_sizes`: `pending`
-- `confidence_intervals`: `pending`
-- `unexpected_outcomes`: `pending`
+- `run_ids`:
+  - `2026-03-10-scalar-tensor-ablation-v0`
+- `summary`:
+  - real structural slice: 327 comparisons, 0 decision differences (0.00% discrimination gain)
+  - synthetic collapse slice: 6 comparisons, 3 decision differences (50.00% discrimination gain)
+- `effect_sizes`:
+  - discrimination gain (real): `0.00`
+  - discrimination gain (synthetic): `0.50`
+- `confidence_intervals`: `not computed in baseline harness`
+- `unexpected_outcomes`:
+  - real structural baseline produced no scalar-vs-tensor separation, indicating current structural-only channel lacks sufficient ambiguity signal
 
 ## 7. Decision
 
-- `decision`: `pending`
-- `rationale`: `pending`
-- `follow_up_actions`: `pending`
-- `owner_signoff`: `pending`
+- `decision`: `hold`
+- `rationale`: baseline harness validated mechanics; real-corpus discrimination is zero until evaluator-native declared-loss channels are introduced.
+- `follow_up_actions`:
+  - add evaluator prompt templates that request declared losses and decision traces
+  - rerun ablation with semantic/LLM-enriched entries
+- `owner_signoff`: `arbiter (provisional)`
 
 ## 8. Artifact Links
 
-- `code_diff`: `pending`
-- `analysis_notebook_or_script`: `pending`
-- `reports`: `pending`
-- `incident_records`: `pending`
+- `code_diff`: `research branch commits 398d0ab, 36b821e`
+- `analysis_notebook_or_script`: `scripts/run_scalar_tensor_ablation.py`
+- `reports`:
+  - `data/analysis/scalar_tensor_ablation_v0.json`
+  - `data/analysis/scalar_tensor_ablation_v0.md`
+- `incident_records`: `none`
 
 ## 9. Notes
 

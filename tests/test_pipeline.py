@@ -424,6 +424,7 @@ class TestPipelineWithMockLLM:
         assert result.tensor.shape() == (n_blocks, n_blocks, n_rules)
         assert result.tensor.schema_version == 2
         assert len(result.tensor.entries_v2) == len(result.tensor.entries)
+        assert all(e.decision is not None for e in result.tensor.entries_v2)
 
 
 # --- PromptBlock.scopes_overlap tests ---

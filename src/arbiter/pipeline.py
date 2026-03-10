@@ -15,6 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from .block_evaluator import BlockEvaluator, BlockScore
+from .decision_policy import DeterministicDecisionPolicy
 from .decomposer import Decomposer
 from .interference_tensor import InterferenceTensor
 from .prompt_blocks import PromptBlock
@@ -47,11 +48,22 @@ class PromptAnalyzer:
         result = analyzer.analyze_with_scores(blocks, llm_scores)
     """
 
-    def __init__(self, rule_set: CompiledRuleSet) -> None:
+    def __init__(
+        self,
+        rule_set: CompiledRuleSet,
+        decision_policy: DeterministicDecisionPolicy | None = None,
+    ) -> None:
         self._rule_set = rule_set
+        self._decision_policy = decision_policy or DeterministicDecisionPolicy()
         self._decomposer = Decomposer(rule_set)
-        self._evaluator = BlockEvaluator(structural_only=False)
-        self._structural_evaluator = BlockEvaluator(structural_only=True)
+        self._evaluator = BlockEvaluator(
+            structural_only=False,
+            decision_policy=self._decision_policy,
+        )
+        self._structural_evaluator = BlockEvaluator(
+            structural_only=True,
+            decision_policy=self._decision_policy,
+        )
 
     @property
     def decomposer(self) -> Decomposer:

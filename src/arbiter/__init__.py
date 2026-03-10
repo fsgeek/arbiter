@@ -3,6 +3,7 @@
 __version__ = "0.1.0"
 
 from .block_evaluator import BlockEvaluator, BlockScore
+from .decision_policy import DecisionPolicyConfig, DeterministicDecisionPolicy
 from .decomposer import Decomposer, DecompositionError
 from .episode import DeclaredLoss, Episode, EpisodeStore, TensorAnchor
 from .heuristic_decomposer import heuristic_decompose

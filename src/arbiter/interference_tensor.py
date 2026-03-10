@@ -10,9 +10,11 @@ exists, how severe it is, and what rule detected it.
 
 from __future__ import annotations
 
+from enum import Enum
+
 from pydantic import BaseModel, Field
 
-from .prompt_blocks import Severity
+from .prompt_blocks import Severity, Tier
 
 
 class TensorEntry(BaseModel):
@@ -26,6 +28,63 @@ class TensorEntry(BaseModel):
     explanation: str | None = None
 
 
+class AdjudicationDecision(str, Enum):
+    """Tier-gated runtime decision for a tensor entry."""
+
+    accept = "accept"
+    clarify = "clarify"
+    rewrite = "rewrite"
+    reject = "reject"
+
+
+class DrafterIdentity(str, Enum):
+    """Who authored the ambiguous clause under adjudication."""
+
+    provider = "provider"
+    operator = "operator"
+    user = "user"
+    unknown = "unknown"
+
+
+class TensorDeclaredLoss(BaseModel):
+    """Structured declared loss attached to an adjudication entry."""
+
+    what: str
+    why: str
+    severity: float = Field(ge=0.0, le=1.0)
+
+
+class TensorEntryV2(BaseModel):
+    """Extended tensor entry with T/I/F channels and adjudication context."""
+
+    # Backward-compatible core
+    block_a: str
+    block_b: str
+    rule: str
+    score: float = Field(ge=0.0, le=1.0)
+    severity: Severity
+    explanation: str | None = None
+
+    # Neutrosophic-style channels for normative adjudication
+    t: float = Field(ge=0.0, le=1.0)
+    i: float = Field(ge=0.0, le=1.0)
+    f: float = Field(ge=0.0, le=1.0)
+
+    # Context and governance
+    tier_a: Tier | None = None
+    tier_b: Tier | None = None
+    scope_tags: list[str] = Field(default_factory=list)
+    canon_tags: list[str] = Field(default_factory=list)
+    drafter_identity: DrafterIdentity = DrafterIdentity.unknown
+    evidence_quality: float = Field(default=0.5, ge=0.0, le=1.0)
+
+    # Loss channel
+    declared_losses: list[TensorDeclaredLoss] = Field(default_factory=list)
+
+    # Optional routing output
+    decision: AdjudicationDecision | None = None
+
+
 class InterferenceTensor(BaseModel):
     """Sparse tensor over (block_a, block_b, rule) → score.
 
@@ -37,9 +96,18 @@ class InterferenceTensor(BaseModel):
     for prompt analysis where most block pairs don't interfere.
     """
 
+    schema_version: int = Field(default=1, description="Tensor schema version (1 = scalar, 2 = extended)")
     block_ids: list[str] = Field(default_factory=list, description="All block IDs (axes 0 and 1)")
     rule_names: list[str] = Field(default_factory=list, description="All rule names (axis 2)")
     entries: list[TensorEntry] = Field(default_factory=list, description="Sparse non-zero entries")
+    entries_v2: list[TensorEntryV2] = Field(
+        default_factory=list,
+        description="Extended schema entries with T/I/F channels",
+    )
+    migration_notes: list[str] = Field(
+        default_factory=list,
+        description="Optional notes describing schema migration assumptions",
+    )
 
     @classmethod
     def from_scores(
@@ -52,7 +120,85 @@ class InterferenceTensor(BaseModel):
     ) -> InterferenceTensor:
         """Construct from evaluation results, filtering by threshold."""
         filtered = [e for e in entries if e.score > threshold]
-        return cls(block_ids=block_ids, rule_names=rule_names, entries=filtered)
+        return cls(
+            schema_version=1,
+            block_ids=block_ids,
+            rule_names=rule_names,
+            entries=filtered,
+        )
+
+    @classmethod
+    def from_scores_v2(
+        cls,
+        block_ids: list[str],
+        rule_names: list[str],
+        entries_v2: list[TensorEntryV2],
+        *,
+        threshold: float = 0.0,
+    ) -> InterferenceTensor:
+        """Construct a schema v2 tensor from extended entries."""
+        filtered = [e for e in entries_v2 if e.score > threshold]
+        return cls(
+            schema_version=2,
+            block_ids=block_ids,
+            rule_names=rule_names,
+            entries_v2=filtered,
+        )
+
+    def to_v2_entries(
+        self,
+        *,
+        default_evidence_quality: float = 0.5,
+    ) -> list[TensorEntryV2]:
+        """Deterministically map v1 entries to v2 entries.
+
+        Mapping:
+          f = score
+          i = 1 - evidence_quality
+          t = max(0, 1 - max(f, i))
+        """
+        i_value = 1.0 - default_evidence_quality
+        result: list[TensorEntryV2] = []
+        for entry in self.entries:
+            f_value = entry.score
+            t_value = max(0.0, 1.0 - max(f_value, i_value))
+            result.append(
+                TensorEntryV2(
+                    block_a=entry.block_a,
+                    block_b=entry.block_b,
+                    rule=entry.rule,
+                    score=entry.score,
+                    severity=entry.severity,
+                    explanation=entry.explanation,
+                    t=t_value,
+                    i=i_value,
+                    f=f_value,
+                    evidence_quality=default_evidence_quality,
+                )
+            )
+        return result
+
+    def to_v2_tensor(
+        self,
+        *,
+        default_evidence_quality: float = 0.5,
+    ) -> InterferenceTensor:
+        """Create a schema v2 tensor while preserving v1 entries."""
+        v2_entries = self.to_v2_entries(
+            default_evidence_quality=default_evidence_quality
+        )
+        note = (
+            "Auto-migrated from schema v1: "
+            "f=score, i=1-evidence_quality, t=max(0,1-max(f,i))."
+        )
+        return InterferenceTensor(
+            schema_version=2,
+            block_ids=list(self.block_ids),
+            rule_names=list(self.rule_names),
+            entries=list(self.entries),
+            entries_v2=v2_entries,
+            migration_notes=[note],
+        )
 
     def summary_score(self) -> float:
         """Aggregate score: max severity-weighted score across all entries.

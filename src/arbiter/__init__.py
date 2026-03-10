@@ -7,7 +7,14 @@ from .decomposer import Decomposer, DecompositionError
 from .episode import DeclaredLoss, Episode, EpisodeStore, TensorAnchor
 from .heuristic_decomposer import heuristic_decompose
 from .llm_caller import LLMCaller
-from .interference_tensor import InterferenceTensor, TensorEntry
+from .interference_tensor import (
+    AdjudicationDecision,
+    DrafterIdentity,
+    InterferenceTensor,
+    TensorDeclaredLoss,
+    TensorEntry,
+    TensorEntryV2,
+)
 from .pipeline import AnalysisResult, PromptAnalyzer
 from .prompt_blocks import (
     BlockCategory,

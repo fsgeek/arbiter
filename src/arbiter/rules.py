@@ -187,7 +187,16 @@ required and forbidden, even if they apply in different contexts.
 Respond with JSON only:
 {{
   "score": <float 0.0 to 1.0, where 1.0 = certain contradiction>,
-  "explanation": "<why this is or isn't a mandate/prohibition conflict>"
+  "explanation": "<why this is or isn't a mandate/prohibition conflict>",
+  "t": <optional float 0.0 to 1.0 for compatibility/support>,
+  "i": <optional float 0.0 to 1.0 for indeterminacy/ambiguity>,
+  "f": <optional float 0.0 to 1.0 for conflict pressure>,
+  "evidence_quality": <optional float 0.0 to 1.0>,
+  "declared_losses": [
+    {{"what":"<optional limitation>", "why":"<optional reason>", "severity":<0.0-1.0>}}
+  ],
+  "decision": "<optional accept|clarify|rewrite|reject>",
+  "drafter_identity": "<optional provider|operator|user|unknown>"
 }}"""
 
 _SCOPE_OVERLAP_PROMPT = """\
@@ -208,7 +217,16 @@ on the same topic.
 Respond with JSON only:
 {{
   "score": <float 0.0 to 1.0, where 1.0 = highly ambiguous overlap>,
-  "explanation": "<what overlaps and whether it creates ambiguity>"
+  "explanation": "<what overlaps and whether it creates ambiguity>",
+  "t": <optional float 0.0 to 1.0 for compatibility/support>,
+  "i": <optional float 0.0 to 1.0 for indeterminacy/ambiguity>,
+  "f": <optional float 0.0 to 1.0 for conflict pressure>,
+  "evidence_quality": <optional float 0.0 to 1.0>,
+  "declared_losses": [
+    {{"what":"<optional limitation>", "why":"<optional reason>", "severity":<0.0-1.0>}}
+  ],
+  "decision": "<optional accept|clarify|rewrite|reject>",
+  "drafter_identity": "<optional provider|operator|user|unknown>"
 }}"""
 
 _IMPLICIT_DEPENDENCY_PROMPT = """\
@@ -229,7 +247,16 @@ another block, or when one block silently narrows/broadens another's scope.
 Respond with JSON only:
 {{
   "score": <float 0.0 to 1.0, where 1.0 = strong undeclared dependency>,
-  "explanation": "<what the implicit relationship is>"
+  "explanation": "<what the implicit relationship is>",
+  "t": <optional float 0.0 to 1.0 for compatibility/support>,
+  "i": <optional float 0.0 to 1.0 for indeterminacy/ambiguity>,
+  "f": <optional float 0.0 to 1.0 for conflict pressure>,
+  "evidence_quality": <optional float 0.0 to 1.0>,
+  "declared_losses": [
+    {{"what":"<optional limitation>", "why":"<optional reason>", "severity":<0.0-1.0>}}
+  ],
+  "decision": "<optional accept|clarify|rewrite|reject>",
+  "drafter_identity": "<optional provider|operator|user|unknown>"
 }}"""
 
 

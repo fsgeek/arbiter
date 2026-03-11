@@ -232,7 +232,7 @@ Cycle deliverables:
 
 ## 10. Immediate Next Actions (No Waiting)
 
-1. Create `docs/cairn/sentinel_v0_1.json` from benchmark_v0 slices.
-2. Add parseability counters to ablation/evaluation reporting.
-3. Run E1 on one model family and store report.
-4. Run E2 first semantic-augmented rerun and update hypothesis card.
+1. Execute sentinel/non-regression rerun under current candidate policy and log severe-failure delta.
+2. Run E4 spoiler round 1 using `docs/cairn/E4_spoiler_round_protocol_v1.md`.
+3. Close E5 with explicit deployment mode decision (cross-family default vs model-conditioned).
+4. If cross-family default is selected, run one confirmation E2 rerun after threshold tuning.

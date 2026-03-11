@@ -72,6 +72,9 @@
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-60cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-120cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt5-mini-60cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-llama-4-maverick-120cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gpt5-mini-120cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-claude-haiku-4.5-120cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-40cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-120cases`
 - `summary`:
@@ -82,6 +85,9 @@
   - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-4o-mini): 381 comparisons, 33 decision differences (8.66% discrimination gain)
   - E2 semantic-augmented run (120 LLM cases + structural baseline, gpt-4o-mini): 437 comparisons, 70 decision differences (16.02% discrimination gain)
   - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-5-mini): 373 comparisons, 10 decision differences (2.68% discrimination gain)
+  - E2 semantic-augmented run (120 LLM cases + structural baseline, llama-4-maverick): 425 comparisons, 71 decision differences (16.71% discrimination gain)
+  - E2 semantic-augmented run (120 LLM cases + structural baseline, gpt-5-mini): 429 comparisons, 32 decision differences (7.46% discrimination gain)
+  - E2 semantic-augmented run (120 LLM cases + structural baseline, claude-haiku-4.5): 441 comparisons, 31 decision differences (7.03% discrimination gain)
   - E2 semantic-augmented run (40 LLM cases + structural baseline, gemini-2.0-flash): 360 comparisons, 6 decision differences (1.67% discrimination gain)
   - E2 semantic-augmented run (120 LLM cases + structural baseline, gemini-2.0-flash): 432 comparisons, 32 decision differences (7.41% discrimination gain)
 - `effect_sizes`:
@@ -91,24 +97,26 @@
   - discrimination gain (semantic-augmented real, gpt-4o-mini 60-case): `0.0866`
   - discrimination gain (semantic-augmented real, gpt-4o-mini 120-case): `0.1602`
   - discrimination gain (semantic-augmented real, gpt-5-mini 60-case): `0.0268`
+  - discrimination gain (semantic-augmented real, llama-4-maverick 120-case): `0.1671`
+  - discrimination gain (semantic-augmented real, gpt-5-mini 120-case): `0.0746`
+  - discrimination gain (semantic-augmented real, claude-haiku-4.5 120-case): `0.0703`
   - discrimination gain (semantic-augmented real, gemini-2.0-flash 40-case): `0.0167`
   - discrimination gain (semantic-augmented real, gemini-2.0-flash 120-case): `0.0741`
 - `confidence_intervals`: `not computed in baseline harness`
 - `unexpected_outcomes`:
   - real structural baseline produced no scalar-vs-tensor separation, indicating current structural-only channel lacks sufficient ambiguity signal
-  - semantic augmentation improved real discrimination but remains below promotion threshold (`0.10`)
-  - cross-model variance is large: gpt-4o-mini run exceeds threshold while gemini run remains low, suggesting model-dependent channel quality
-  - gemini improves with larger budget (`1.67%` -> `7.41%`) but still below threshold; parseability quality remains lower than gpt runs
+  - semantic augmentation improved real discrimination and exceeded promotion threshold in selected model families, but not uniformly across families
+  - cross-model variance is large and appears bimodal: gpt-4o-mini/llama-4-maverick exceed threshold while gpt-5-mini/gemini/claude-haiku-4.5 remain near ~7%, suggesting model-family-dependent channel quality
+  - gemini improves with larger budget (`1.67%` -> `7.41%`) but still below threshold; parseability quality remains lower than top-performing runs
 
 ## 7. Decision
 
 - `decision`: `hold`
-- `rationale`: mechanics validated and threshold exceeded in one model family (`0.1602`), but cross-model stability is not yet established (`0.0167` on gemini run); hold until robustness criteria are met.
+- `rationale`: mechanics validated and threshold exceeded in two model families (`0.1602` gpt-4o-mini, `0.1671` llama-4-maverick), but stability is not universal (`0.0703`–`0.0746` on claude-haiku-4.5/gpt-5-mini and `0.0741` on gemini); hold until sentinel/non-regression checks and deployment mode decision complete.
 - `follow_up_actions`:
-  - add evaluator prompt templates that request declared losses and decision traces
-  - rerun E2 with larger case budget and second model family
-  - investigate high-impact transition categories (`reject->clarify`, `rewrite->clarify`) for threshold tuning
-  - run E2 with additional model families and consistent case budgets for fair comparison
+  - run sentinel/non-regression pass for the candidate policy
+  - investigate transition signatures separating high-discrimination runs (`reject->accept`, `rewrite->accept`) from ~7% runs (`rewrite->clarify` concentration)
+  - decide whether deployment should be cross-family default or model-conditioned
 - `owner_signoff`: `arbiter (provisional)`
 
 ## 8. Artifact Links
@@ -126,6 +134,12 @@
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_120.md`
   - `data/analysis/e2_semantic_ablation_report_gpt5mini_60.json`
   - `data/analysis/e2_semantic_ablation_report_gpt5mini_60.md`
+  - `data/analysis/e2_semantic_ablation_report_llama4maverick_120.json`
+  - `data/analysis/e2_semantic_ablation_report_llama4maverick_120.md`
+  - `data/analysis/e2_semantic_ablation_report_gpt5mini_120.json`
+  - `data/analysis/e2_semantic_ablation_report_gpt5mini_120.md`
+  - `data/analysis/e2_semantic_ablation_report_claudehaiku45_120.json`
+  - `data/analysis/e2_semantic_ablation_report_claudehaiku45_120.md`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.json`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
   - `data/analysis/e2_semantic_ablation_report_gemini20_40.json`

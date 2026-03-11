@@ -39,10 +39,11 @@ Additional reruns:
 | E2-R2 | openai/gpt-4o-mini | 60 | 381 | 33 | 8.66% |
 | E2-R3 | openai/gpt-4o-mini | 120 | 437 | 70 | 16.02% |
 | E2-R4 | google/gemini-2.0-flash-001 | 40 | 360 | 6 | 1.67% |
+| E2-R5 | google/gemini-2.0-flash-001 | 120 | 432 | 32 | 7.41% |
 
 ## Gate Read
 
-- Mixed: one run exceeds promotion target (`16.02%`), another remains low (`1.67%`).
+- Mixed: one run exceeds promotion target (`16.02%`), while gemini runs remain below threshold (`1.67%`, `7.41%`).
 - Cross-model stability not yet established; hold promotion pending robustness runs.
 
 ## Next
@@ -62,3 +63,5 @@ Additional reruns:
 - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
 - `data/analysis/e2_semantic_ablation_report_gemini20_40.json`
 - `data/analysis/e2_semantic_ablation_report_gemini20_40.md`
+- `data/analysis/e2_semantic_ablation_report_gemini20_120.json`
+- `data/analysis/e2_semantic_ablation_report_gemini20_120.md`

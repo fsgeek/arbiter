@@ -72,6 +72,7 @@
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-60cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-120cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-40cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-120cases`
 - `summary`:
   - real structural slice: 327 comparisons, 0 decision differences (0.00% discrimination gain)
   - synthetic collapse slice: 6 comparisons, 3 decision differences (50.00% discrimination gain)
@@ -80,6 +81,7 @@
   - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-4o-mini): 381 comparisons, 33 decision differences (8.66% discrimination gain)
   - E2 semantic-augmented run (120 LLM cases + structural baseline, gpt-4o-mini): 437 comparisons, 70 decision differences (16.02% discrimination gain)
   - E2 semantic-augmented run (40 LLM cases + structural baseline, gemini-2.0-flash): 360 comparisons, 6 decision differences (1.67% discrimination gain)
+  - E2 semantic-augmented run (120 LLM cases + structural baseline, gemini-2.0-flash): 432 comparisons, 32 decision differences (7.41% discrimination gain)
 - `effect_sizes`:
   - discrimination gain (real): `0.00`
   - discrimination gain (synthetic): `0.50`
@@ -87,11 +89,13 @@
   - discrimination gain (semantic-augmented real, gpt-4o-mini 60-case): `0.0866`
   - discrimination gain (semantic-augmented real, gpt-4o-mini 120-case): `0.1602`
   - discrimination gain (semantic-augmented real, gemini-2.0-flash 40-case): `0.0167`
+  - discrimination gain (semantic-augmented real, gemini-2.0-flash 120-case): `0.0741`
 - `confidence_intervals`: `not computed in baseline harness`
 - `unexpected_outcomes`:
   - real structural baseline produced no scalar-vs-tensor separation, indicating current structural-only channel lacks sufficient ambiguity signal
   - semantic augmentation improved real discrimination but remains below promotion threshold (`0.10`)
   - cross-model variance is large: gpt-4o-mini run exceeds threshold while gemini run remains low, suggesting model-dependent channel quality
+  - gemini improves with larger budget (`1.67%` -> `7.41%`) but still below threshold; parseability quality remains lower than gpt runs
 
 ## 7. Decision
 
@@ -121,6 +125,8 @@
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
   - `data/analysis/e2_semantic_ablation_report_gemini20_40.json`
   - `data/analysis/e2_semantic_ablation_report_gemini20_40.md`
+  - `data/analysis/e2_semantic_ablation_report_gemini20_120.json`
+  - `data/analysis/e2_semantic_ablation_report_gemini20_120.md`
 - `incident_records`: `none`
 
 ## 9. Notes

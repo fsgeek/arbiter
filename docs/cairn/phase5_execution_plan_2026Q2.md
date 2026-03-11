@@ -223,12 +223,12 @@ Control:
 ## 9. Deliverables Checklist
 
 Cycle deliverables:
-- [ ] `docs/cairn/sentinel_v0_1.json`
-- [ ] E1 parseability report
-- [ ] E2 updated ablation outputs
-- [ ] E3 persistent-high-I pilot report
+- [x] `docs/cairn/sentinel_v0_1.json`
+- [x] E1 parseability report
+- [x] E2 updated ablation outputs
+- [x] E3 persistent-high-I pilot report
 - [ ] E4 spoiler round report
-- [ ] updated hypothesis card decision (`promote|hold|rollback`)
+- [x] updated hypothesis card decision (`promote|hold|rollback`)
 
 ## 10. Immediate Next Actions (No Waiting)
 

@@ -40,11 +40,16 @@ Additional reruns:
 | E2-R3 | openai/gpt-4o-mini | 120 | 437 | 70 | 16.02% |
 | E2-R4 | google/gemini-2.0-flash-001 | 40 | 360 | 6 | 1.67% |
 | E2-R5 | google/gemini-2.0-flash-001 | 120 | 432 | 32 | 7.41% |
+| E2-R6 | openai/gpt-5-mini | 60 | 373 | 10 | 2.68% |
 
 ## Gate Read
 
 - Mixed: one run exceeds promotion target (`16.02%`), while gemini runs remain below threshold (`1.67%`, `7.41%`).
 - Cross-model stability not yet established; hold promotion pending robustness runs.
+
+Newer-model triage checkpoint:
+- `models.txt` sweep (10-case bounded runs) completed on 8 models.
+- Best triage discrimination was modest (`1.49%` on `llama-4-maverick`), indicating the need for higher-budget follow-up before drawing cross-model conclusions.
 
 ## Next
 
@@ -65,3 +70,7 @@ Additional reruns:
 - `data/analysis/e2_semantic_ablation_report_gemini20_40.md`
 - `data/analysis/e2_semantic_ablation_report_gemini20_120.json`
 - `data/analysis/e2_semantic_ablation_report_gemini20_120.md`
+- `data/analysis/e2_semantic_ablation_report_gpt5mini_60.json`
+- `data/analysis/e2_semantic_ablation_report_gpt5mini_60.md`
+- `data/analysis/e2_model_sweep_summary.json`
+- `data/analysis/e2_model_sweep_summary.md`

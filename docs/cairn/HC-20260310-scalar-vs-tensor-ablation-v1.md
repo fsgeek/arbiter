@@ -71,6 +71,7 @@
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-40cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-60cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gpt4o-mini-120cases`
+  - `2026-03-10-e2-semantic-ablation-openrouter-gpt5-mini-60cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-40cases`
   - `2026-03-10-e2-semantic-ablation-openrouter-gemini-2.0-flash-120cases`
 - `summary`:
@@ -80,6 +81,7 @@
   - E2 semantic-augmented run (40 LLM cases + structural baseline): 361 comparisons, 17 decision differences (4.71% discrimination gain)
   - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-4o-mini): 381 comparisons, 33 decision differences (8.66% discrimination gain)
   - E2 semantic-augmented run (120 LLM cases + structural baseline, gpt-4o-mini): 437 comparisons, 70 decision differences (16.02% discrimination gain)
+  - E2 semantic-augmented run (60 LLM cases + structural baseline, gpt-5-mini): 373 comparisons, 10 decision differences (2.68% discrimination gain)
   - E2 semantic-augmented run (40 LLM cases + structural baseline, gemini-2.0-flash): 360 comparisons, 6 decision differences (1.67% discrimination gain)
   - E2 semantic-augmented run (120 LLM cases + structural baseline, gemini-2.0-flash): 432 comparisons, 32 decision differences (7.41% discrimination gain)
 - `effect_sizes`:
@@ -88,6 +90,7 @@
   - discrimination gain (semantic-augmented real): `0.0471`
   - discrimination gain (semantic-augmented real, gpt-4o-mini 60-case): `0.0866`
   - discrimination gain (semantic-augmented real, gpt-4o-mini 120-case): `0.1602`
+  - discrimination gain (semantic-augmented real, gpt-5-mini 60-case): `0.0268`
   - discrimination gain (semantic-augmented real, gemini-2.0-flash 40-case): `0.0167`
   - discrimination gain (semantic-augmented real, gemini-2.0-flash 120-case): `0.0741`
 - `confidence_intervals`: `not computed in baseline harness`
@@ -121,6 +124,8 @@
   - `data/analysis/e2_semantic_ablation_report.md`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_120.json`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_120.md`
+  - `data/analysis/e2_semantic_ablation_report_gpt5mini_60.json`
+  - `data/analysis/e2_semantic_ablation_report_gpt5mini_60.md`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.json`
   - `data/analysis/e2_semantic_ablation_report_gpt4omini_60.md`
   - `data/analysis/e2_semantic_ablation_report_gemini20_40.json`

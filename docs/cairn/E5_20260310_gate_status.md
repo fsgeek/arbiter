@@ -11,13 +11,32 @@ Status: HOLD (provisional)
 | `e2_semantic_ablation_report_gpt4omini_120.json` | `openai/gpt-4o-mini` | 120 | 16.02% | 99.17% |
 | `e2_semantic_ablation_report_gemini20_40.json` | `google/gemini-2.0-flash-001` | 40 | 1.67% | 35.00% |
 | `e2_semantic_ablation_report_gemini20_120.json` | `google/gemini-2.0-flash-001` | 120 | 7.41% | 52.50% |
+| `e2_semantic_ablation_report_gpt5mini_60.json` | `openai/gpt-5-mini` | 60 | 2.68% | 100.00% |
 
 ## Gate Read
 
 - Best observed discrimination gain: **16.02%** (meets >=10% threshold)
 - Worst observed discrimination gain: **1.67%** (cross-model instability remains)
-- gpt-4o-mini scales above threshold with higher case budget; gemini improves with budget but remains below threshold.
+- gpt-4o-mini scales above threshold with higher case budget; gemini improves with budget but remains below threshold; gpt-5-mini shows strong parseability but lower discrimination at this budget.
 - Promotion remains **HOLD** until cross-model stability criteria are satisfied.
+
+## Newer-Model Sweep Checkpoint (10-case triage)
+
+- Completed models from `models.txt`: 8
+- Top discrimination in bounded triage:
+  - `meta-llama/llama-4-maverick`: 1.49%
+  - `allenai/olmo-3.1-32b-instruct`: 0.60%
+  - `x-ai/grok-4.1-fast`: 0.30%
+- Remaining completed models showed 0% discrimination in this low-budget triage.
+- Three models stalled/omitted under provider latency constraints:
+  - `z-ai/glm-5`
+  - `qwen/qwen3.5-397b-a17b`
+  - `moonshotai/kimi-k2.5`
+
+Interpretation:
+- We are no longer relying on old-model-only evidence.
+- The low-case-budget sweep is useful for triage but insufficient for promotion decisions.
+- Next evidence step is high-budget reruns on the best newer-model candidates.
 
 ## Required to Exit HOLD
 

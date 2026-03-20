@@ -56,6 +56,32 @@ class LLMCaller:
         )
         return response.choices[0].message.content
 
+    def _call_llm_with_system(
+        self,
+        system_prompt: str,
+        user_message: str,
+        *,
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+    ) -> str:
+        """Make an LLM call with separate system and user messages.
+
+        Used by the ablation runner to test behavior under different
+        system prompts. The system prompt goes in the system role,
+        not embedded as user text — this is critical because models
+        process system and user messages differently at the attention level.
+        """
+        response = self._client.chat.completions.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        )
+        return response.choices[0].message.content
+
     async def decompose(
         self, text: str, source: str, rule_set: CompiledRuleSet
     ) -> list[PromptBlock]:

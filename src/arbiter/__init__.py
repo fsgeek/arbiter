@@ -36,3 +36,6 @@ from .rules import (
     RuleSet,
     default_ruleset,
 )
+
+# Ablation evaluation framework (subpackage)
+from . import ablation

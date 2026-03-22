@@ -227,7 +227,11 @@ def _generate_candidates(
             candidates.append(row)
         return candidates
 
-    # For large factor counts, sample
+    # For large factor counts, sample with fixed seed for reproducibility.
+    # The seed is derived from the problem parameters so the same
+    # (n_factors, constraints) always produces the same covering array.
+    rng = random.Random(n_factors * 31 + sum(free_indices))
+
     candidates = []
     n_samples = min(10000, 2**n_free)
 
@@ -240,13 +244,13 @@ def _generate_candidates(
             row[idx] = base_val
         candidates.append(row)
 
-    # Random samples
+    # Random samples (deterministic via seeded RNG)
     for _ in range(n_samples):
         row = [0] * n_factors
         for idx, val in constraints.items():
             row[idx] = val
         for idx in free_indices:
-            row[idx] = random.randint(0, 1)
+            row[idx] = rng.randint(0, 1)
         candidates.append(row)
 
     return candidates

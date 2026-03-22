@@ -225,6 +225,7 @@ class AblationTensor(BaseModel):
         # Separate configs by phase
         baseline_config_ids: set[str] = set()
         phase0_configs: list[AblationConfig] = []
+        phase1_config_ids: set[str] = set()
         phase2_config_ids: set[str] = set()
 
         for config in run.configs:
@@ -232,6 +233,8 @@ class AblationTensor(BaseModel):
                 baseline_config_ids.add(config.id)
             elif config.phase == "phase0":
                 phase0_configs.append(config)
+            elif config.phase == "phase1":
+                phase1_config_ids.add(config.id)
             elif config.phase == "phase2":
                 phase2_config_ids.add(config.id)
 
@@ -246,38 +249,73 @@ class AblationTensor(BaseModel):
             r for r in run.results
             if any(r.config_id == c.id for c in phase0_configs)
         ]
+        phase1_results = [
+            r for r in run.results if r.config_id in phase1_config_ids
+        ]
         phase2_results = [
             r for r in run.results if r.config_id in phase2_config_ids
         ] or None
 
-        return cls.from_run(
+        tensor = cls.from_run(
             baseline_results=baseline_results,
             phase0_results=phase0_results,
             phase0_configs=phase0_configs,
             phase2_results=phase2_results,
         )
 
+        # Attach Phase 1 data for pairwise_interactions() if present
+        if phase1_results:
+            tensor._phase1_results = phase1_results
+            tensor._baseline_results = baseline_results
+
+        return tensor
+
     def main_effects(
-        self, significance: float = 0.05
+        self, significance: float = 0.05, fdr: bool = True
     ) -> dict[str, float]:
         """Mean |delta| per block, filtered by p_value.
 
         Args:
-            significance: p-value threshold. Entries with p_value > this
-                are excluded (not statistically significant).
+            significance: Significance threshold. When fdr=True, this is
+                the FDR-controlled q-value threshold (Benjamini-Hochberg).
+                When fdr=False, it is a raw p-value threshold per-test.
+            fdr: Apply Benjamini-Hochberg FDR correction (default True).
+                With hundreds of tests, uncorrected p-values produce
+                many false positives.
 
         Returns:
             Dict mapping block_id -> mean |delta| across probes and models.
         """
-        block_deltas: dict[str, list[float]] = defaultdict(list)
+        # Collect all entries with p-values for FDR correction
+        entries_with_p: list[tuple[str, AblationScore]] = []
+        entries_without_p: list[tuple[str, AblationScore]] = []
 
         for key, score in self.entries.items():
-            block_id, _, _ = self._parse_key(key)
+            if score.p_value is not None:
+                entries_with_p.append((key, score))
+            else:
+                entries_without_p.append((key, score))
 
-            # Filter by significance if p_value is available
-            if score.p_value is not None and score.p_value > significance:
+        # Determine which entries pass significance filter
+        if fdr and entries_with_p:
+            significant_keys = _benjamini_hochberg(
+                [(k, s.p_value) for k, s in entries_with_p],
+                alpha=significance,
+            )
+        else:
+            significant_keys = {
+                k for k, s in entries_with_p
+                if s.p_value is not None and s.p_value <= significance
+            }
+
+        # Include entries without p-values (e.g., single-trial)
+        significant_keys.update(k for k, _ in entries_without_p)
+
+        block_deltas: dict[str, list[float]] = defaultdict(list)
+        for key, score in self.entries.items():
+            if key not in significant_keys:
                 continue
-
+            block_id, _, _ = self._parse_key(key)
             block_deltas[block_id].append(abs(score.delta))
 
         return {
@@ -454,9 +492,8 @@ def _welch_t_test_p(
     """Welch's t-test p-value for two independent samples.
 
     Returns None if either group has fewer than 2 observations.
-    Uses a normal approximation for simplicity (avoids scipy dependency).
-    For the sample sizes in ablation experiments (3-5 trials), this is
-    a reasonable approximation.
+    Uses the regularized incomplete beta function for the t-distribution
+    CDF, which is accurate even at small sample sizes (n=3).
     """
     if len(group_a) < 2 or len(group_b) < 2:
         return None
@@ -475,19 +512,128 @@ def _welch_t_test_p(
 
     t_stat = abs(mean_a - mean_b) / se
 
-    # Normal approximation for p-value (two-tailed)
-    # For small samples this is approximate; with scipy we'd use t-distribution
-    import math
+    # Welch-Satterthwaite degrees of freedom
+    num = (var_a / n_a + var_b / n_b) ** 2
+    denom = (var_a / n_a) ** 2 / (n_a - 1) + (var_b / n_b) ** 2 / (n_b - 1)
+    if denom == 0:
+        return 1.0
+    df = num / denom
 
-    p_value = 2.0 * (1.0 - _normal_cdf(t_stat))
+    # Two-tailed p-value from t-distribution
+    p_value = 2.0 * (1.0 - _t_cdf(t_stat, df))
     return p_value
 
 
-def _normal_cdf(x: float) -> float:
-    """Standard normal CDF using the error function.
+def _t_cdf(t: float, df: float) -> float:
+    """CDF of the t-distribution using the regularized incomplete beta function.
 
-    Uses math.erf which is available in Python's standard library.
+    t_cdf(t, df) = 1 - 0.5 * I_x(df/2, 1/2)  where x = df/(df + t^2)
+
+    This is exact (no normal approximation) and works correctly at small df
+    (e.g., df=2-4 typical of n=3 Welch tests).
     """
     import math
 
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+    x = df / (df + t * t)
+    # I_x(a, b) = regularized incomplete beta function
+    return 1.0 - 0.5 * _regularized_incomplete_beta(x, df / 2.0, 0.5)
+
+
+def _regularized_incomplete_beta(x: float, a: float, b: float) -> float:
+    """Regularized incomplete beta function I_x(a, b) via continued fraction.
+
+    Uses the continued fraction from Numerical Recipes (betacf).
+    Accurate to ~1e-10 for typical ablation parameters (a=1-2, b=0.5).
+    """
+    import math
+
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+
+    # Use the symmetry relation if x > (a+1)/(a+b+2) for better convergence
+    if x > (a + 1.0) / (a + b + 2.0):
+        return 1.0 - _regularized_incomplete_beta(1.0 - x, b, a)
+
+    # Prefix: x^a * (1-x)^b / (a * B(a,b))
+    lbeta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
+    prefix = math.exp(a * math.log(x) + b * math.log(1.0 - x) - lbeta) / a
+
+    # Continued fraction (Numerical Recipes betacf)
+    FPMIN = 1e-30
+    qab = a + b
+    qap = a + 1.0
+    qam = a - 1.0
+
+    c = 1.0
+    d = 1.0 - qab * x / qap
+    if abs(d) < FPMIN:
+        d = FPMIN
+    d = 1.0 / d
+    h = d
+
+    for m in range(1, 200):
+        m2 = 2 * m
+        # Even coefficient
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1.0 + aa * d
+        if abs(d) < FPMIN:
+            d = FPMIN
+        c = 1.0 + aa / c
+        if abs(c) < FPMIN:
+            c = FPMIN
+        d = 1.0 / d
+        h *= d * c
+
+        # Odd coefficient
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1.0 + aa * d
+        if abs(d) < FPMIN:
+            d = FPMIN
+        c = 1.0 + aa / c
+        if abs(c) < FPMIN:
+            c = FPMIN
+        d = 1.0 / d
+        delta = d * c
+        h *= delta
+
+        if abs(delta - 1.0) < 1e-10:
+            break
+
+    return prefix * h
+
+
+def _benjamini_hochberg(
+    entries: list[tuple[str, float]],
+    alpha: float = 0.05,
+) -> set[str]:
+    """Benjamini-Hochberg FDR correction.
+
+    Given a list of (key, p_value) pairs, returns the set of keys that
+    are significant after controlling the false discovery rate at level alpha.
+
+    This is critical for multiple testing: with m tests at alpha=0.05,
+    we expect m*0.05 false positives without correction.
+    """
+    if not entries:
+        return set()
+
+    m = len(entries)
+    # Sort by p-value ascending
+    sorted_entries = sorted(entries, key=lambda x: x[1])
+
+    # Find the largest k where p_(k) <= (k/m) * alpha
+    significant: set[str] = set()
+    max_k = 0
+    for k, (key, p_val) in enumerate(sorted_entries, start=1):
+        threshold = (k / m) * alpha
+        if p_val <= threshold:
+            max_k = k
+
+    # All entries up to max_k are significant
+    for k, (key, _) in enumerate(sorted_entries, start=1):
+        if k <= max_k:
+            significant.add(key)
+
+    return significant

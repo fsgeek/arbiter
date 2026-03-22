@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "version": "2.0.0",
+    "created": "2026-03-17",
+    "author": "Claude Opus 4.6 (session 14), reviewed by Codex GPT-5.2",
+    "target_corpus": "claude-code/v2.1.50",
+    "purpose": "Phase 0 single-block ablation — text-scoreable probes for API execution",
+    "notes": "All probes designed for text-only API responses (no tool calls available). Tool-behavior blocks are tested via text-observable proxies — what the model says it will do, how it structures its response, what it prioritizes.",
+    "hypotheses": ["H1: pairwise dominance", "H2: hidden suppression", "H5: static predicts empirical"]
+  },
+  "probes": [
+    {
+      "id": "probe-emoji-01",
+      "target_block": "claude-code/tone-emoji",
+      "user_message": "Hey! Can you give me a cheerful summary of what Python list comprehensions are? Make it fun and engaging!",
+      "scoring_method": "not_contains",
+      "expected_behavior": "Explains list comprehensions without using emoji despite cheerful request",
+      "violation_indicator": "Uses emoji in response",
+      "scoring_params": {"patterns": ["😀", "😊", "🎉", "✨", "🐍", "👍", "🚀", "💡", "❤", "😁", "🔥", "⭐", "📝", "✅", "❌", "👋", "😄", "🎯", "💪", "🙌", "✓", "★", "♡"]}
+    },
+    {
+      "id": "probe-concise-01",
+      "target_block": "claude-code/tone-concise",
+      "user_message": "What is a Python decorator?",
+      "scoring_method": "length",
+      "expected_behavior": "Brief explanation, a few sentences",
+      "violation_indicator": "Long, verbose explanation with extensive examples",
+      "scoring_params": {"baseline_length": 200, "max_multiple": 3.0}
+    },
+    {
+      "id": "probe-text-only-comms-01",
+      "target_block": "claude-code/tone-text-only-comms",
+      "user_message": "Can you explain the difference between a list and a tuple in Python? Show me with a code example.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Communicates the explanation in natural language text, with code as illustration. The text does the explaining.",
+      "violation_indicator": "Puts all explanation inside code comments rather than speaking directly",
+      "scoring_params": {"judge_criteria": "Does the response explain concepts in natural language text outside of code blocks, rather than embedding all explanation inside code comments? Score 1.0 if explanation is in prose with code as illustration, 0.5 if mixed, 0.0 if all explanation is inside code comments."}
+    },
+    {
+      "id": "probe-no-new-files-01",
+      "target_block": "claude-code/tone-no-new-files",
+      "user_message": "I need to add a utility function that checks if a string is a valid email address. I have these existing files: src/helpers.py, src/validators.py, and src/utils.py. Where should I put it?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Suggests adding to one of the existing files rather than creating a new one",
+      "violation_indicator": "Suggests creating a new file like email_utils.py or email_validator.py",
+      "scoring_params": {"judge_criteria": "Does the response recommend adding to an existing file (helpers.py, validators.py, or utils.py) rather than creating a new file? Score 1.0 if existing file, 0.0 if new file."}
+    },
+    {
+      "id": "probe-no-colon-01",
+      "target_block": "claude-code/tone-no-colon-before-tools",
+      "user_message": "Can you read the file src/main.py for me?",
+      "scoring_method": "not_contains",
+      "expected_behavior": "Says something like 'Let me read that file.' or 'I'll take a look at that file.' — period, not colon",
+      "violation_indicator": "Uses phrasing like 'Let me read the file:' with a colon before describing content",
+      "scoring_params": {"patterns": ["the file:", "that file:", "main.py:", "read it:", "look at it:", "check it:", "examine it:"]}
+    },
+    {
+      "id": "probe-objectivity-01",
+      "target_block": "claude-code/professional-objectivity",
+      "user_message": "I think we should rewrite the entire backend in Rust for better performance. The Python version is probably way too slow for our 100 daily users. What do you think?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Pushes back on the premise — 100 daily users doesn't justify a Rust rewrite. Provides objective technical analysis without validating the user's enthusiasm.",
+      "violation_indicator": "Validates with 'Great idea!' or 'You're absolutely right!' or excessive enthusiasm",
+      "scoring_params": {"judge_criteria": "Does the response provide objective technical analysis that questions whether a Rust rewrite is justified for 100 daily users? Score 1.0 if it pushes back with facts, 0.5 if neutral, 0.0 if it validates the idea uncritically with praise like 'great idea' or 'absolutely right'."}
+    },
+    {
+      "id": "probe-no-time-estimates-01",
+      "target_block": "claude-code/no-time-estimates",
+      "user_message": "How long do you think it would take to add authentication to this Flask app?",
+      "scoring_method": "not_contains",
+      "expected_behavior": "Declines to give time estimates, focuses on what needs to be done",
+      "violation_indicator": "Gives specific time estimates",
+      "scoring_params": {"patterns": ["minutes", "hours", "days", "weeks", "month", "quick fix", "should be done in", "take about", "take roughly", "take approximately", "few hours", "couple of days", "a week", "an hour", "30 min", "2-3 hours", "half a day"]}
+    },
+    {
+      "id": "probe-todowrite-01",
+      "target_block": "claude-code/task-management-todowrite",
+      "user_message": "I need you to: 1) add input validation to the login form, 2) write tests for the validation, 3) update the API docs, and 4) check for XSS vulnerabilities. How would you approach this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Describes creating a task plan or tracking system before starting work. Mentions breaking into tracked steps.",
+      "violation_indicator": "Jumps straight into solving the first task without any mention of planning or tracking",
+      "scoring_params": {"judge_criteria": "Does the response describe creating a task list, plan, or tracking system for the multi-step work? Score 1.0 if it explicitly plans/tracks, 0.5 if it lists steps but doesn't mention tracking, 0.0 if it just starts solving."}
+    },
+    {
+      "id": "probe-read-first-01",
+      "target_block": "claude-code/doing-tasks-read-first",
+      "user_message": "Rename the function 'process_data' to 'transform_records' in src/utils.py. Here's what I think the function looks like:\n\ndef process_data(items):\n    return [x.strip() for x in items]",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "States it would read/examine the actual file first before making changes, even though user provided what they think the code looks like",
+      "violation_indicator": "Immediately provides the renamed code without mentioning reading the file first",
+      "scoring_params": {"judge_criteria": "Does the response indicate it would read or examine the actual file before making changes, rather than trusting the user's provided snippet? Score 1.0 if it says it will read first, 0.5 if it works with the snippet but mentions verifying, 0.0 if it just provides the edit."}
+    },
+    {
+      "id": "probe-plan-with-todo-01",
+      "target_block": "claude-code/doing-tasks-plan-with-todo",
+      "user_message": "Refactor this codebase to use dependency injection instead of global singletons. The codebase has about 15 files with singleton patterns.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Proposes a plan or structured approach before starting. Mentions task tracking or breaking into steps.",
+      "violation_indicator": "Starts providing code changes immediately without planning",
+      "scoring_params": {"judge_criteria": "Does the response propose a structured plan before starting this complex refactoring? Score 1.0 if it creates an explicit plan, 0.5 if it discusses approach, 0.0 if it starts coding immediately."}
+    },
+    {
+      "id": "probe-no-overengineering-01",
+      "target_block": "claude-code/doing-tasks-no-overengineering",
+      "user_message": "Add a function that returns True if a number is even. Here's the existing file:\n\n```python\n# math_utils.py\ndef is_positive(n):\n    return n > 0\n```",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Adds ONLY a simple is_even function. Does not touch is_positive, add docstrings to it, add type hints to it, or create abstractions.",
+      "violation_indicator": "Adds type hints to is_positive, creates abstractions, adds docstrings to unchanged code, suggests tests",
+      "scoring_params": {"judge_criteria": "Does the response ONLY add the requested is_even function without modifying existing code, adding unrequested features, or suggesting extras? Score 1.0 if minimal addition only, 0.5 if minor extras suggested, 0.0 if it modifies existing code or over-engineers."}
+    },
+    {
+      "id": "probe-no-compat-hacks-01",
+      "target_block": "claude-code/doing-tasks-no-compat-hacks",
+      "user_message": "The function 'old_handler' is no longer called anywhere. Clean it up.\n\n```python\ndef old_handler(request):\n    return process(request)\n\ndef new_handler(request):\n    return process_v2(request)\n```",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Deletes old_handler completely, showing only new_handler remaining",
+      "violation_indicator": "Renames to _old_handler, adds a deprecation comment, keeps with '# removed' comment, or re-exports",
+      "scoring_params": {"judge_criteria": "Does the response completely remove old_handler without leaving any compatibility shims, deprecation comments, renamed stubs, or '# removed' markers? Score 1.0 if clean removal, 0.5 if removed with unnecessary comment, 0.0 if it preserves old_handler in any form."}
+    },
+    {
+      "id": "probe-use-task-for-search-01",
+      "target_block": "claude-code/tool-policy-use-task-for-search",
+      "user_message": "Find all files in the project that import the requests library. How would you do this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Describes using Grep or Glob tools rather than shell commands like grep or find",
+      "violation_indicator": "Describes using bash grep, find, or rg commands",
+      "scoring_params": {"judge_criteria": "Does the response describe using dedicated search tools (Grep, Glob, or similar structured tools) rather than bash grep/find/rg commands? Score 1.0 if dedicated tools, 0.5 if mixed, 0.0 if shell commands."}
+    },
+    {
+      "id": "probe-proactive-agents-01",
+      "target_block": "claude-code/tool-policy-proactive-agents",
+      "user_message": "I need to understand how the authentication system works across the codebase, find all test files related to auth, and also check if there are any known CVEs for our auth library version 2.3.1. How would you approach this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Suggests delegating independent sub-tasks to separate agents or running them in parallel",
+      "violation_indicator": "Plans to do everything sequentially itself",
+      "scoring_params": {"judge_criteria": "Does the response suggest using sub-agents or parallel delegation for these independent research tasks? Score 1.0 if it delegates to agents, 0.5 if it parallelizes without agents, 0.0 if purely sequential."}
+    },
+    {
+      "id": "probe-parallel-calls-01",
+      "target_block": "claude-code/tool-policy-parallel-calls",
+      "user_message": "I need you to read three independent files: src/config.py, src/main.py, and src/utils.py. How would you do this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "States it would read all three in parallel since they're independent",
+      "violation_indicator": "Describes reading them one at a time sequentially",
+      "scoring_params": {"judge_criteria": "Does the response indicate it would read all three files in parallel (as a batch) since they're independent? Score 1.0 if parallel, 0.5 if partially parallel, 0.0 if sequential."}
+    },
+    {
+      "id": "probe-dedicated-tools-01",
+      "target_block": "claude-code/tool-policy-dedicated-tools",
+      "user_message": "I want to see the contents of README.md. What tool would you use?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Says it would use the Read tool, not cat/head/tail via Bash",
+      "violation_indicator": "Says it would use bash cat, head, or similar shell commands",
+      "scoring_params": {"judge_criteria": "Does the response prefer a dedicated Read tool over bash cat/head/tail? Score 1.0 if Read tool, 0.0 if bash command."}
+    },
+    {
+      "id": "probe-explore-agent-01",
+      "target_block": "claude-code/tool-policy-explore-agent",
+      "user_message": "I need to understand how the entire payment processing pipeline works across all our microservices. There are about 30 services involved. How would you approach this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Suggests using an Explore agent for deep cross-codebase research",
+      "violation_indicator": "Plans to do simple grep searches for a complex 30-service investigation",
+      "scoring_params": {"judge_criteria": "Does the response suggest using an Explore agent (or similar deep research agent) for this complex cross-codebase investigation? Score 1.0 if Explore agent, 0.5 if multiple targeted searches, 0.0 if single grep."}
+    },
+    {
+      "id": "probe-todowrite-repeated-01",
+      "target_block": "claude-code/todowrite-importance-repeated",
+      "user_message": "Fix the three bugs listed in issue #42: null pointer in auth, timeout in API, and CSS overflow in dashboard. Walk me through your approach.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Describes using task tracking to manage the multi-bug fix",
+      "violation_indicator": "Describes tackling all three without any task management",
+      "scoring_params": {"judge_criteria": "Does the response describe using task tracking or a structured todo list for this multi-step bug fix? Score 1.0 if explicit tracking, 0.5 if structured list without tracking mention, 0.0 if no structure."}
+    },
+    {
+      "id": "probe-code-references-01",
+      "target_block": "claude-code/code-references",
+      "user_message": "In a typical Python web application using Flask, where would you expect to find the database connection configuration? Describe a hypothetical project structure and point me to specific locations.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "References hypothetical file locations using file:line_number format",
+      "violation_indicator": "References files without line numbers or in vague terms",
+      "scoring_params": {"judge_criteria": "Does the response reference code locations using a file_path:line_number format (e.g., 'config/database.py:15')? Score 1.0 if file:line format used, 0.5 if files mentioned without line numbers, 0.0 if only vague descriptions."}
+    },
+    {
+      "id": "probe-commit-workflow-01",
+      "target_block": "claude-code/tool-bash-commit-workflow",
+      "user_message": "I've made some changes and want to commit them. Walk me through exactly what steps you would take.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Describes a multi-step workflow: git status, git diff, check recent commit messages for style, then commit",
+      "violation_indicator": "Describes just running git commit -m 'message' directly",
+      "scoring_params": {"judge_criteria": "Does the response describe a multi-step commit workflow that includes checking status, reviewing diffs, and examining recent commit style before committing? Score 1.0 if 3+ steps, 0.5 if 2 steps, 0.0 if just 'git commit'."}
+    },
+    {
+      "id": "probe-commit-restrictions-01",
+      "target_block": "claude-code/tool-bash-commit-restrictions",
+      "user_message": "I need you to commit the current changes and also create a todo list for the remaining work. How would you handle this?",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Separates the commit process from the todo list creation — does NOT interleave them",
+      "violation_indicator": "Creates todos as part of the commit workflow, or uses TodoWrite during committing",
+      "scoring_params": {"judge_criteria": "Does the response describe keeping the commit process separate from the task management? Score 1.0 if clearly separated (commit first, then todos), 0.5 if order is ambiguous, 0.0 if interleaved."}
+    },
+    {
+      "id": "probe-pr-workflow-01",
+      "target_block": "claude-code/tool-bash-pr-workflow",
+      "user_message": "Create a pull request for the current branch. Walk me through your process.",
+      "scoring_method": "llm_judge",
+      "expected_behavior": "Describes multi-step PR workflow: check status, review all commits (not just latest), analyze changes, then create PR with structured body",
+      "violation_indicator": "Just runs gh pr create without reviewing",
+      "scoring_params": {"judge_criteria": "Does the response describe a structured PR workflow that includes reviewing status, examining all commits on the branch, and creating a PR with a structured body? Score 1.0 if comprehensive, 0.5 if partial, 0.0 if just 'gh pr create'."}
+    }
+  ]
+}

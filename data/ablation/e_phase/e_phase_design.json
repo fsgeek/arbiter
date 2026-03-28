@@ -1,0 +1,55 @@
+{
+  "experiment": "e-phase",
+  "date": "2026-03-28",
+  "question": "Does imperative register saturation have a critical threshold (phase transition) or degrade smoothly?",
+  "procedural_blocks_ordered": [
+    "claude-code/tool-bash-commit-restrictions",
+    "claude-code/tone-text-only-comms",
+    "claude-code/tool-policy-parallel-calls",
+    "claude-code/tool-policy-proactive-agents",
+    "claude-code/tool-policy-use-task-for-search",
+    "claude-code/tool-policy-explore-agent",
+    "claude-code/tool-bash-pr-workflow",
+    "claude-code/tool-bash-commit-workflow",
+    "claude-code/task-management-todowrite",
+    "claude-code/doing-tasks-no-overengineering",
+    "claude-code/tool-policy-dedicated-tools"
+  ],
+  "ordering_criterion": "cross-linguistic variance (most fragile first)",
+  "densities_tested": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "models": [
+    "haiku"
+  ],
+  "trials": 3,
+  "rewrites": {
+    "claude-code/tool-bash-commit-restrictions": "Commit context tool restrictions:\n- Allowed tools: git bash commands only\n- Disallowed tools: TodoWrite, Task\n- Push policy: requires explicit user request\n- Git flags: -i flag unsupported; --no-edit unsupported for rebase\n- Empty commits: not created\n- Commit message format: HEREDOC",
+    "claude-code/tone-text-only-comms": "Communication channel: text output (displayed to user)\nTool purpose: task completion only\nCommunication via Bash/code comments: not supported",
+    "claude-code/tool-policy-parallel-calls": "Tool call parallelism:\n- Independent calls: parallel (in same response)\n- Dependent calls: sequential\n- Parameter values: must be known (no placeholders)",
+    "claude-code/tool-policy-proactive-agents": "Task tool with specialized agents:\n- Status: available for all tasks matching an agent's description\n- Activation: proactive (no user request required)\n- Selection: based on match between task and agent description",
+    "claude-code/tool-policy-use-task-for-search": "File search tool preference:\n- Preferred tool: Task tool\n- Reason: reduces context window usage\n- Applies to: all file search operations",
+    "claude-code/tool-policy-explore-agent": "Codebase exploration tool:\n- Deep research: Task tool with subagent_type=Explore\n- Simple/directed search: Glob or Grep directly\n- Explore agent speed: slower than direct tools\n- Threshold: use when >3 queries needed",
+    "claude-code/tool-bash-pr-workflow": "Pull request creation process:\n- Step 1: git status, git diff, remote tracking check, git log (parallel)\n- Step 2: analyze all commits, draft title (<70 chars) + summary\n- Step 3: create branch if needed, push with -u, gh pr create (HEREDOC body)\n- Disallowed tools: TodoWrite, Task\n- Output: PR URL",
+    "claude-code/tool-bash-commit-workflow": "Git commit process:\n- Step 1: git status, git diff, git log (parallel)\n- Step 2: analyze staged changes, draft message (1-2 sentences, no secrets)\n- Step 3: stage files, commit with Co-Authored-By, verify with git status\n- Hook failure: fix issue, create new commit (not amend)",
+    "claude-code/task-management-todowrite": "TodoWrite tool status and requirements:\n- Usage frequency: very high (required for all task tracking)\n- Planning: required for breaking complex tasks into steps\n- Completion marking: required immediately upon task completion (no batching)\n- User visibility: TodoWrite is the primary mechanism for progress reporting\n- Omission consequence: important tasks forgotten (unacceptable)",
+    "claude-code/doing-tasks-no-overengineering": "Code change scope: directly requested or clearly necessary changes only\n- Feature additions: only when requested\n- Error handling: system boundaries only (user input, external APIs)\n- Abstractions: minimum needed for current task\n- Comments/docstrings: only on changed code, only when logic non-obvious",
+    "claude-code/tool-policy-dedicated-tools": "Tool preference for file operations:\n- Read files: Read tool (not cat/head/tail)\n- Edit files: Edit tool (not sed/awk)\n- Create files: Write tool (not cat/heredoc/echo)\n- Bash: system commands and terminal operations only\n- Communication: text output only (not bash echo)"
+  },
+  "predictions": {
+    "phase_transition": "Adherence stable until density N, then collapses",
+    "smooth_linear": "Adherence degrades monotonically with density",
+    "threshold": "Step function at some critical density"
+  }
+}

@@ -1,6 +1,7 @@
 # Arbiter
 
 [![DOI](https://zenodo.org/badge/1162885454.svg)](https://doi.org/10.5281/zenodo.18929833)
+[![DOI](https://zenodo.org/badge/1162885454.svg)](https://doi.org/10.5281/zenodo.19229385)
 
 
 Arbiter is a system-prompt interference analysis toolkit for LLM coding agents.

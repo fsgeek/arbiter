@@ -235,23 +235,37 @@ The public arbiter repo on GitHub (`fsgeek/arbiter`, initialized
 - Commit `770cfa3`: "Paper draft: Detecting Interference in LLM Agent
   System Prompts"
 
-Tony's recollection: the arXiv paper was distributed on **2026-03-09**.
-(Note: the commit `5382076` tagged "arXiv submission version" is dated
-2026-03-25; the earlier 03-09 date likely refers to a preprint release
-or initial arXiv deposit, but I can't reconcile from inside this repo
-alone — flagging the discrepancy for Tony.)
+There are two relevant arXiv papers (per Tony):
+
+- **Paper 1** "Arbiter: Detecting Interference in LLM Agent System
+  Prompts" — [arXiv:2603.08993](https://arxiv.org/abs/2603.08993),
+  distributed **2026-03-09**. The framework paper.
+- **Paper 3** "Imperative Interference: Social Register Shapes
+  Instruction Topology in Large Language Models" —
+  [arXiv:2603.25015](https://arxiv.org/abs/2603.25015), distributed
+  **2026-03-26**. The mechanism / register-effects paper, matching
+  commit `5382076` "arXiv submission version" (2026-03-25).
 
 | Date | Event |
 |---|---|
-| 2026-02-20 | Arbiter repo public |
+| 2026-02-20 | Arbiter repo public on GitHub (`fsgeek/arbiter`) |
 | 2026-02-26 | 56-block analysis + paper draft on GitHub |
-| 2026-03-04 | v2.1.68 shipped with bomb removed (pichay capture) |
-| 2026-03-09 | arXiv distribution (per Tony's recollection) |
-| 2026-03-25 | "arXiv submission version" commit |
+| **2026-03-04** | v2.1.68 shipped, bomb removed (pichay capture) |
+| 2026-03-09 | Paper 1 distributed (arXiv 2603.08993) |
+| 2026-03-09 | v2.1.71 captured (latest_prompt.md) |
+| 2026-03-26 | Paper 3 distributed (arXiv 2603.25015) |
 
-The **fix predates any arXiv date by at least 5 days**. So if the
-research influenced the change, the channel would be the public GitHub
-repo (visible from Feb 26), not the paper itself.
+The **fix predates every arXiv release**: 5 days before Paper 1, 22
+days before Paper 3. If the research influenced the change, the channel
+is the public GitHub repo (visible from 2026-02-26), not either paper.
+Six days between public data and shipped fix is tight but plausible
+for a prompt text change.
+
+Paper 3 is particularly notable here because it contains the
+register/imperative topology analysis most directly connected to the
+bomb mechanism. Its March 26 release is 22 days *after* the fix
+shipped, so timing cannot support a causal story running through
+Paper 3 under any interpretation.
 
 Three causal stories are mutually consistent with the timeline:
 

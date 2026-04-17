@@ -181,14 +181,67 @@ and is now validated by independent upstream action.
 - `memory/project_register_bomb_mechanism.md` — revised mechanism claim
 - `data/prompts/claude-code/v50_v71_diff.json` — full per-block diff output
 
+## Addendum (same day): v2.1.68 midpoint via pichay
+
+`/home/tony/projects/pichay` is Tony's MITM gateway that sits between the
+Claude Code client and the Anthropic API. Its logs already contain a full
+system-prompt capture from **v2.1.68**, timestamped 2026-03-04:
+
+- Header: `cc_version=2.1.68.898; cc_entrypoint=cli`
+- Main text block: 22,420 chars
+- Bomb-signature probes in v2.1.68:
+  - `"NEVER use the TodoWrite or Task tools"` — **missing**
+  - `"Important notes"` — missing
+  - `"commit-restrictions"` — missing
+  - `"HEREDOC"` — missing
+  - `"Executing actions with care"` — **found** (present already)
+
+Saved to `data/prompts/claude-code/v2.1.68_raw.md`.
+
+**Timing is tightened:** the bomb block removal and the "Executing actions
+with care" rewrite landed **between v2.1.50 (Feb 2026) and v2.1.68
+(2026-03-04)**, not as late as v2.1.71. Our E-TEMP-REBASELINE + MFS work
+on v2.1.50 was already historical by the time it was run.
+
+### Size trajectory (three points)
+
+| version | date | system-prompt text | delta from v2.1.50 |
+|---|---|---:|---:|
+| 2.1.50 | Feb 2026 | 16,080 chars | — |
+| 2.1.68 | 2026-03-04 | 22,420 chars | +40% |
+| 2.1.71 | 2026-03-09 | 16,165 chars | +0.5% |
+
+A 40% expansion followed by a 28% contraction in five days. This is
+consistent with a regression-and-trim cycle rather than smooth evolution,
+and aligns with Tony's "capacity-driven mutation" framing (thinking-mode
+knob changes, hidden-thinking-display change) — prompt-level changes in
+the same window, possibly responding to the same pressure.
+
+*Caveat:* pichay captures the Anthropic API `system` field, which may or
+may not be apples-to-apples with the v2.1.71 markdown dump depending on
+whether tool schemas were serialized into the system text or passed via
+the `tools` field. v2.1.71 parsing (no per-tool sections in the
+markdown) suggests tools were in the `tools` field by then; v2.1.68 may
+have still had them inline. If so, the 22.5k→16.2k contraction is partly
+explained by the tool-extraction migration rather than a pure text rewrite.
+
+### Pichay as ongoing capture infrastructure
+
+- Command: `cd ~/projects/pichay && uv run pichay --claude`
+- Produces: `logs/proxy_TIMESTAMP.jsonl` with `system_prompt_full` list
+  per request.
+- For longitudinal drift work, one pichay-proxied `claude` session per
+  release is sufficient to record the prompt.
+
 ## Next steps
 
-1. **Pull v2.1.113** if a proxy-capture path becomes available. (Per
-   Tony's note: "the more resilient way is to use a proxy.") Bun-compiled
-   binary is not strings-extractable.
+1. **Capture v2.1.113 via pichay** next time a claude-code session is
+   running. Cost: ~30 seconds. Outcome: tightens the drift series to
+   four points.
 2. **Hold Thread 1 Phase 1 re-scope** until the "argmax-geometry transfer"
    framing is fully articulated in a pre-reg.
 3. **Consider** whether the longitudinal drift itself is publishable — the
    restructuring pattern (imperatives → declarative wrappers; tool specs
-   → API tools param) could be characterized across more versions if
-   v2.1.71 and v2.1.113 captures accumulate.
+   → API tools param) is now a three-point trajectory with a clear size
+   spike in the middle, which is enough shape to be a finding rather
+   than just two-point drift.

@@ -69,6 +69,15 @@ from run_e_phase import (  # noqa: E402
 
 CR_BLOCK_ID = "claude-code/tool-bash-commit-restrictions"
 EA_PROBE_ID = "probe-explore-agent-01"
+EA_TARGET_BLOCK = "claude-code/tool-policy-explore-agent"
+
+# Blocks that must never be removed during elimination:
+# - CR: removing it trivially defuses the bomb (this isn't about MFS, just
+#       measurement sanity — the algorithm already wouldn't pick it).
+# - EA_TARGET_BLOCK: the probe's target_block. Without this instruction
+#       present, low EA scores don't mean "bomb firing" — they mean "the
+#       model was never told about the Explore agent," which is a confound.
+PROTECTED_BLOCKS = frozenset({CR_BLOCK_ID, EA_TARGET_BLOCK})
 
 # Bomb-firing threshold: EA < 0.4 means bomb still firing.
 # Baseline-firing is ~0.20 (E-PHASE-CONFIRM only-cr-imp); baseline-defused is ~1.00.
@@ -307,6 +316,13 @@ def run_experiment(args):
         "starting_blocks": all_block_ids,
         "n_starting_blocks": n_blocks,
         "baseline_configuration": "only-cr-imp: CR imperative, all other procedural blocks declarative",
+        "protected_blocks": sorted(PROTECTED_BLOCKS),
+        "protected_rationale": (
+            "CR removal trivially defuses the bomb; EA_TARGET_BLOCK removal "
+            "is a measurement confound (the probe scores whether the model "
+            "recommends the Explore agent, but without the policy block "
+            "present the model was never told of it)."
+        ),
     }
     with open(output_dir / "e_mfs_design.json", "w") as f:
         json.dump(design, f, indent=2)
@@ -404,12 +420,34 @@ def run_experiment(args):
             )
             break
 
-        # Evaluate each candidate removal
+        # Evaluate each candidate removal. Skip PROTECTED_BLOCKS — removing
+        # CR trivially defuses the bomb, and removing EA_TARGET_BLOCK
+        # removes the instruction the probe scores against (confounded low
+        # EA). Both would bias the algorithm.
+        removable_blocks = [b for b in present_blocks if b not in PROTECTED_BLOCKS]
+        if not removable_blocks:
+            print(
+                f"  No non-protected blocks remain. "
+                f"MFS = {len(present_blocks)} blocks (including protected)."
+            )
+            decision_log.append(
+                IterationRecord(
+                    step=step,
+                    present_before=list(present_blocks),
+                    ea_before=ea_current,
+                    candidates=[],
+                    removed_block=None,
+                    ea_after=None,
+                    reason="halt_only_protected_remain",
+                )
+            )
+            break
+
         candidates: list[CandidateResult] = []
         all_step_results = []
-        for i, cand in enumerate(present_blocks):
+        for i, cand in enumerate(removable_blocks):
             if not budget.check():
-                print(f"  Budget exhausted mid-step at candidate {i}/{len(present_blocks)}")
+                print(f"  Budget exhausted mid-step at candidate {i}/{len(removable_blocks)}")
                 break
             trial_present = [b for b in present_blocks if b != cand]
             cfg_id = f"mfs-s{step:02d}-drop-{cand.replace('/', '_')}"
@@ -439,7 +477,7 @@ def run_experiment(args):
             all_step_results.extend(raw)
             marker = " <-- safely removable" if ea_mean < THRESHOLD else ""
             print(
-                f"    {i+1:>2}/{len(present_blocks)} {cand:<60}  "
+                f"    {i+1:>2}/{len(removable_blocks)} {cand:<60}  "
                 f"EA={ea_mean:.3f}{marker}"
             )
 

@@ -80,7 +80,11 @@ from run_e_phase import MODEL_MAP, load_corpus
 
 # ── Constants ────────────────────────────────────────────────────────
 
-MINIMAL_CORPUS_PATH = project_root / "data" / "prompts" / "minimal-bomb" / "v1_blocks.json"
+VARIANT_CORPUS_PATHS = {
+    "v1": project_root / "data" / "prompts" / "minimal-bomb" / "v1_blocks.json",
+    "v2": project_root / "data" / "prompts" / "minimal-bomb" / "v2_blocks.json",
+    "v3": project_root / "data" / "prompts" / "minimal-bomb" / "v3_blocks.json",
+}
 
 BOMB_BLOCK_ID = "minimal-bomb/tool-bash-commit-restrictions"
 
@@ -173,20 +177,21 @@ def run_experiment(args):
     full_battery = load_battery(battery_path)
     battery = filter_battery_to_key_probes(full_battery)
 
-    # Load the minimal synthetic corpus.
-    if not MINIMAL_CORPUS_PATH.exists():
-        print(f"ERROR: minimal corpus not found at {MINIMAL_CORPUS_PATH}")
+    # Load the minimal synthetic corpus (variant-selectable).
+    corpus_path = VARIANT_CORPUS_PATHS[args.variant]
+    if not corpus_path.exists():
+        print(f"ERROR: minimal corpus not found at {corpus_path}")
         sys.exit(1)
-    corpus = load_corpus(MINIMAL_CORPUS_PATH)
+    corpus = load_corpus(corpus_path)
 
     configs = [
         build_baseline_config(corpus),
         build_bomb_config(corpus),
     ]
 
-    print("\nE-MINIMAL-BOMB: 6-block synthetic prompt — does it reproduce the bomb?")
+    print(f"\nE-MINIMAL-BOMB ({args.variant}): does this synthetic prompt reproduce the bomb?")
     print(f"  Corpus:        {corpus.name} ({len(corpus.blocks)} blocks)")
-    print(f"  Corpus path:   {MINIMAL_CORPUS_PATH.relative_to(project_root)}")
+    print(f"  Corpus path:   {corpus_path.relative_to(project_root)}")
     print(f"  Probes:        {[p.id for p in battery.probes]}")
     print(f"  Trials:        {args.trials}")
     print(f"  Conditions:    {[c.id for c in configs]}")
@@ -218,15 +223,14 @@ def run_experiment(args):
     # Persist the experimental design alongside results for provenance.
     design = {
         "experiment": "e-minimal-bomb",
+        "variant": args.variant,
         "parent": "e-phase-confirm",
         "question": (
-            "Does a 6-block synthetic prompt (identity + tone + 2 tool-policy "
-            "blocks + commit-workflow + commit-restrictions bomb) reproduce "
-            "the EA collapse signature seen against the full Claude Code "
-            "prompt on Haiku 4.5?"
+            "Does a synthetic minimal prompt reproduce the EA collapse "
+            "signature seen against the full Claude Code prompt on Haiku 4.5?"
         ),
         "corpus": corpus.name,
-        "corpus_file": str(MINIMAL_CORPUS_PATH.relative_to(project_root)),
+        "corpus_file": str(corpus_path.relative_to(project_root)),
         "bomb_block_id": BOMB_BLOCK_ID,
         "conditions": [
             {
@@ -241,7 +245,8 @@ def run_experiment(args):
         "trials": args.trials,
         "model": MODEL_MAP["haiku"],
     }
-    with open(output_dir / "e_minimal_bomb_design.json", "w") as f:
+    design_filename = f"e_minimal_bomb_{args.variant}_design.json"
+    with open(output_dir / design_filename, "w") as f:
         json.dump(design, f, indent=2)
 
     model_id = MODEL_MAP["haiku"]
@@ -250,7 +255,7 @@ def run_experiment(args):
     caller = LLMCaller(client, model_id)
     runner = AblationRunner(caller=caller)
 
-    run_id = f"e-minimal-bomb-haiku-{uuid.uuid4().hex[:8]}"
+    run_id = f"e-minimal-bomb-{args.variant}-haiku-{uuid.uuid4().hex[:8]}"
 
     run = AblationRun(
         id=run_id,
@@ -261,6 +266,7 @@ def run_experiment(args):
         temperature=0.0,
         metadata={
             "experiment": "e-minimal-bomb",
+            "variant": args.variant,
             "model": "haiku",
             "model_id": model_id,
             "corpus": corpus.name,
@@ -344,8 +350,9 @@ def compare(args):
     mb_dir = project_root / "data" / "ablation" / "e_minimal_bomb"
     for f in sorted(mb_dir.glob("run_*.json")) if mb_dir.exists() else []:
         run = load_run(str(f))
+        variant = run.metadata.get("variant", "v1")
         for r in run.results:
-            scores[f"mb:{r.config_id}"][r.probe_id].append(r.score)
+            scores[f"mb:{variant}:{r.config_id}"][r.probe_id].append(r.score)
 
     # E-PHASE anchors (Claude Code prompt, same probe battery, Haiku).
     phase_dir = project_root / "data" / "ablation" / "e_phase"
@@ -374,8 +381,12 @@ def compare(args):
     order = [
         "cc:all-decl",
         "cc:only-cr-imp",
-        "mb:baseline",
-        "mb:bomb-present",
+        "mb:v1:baseline",
+        "mb:v1:bomb-present",
+        "mb:v2:baseline",
+        "mb:v2:bomb-present",
+        "mb:v3:baseline",
+        "mb:v3:bomb-present",
     ]
     present = [c for c in order if c in scores]
 
@@ -402,19 +413,23 @@ def compare(args):
         if ("cc:all-decl" in scores and "cc:only-cr-imp" in scores)
         else None
     )
-    mb_base = scores.get("mb:baseline", {}).get(ea, [])
-    mb_bomb = scores.get("mb:bomb-present", {}).get(ea, [])
 
     print()
     if cc_drop is not None:
-        print(f"  Claude Code EA drop (all-decl → only-cr-imp): Δ = {cc_drop:+.3f}")
-    if mb_base and mb_bomb:
-        mb_drop = statistics.mean(mb_base) - statistics.mean(mb_bomb)
-        print(f"  Minimal-bomb EA drop (baseline → bomb-present): Δ = {mb_drop:+.3f}")
+        print(f"  Claude Code EA drop (all-decl -> only-cr-imp): delta = {cc_drop:+.3f}")
+    for variant in ("v1", "v2", "v3"):
+        mb_base = scores.get(f"mb:{variant}:baseline", {}).get(ea, [])
+        mb_bomb = scores.get(f"mb:{variant}:bomb-present", {}).get(ea, [])
+        if mb_base and mb_bomb:
+            mb_drop = statistics.mean(mb_base) - statistics.mean(mb_bomb)
+            print(f"  Minimal-bomb {variant} EA drop (baseline -> bomb-present): "
+                  f"delta = {mb_drop:+.3f}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="E-MINIMAL-BOMB")
+    parser.add_argument("--variant", choices=list(VARIANT_CORPUS_PATHS), default="v1",
+                        help="corpus variant (default v1)")
     parser.add_argument("--trials", type=int, default=10,
                         help="trials per probe per condition (default 10)")
     parser.add_argument("--concurrency", type=int, default=5)

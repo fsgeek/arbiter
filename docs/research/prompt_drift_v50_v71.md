@@ -225,6 +225,72 @@ markdown) suggests tools were in the `tools` field by then; v2.1.68 may
 have still had them inline. If so, the 22.5k→16.2k contraction is partly
 explained by the tool-extraction migration rather than a pure text rewrite.
 
+### Timing overlap with public arbiter data (epistemic note)
+
+The public arbiter repo on GitHub (`fsgeek/arbiter`, initialized
+2026-02-20) made the bomb-relevant analysis visible on **2026-02-26**:
+
+- Commit `928bdc0`: "Prompt archaeology: 56 blocks, 21 interference
+  patterns for Claude Code v2.1.50"
+- Commit `770cfa3`: "Paper draft: Detecting Interference in LLM Agent
+  System Prompts"
+
+Tony's recollection: the arXiv paper was distributed on **2026-03-09**.
+(Note: the commit `5382076` tagged "arXiv submission version" is dated
+2026-03-25; the earlier 03-09 date likely refers to a preprint release
+or initial arXiv deposit, but I can't reconcile from inside this repo
+alone — flagging the discrepancy for Tony.)
+
+| Date | Event |
+|---|---|
+| 2026-02-20 | Arbiter repo public |
+| 2026-02-26 | 56-block analysis + paper draft on GitHub |
+| 2026-03-04 | v2.1.68 shipped with bomb removed (pichay capture) |
+| 2026-03-09 | arXiv distribution (per Tony's recollection) |
+| 2026-03-25 | "arXiv submission version" commit |
+
+The **fix predates any arXiv date by at least 5 days**. So if the
+research influenced the change, the channel would be the public GitHub
+repo (visible from Feb 26), not the paper itself.
+
+Three causal stories are mutually consistent with the timeline:
+
+1. **Noticed via repo.** Someone at Anthropic saw the GitHub data,
+   internal triage prioritized a fix, shipped in v2.1.68 six days later.
+   Plausible; a prompt text change has a tight release loop.
+2. **Independent discovery.** Anthropic has internal evaluations that
+   would surface a ~0.8 EA collapse under argmax on a canonical code
+   path. The fix is what internal eval regressions look like. The
+   timing coincidence would be unremarkable given both teams had
+   visibility into Claude Code behavior.
+3. **Coincidence or broader restructuring.** The tool-schema migration
+   to API `tools` param (removing 15 tool-declaration blocks) is a
+   larger architectural change than the bomb fix needed; it suggests a
+   broader prompt-engineering cycle that happened to land in the same
+   window.
+
+The evidence available from outside Anthropic cannot distinguish these.
+What can be said:
+
+- **Timing is consistent with (1), (2), and (3).** None are ruled out.
+- **Causality cannot be established** from public artifacts. Claiming
+  the research influenced the fix would be overreach; claiming it
+  definitely did not would also be overreach.
+- **Convergent mechanism match is stronger evidence than timing.** The
+  +seq rescue analysis (Thread 5) predicted that wrapping imperatives
+  in declarative narrative would defuse the failure. Anthropic's
+  "Executing actions with care" rewrite matches that shape. Whether
+  that match is causal or convergent, it is content-level evidence
+  that the mechanism analysis identified a real property — independent
+  of how the fix was prompted.
+
+The epistemically clean framing for the paper is: "Our mechanism
+analysis predicted that the v2.1.50 failure mode would be defused by a
+declarative-wrapper rewrite. An independent upstream rewrite landing in
+v2.1.68 matches that prediction. We cannot determine whether the two
+were causally linked, but the structural convergence is itself a
+validation of the mechanism claim."
+
 ### Pichay as ongoing capture infrastructure
 
 - Command: `cd ~/projects/pichay && uv run pichay --claude`

@@ -85,7 +85,7 @@ def run_experiment(args):
         print("\n  --dry-run: stopping here.")
         return
 
-    output_dir = project_root / "data" / "ablation" / "e_temp"
+    output_dir = project_root / "data" / "ablation" / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Build corpora
@@ -213,6 +213,8 @@ def main():
                         help="More trials needed at non-zero temperature (default: 5)")
     parser.add_argument("--concurrency", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--output-dir", default="e_temp",
+                        help="Subdirectory under data/ablation/ for results (default: e_temp)")
     args = parser.parse_args()
 
     run_experiment(args)

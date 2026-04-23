@@ -81,6 +81,7 @@ FREE_BLOCKS = [
 
 MODEL_MAP = {
     "haiku": "anthropic/claude-haiku-4-5",
+    "sonnet": "anthropic/claude-sonnet-4-6",
     "gemini": "google/gemini-2.0-flash-001",
     "deepseek": "deepseek/deepseek-chat-v3-0324",
     "mistral": "mistralai/mistral-medium-3.1",

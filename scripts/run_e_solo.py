@@ -102,11 +102,14 @@ CR_BULLETS = {
 def build_cr_solo(corpus: PromptCorpus, kept_bullet: str | None) -> PromptCorpus:
     """All procedural blocks declarative except CR, which is replaced with just
     'Important notes:' header plus the single specified bullet (imperative register).
-    If kept_bullet is None, CR becomes header-only (solo-empty-cr)."""
+    If kept_bullet is None, CR becomes header-only (solo-empty-cr).
+    Special: kept_bullet == '__all_decl__' → CR is also made declarative (baseline)."""
     new_blocks = []
     for b in corpus.blocks:
         if b.id == CR_ID:
-            if kept_bullet is None:
+            if kept_bullet == "__all_decl__":
+                new_text = DECLARATIVE_REWRITES[CR_ID]
+            elif kept_bullet is None:
                 new_text = "Important notes:"
             else:
                 new_text = "Important notes:\n" + kept_bullet
@@ -144,6 +147,10 @@ def run_experiment(args):
     base_corpus_path = project_root / "data" / "prompts" / "claude-code" / "v2.1.50_blocks.json"
 
     conditions = list(CR_BULLETS.items()) + [("solo-empty-cr", None)]
+    if args.baseline_only:
+        conditions = [("all-decl", "__all_decl__")]
+    elif args.include_baseline:
+        conditions = [("all-decl", "__all_decl__")] + conditions
 
     print("\nE-SOLO: Per-Bullet Isolated Contribution Map")
     print(f"  Battery: {len(battery.probes)} probes")
@@ -347,6 +354,10 @@ def main():
     parser.add_argument("--model", choices=list(MODEL_MAP.keys()), default="haiku")
     parser.add_argument("--trials", type=int, default=3)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument("--include-baseline", action="store_true",
+                        help="Prepend all-decl condition (no imperative CR)")
+    parser.add_argument("--baseline-only", action="store_true",
+                        help="Run ONLY the all-decl condition (cross-model baseline fill-in)")
     args = parser.parse_args()
 
     if args.compare:

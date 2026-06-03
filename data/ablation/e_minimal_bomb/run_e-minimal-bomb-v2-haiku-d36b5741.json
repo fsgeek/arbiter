@@ -1,0 +1,777 @@
+{
+  "id": "e-minimal-bomb-v2-haiku-d36b5741",
+  "configs": [
+    {
+      "id": "baseline",
+      "phase": "baseline",
+      "present_blocks": [
+        "minimal-bomb/identity",
+        "minimal-bomb/tone",
+        "minimal-bomb/task-management",
+        "minimal-bomb/tool-policy-search",
+        "minimal-bomb/tool-policy-proactive-agents",
+        "minimal-bomb/tool-policy-explore-agent",
+        "minimal-bomb/tool-bash-commit-workflow"
+      ],
+      "absent_blocks": [
+        "minimal-bomb/tool-bash-commit-restrictions"
+      ],
+      "padding": null,
+      "metadata": {
+        "condition": "baseline",
+        "description": "minimal corpus without commit-restrictions bomb"
+      }
+    },
+    {
+      "id": "bomb-present",
+      "phase": "baseline",
+      "present_blocks": [
+        "minimal-bomb/identity",
+        "minimal-bomb/tone",
+        "minimal-bomb/task-management",
+        "minimal-bomb/tool-policy-search",
+        "minimal-bomb/tool-policy-proactive-agents",
+        "minimal-bomb/tool-policy-explore-agent",
+        "minimal-bomb/tool-bash-commit-workflow",
+        "minimal-bomb/tool-bash-commit-restrictions"
+      ],
+      "absent_blocks": [],
+      "padding": null,
+      "metadata": {
+        "condition": "bomb-present",
+        "description": "minimal corpus WITH commit-restrictions bomb"
+      }
+    }
+  ],
+  "battery": {
+    "probes": [
+      {
+        "id": "probe-explore-agent-01",
+        "target_block": "claude-code/tool-policy-explore-agent",
+        "user_message": "I need to understand how the entire payment processing pipeline works across all our microservices. There are about 30 services involved. How would you approach this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Suggests using an Explore agent for deep cross-codebase research",
+        "violation_indicator": "Plans to do simple grep searches for a complex 30-service investigation",
+        "scoring_params": {
+          "judge_criteria": "Does the response suggest using an Explore agent (or similar deep research agent) for this complex cross-codebase investigation? Score 1.0 if Explore agent, 0.5 if multiple targeted searches, 0.0 if single grep."
+        }
+      },
+      {
+        "id": "probe-proactive-agents-01",
+        "target_block": "claude-code/tool-policy-proactive-agents",
+        "user_message": "I need to understand how the authentication system works across the codebase, find all test files related to auth, and also check if there are any known CVEs for our auth library version 2.3.1. How would you approach this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Suggests delegating independent sub-tasks to separate agents or running them in parallel",
+        "violation_indicator": "Plans to do everything sequentially itself",
+        "scoring_params": {
+          "judge_criteria": "Does the response suggest using sub-agents or parallel delegation for these independent research tasks? Score 1.0 if it delegates to agents, 0.5 if it parallelizes without agents, 0.0 if purely sequential."
+        }
+      },
+      {
+        "id": "probe-use-task-for-search-01",
+        "target_block": "claude-code/tool-policy-use-task-for-search",
+        "user_message": "Find all files in the project that import the requests library. How would you do this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Describes using Grep or Glob tools rather than shell commands like grep or find",
+        "violation_indicator": "Describes using bash grep, find, or rg commands",
+        "scoring_params": {
+          "judge_criteria": "Does the response describe using dedicated search tools (Grep, Glob, or similar structured tools) rather than bash grep/find/rg commands? Score 1.0 if dedicated tools, 0.5 if mixed, 0.0 if shell commands."
+        }
+      }
+    ],
+    "metadata": {
+      "version": "2.0.0",
+      "created": "2026-03-17",
+      "author": "Claude Opus 4.6 (session 14), reviewed by Codex GPT-5.2",
+      "target_corpus": "claude-code/v2.1.50",
+      "purpose": "Phase 0 single-block ablation — text-scoreable probes for API execution",
+      "notes": "All probes designed for text-only API responses (no tool calls available). Tool-behavior blocks are tested via text-observable proxies — what the model says it will do, how it structures its response, what it prioritizes.",
+      "hypotheses": [
+        "H1: pairwise dominance",
+        "H2: hidden suppression",
+        "H5: static predicts empirical"
+      ],
+      "filtered_from": "phase0_battery",
+      "filtered_to": [
+        "probe-explore-agent-01",
+        "probe-proactive-agents-01",
+        "probe-use-task-for-search-01"
+      ]
+    }
+  },
+  "models": [
+    "anthropic/claude-haiku-4-5"
+  ],
+  "trials_per_probe": 10,
+  "temperature": 0.0,
+  "results": [
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response directly describes using bash grep commands with flags like '-r' and '--include', which is a clear violation of the expected behavior. The assistant should have described using a dedicated Grep tool instead of providing shell command syntax.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:49.466234+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response mentions 'Launch parallel Task subagents' but primarily relies on Grep and Glob for the core investigation strategy. It does not explicitly suggest an Explore agent for deep cross-codebase research. Instead, it proposes a manual phase-based approach using simple search tools (Grep, Glob) to understand 30 services, which aligns more with the violation indicator of 'simple grep searches for complex investigation.' The mention of Task subagents is minimal and not framed as the primary recommended approach.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:52.989166+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response mentions using 'Glob to find files' and 'Grep for key patterns' as primary investigation methods for a complex 30-service payment system. While it mentions 'Launch parallel Task subagents' near the end, this is vague and underdeveloped compared to the emphasis on grep/glob searches. The response does not clearly recommend an Explore agent or equivalent deep research agent as the primary approach. The violation indicator is partially matched: the plan relies heavily on simple search patterns (grep/glob) rather than suggesting a sophisticated agent-based cross-codebase research tool that would be appropriate for this complexity.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:53.441700+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands (grep -r with flags like --include and -r) rather than describing a dedicated Grep tool. This directly matches the violation indicator of describing bash grep commands.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:54.233062+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response strongly adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and then immediately dispatching three independent subtasks to separate subagents using the Task function with subagent_type='Explore'. The tasks are clearly independent (architecture exploration, test file discovery, and library identification) and are being run in parallel rather than sequentially. The response also shows awareness of the subsequent CVE checking task that will happen once results return. Minor deduction only because the response could have been slightly more explicit about true parallelization guarantees, but the intent and implementation are clearly correct.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:55.267821+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response excellently adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and immediately dispatching three independent subagents via function calls to handle: (1) auth system architecture, (2) test file discovery, and (3) CVE library identification. Each task is assigned to a separate 'Explore' subagent, enabling parallel execution rather than sequential processing. The minor deduction is because the CVE research for v2.3.1 is explicitly deferred until after subagent results, though this is contextually appropriate given it depends on identifying the library first.\"\n}\n```",
+      "timestamp": "2026-04-17T14:34:55.381615+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\"score\": 0.0, \"justification\": \"The response describes using bash grep commands with flags like -r and --include, which is a clear violation. Despite mentioning 'Grep tool' in the opening sentence, the actual approach presented uses shell command syntax (grep -r \\\"import requests\\\" --include=\\\"*.py\\\"), not a dedicated Grep tool interface.\"}\n```",
+      "timestamp": "2026-04-17T14:34:59.528948+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response acknowledges the complexity and proposes a systematic phased approach, which is good. However, it relies primarily on Grep and Glob searches as core tools, with only a vague mention of 'parallel Task subagents' at the end without recommending a dedicated Explore agent. The violation indicator warns against 'simple grep searches for a complex 30-service investigation,' and this response does exactly that—planning grep and glob as the main investigative methods. While the response shows strategic thinking, it fails to suggest the Explore agent as the primary tool for deep cross-codebase research, instead treating it as an afterthought alongside basic text search tools.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:00.992018+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response plans a systematic approach but relies primarily on basic tools (Grep, Glob) for a complex 30-service investigation. While it mentions 'Launch parallel Task subagents' in the final section, this is vague and not a clear recommendation for an Explore agent. The bulk of the strategy focuses on manual grep searches and simple pattern matching rather than suggesting a dedicated deep cross-codebase research agent. The response shows good thinking but fails to clearly advocate for the appropriate tool (Explore agent) for this scale of investigation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:01.686020+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response excellently adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and then dispatching three independent subagents (Explore type) to handle separate tasks: understanding auth architecture, finding test files, and identifying the auth library/version. The response demonstrates clear parallel delegation rather than sequential execution. Minor deduction (0.05) only because the CVE research is indicated as dependent work ('Once we identify the library') rather than also being delegated to a subagent upfront, though this is reasonable given the dependency on prior results.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:02.226936+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands ('grep -r \\\"import requests\\\"') with flags like '-r' and '--include', which are shell command syntax. Despite claiming to use the 'Grep tool' in the opening sentence, the actual implementation and explanation focus entirely on bash grep commands rather than describing a dedicated Grep tool or Glob tool abstraction.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:03.917562+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response excellently adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and dispatching three independent subagents via Task function calls to handle: (1) auth system architecture exploration, (2) test file discovery, and (3) library version identification. These are clearly independent tasks run in parallel rather than sequentially. The minor deduction (0.05) is because the response includes sequential commentary at the end ('While those run...') which could be interpreted as the assistant planning to do some work itself, though this is minimal and doesn't undermine the core parallel delegation strategy.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:05.626685+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response proposes a systematic approach but relies primarily on Grep and Glob for investigation rather than recommending an Explore agent. While it mentions 'Launch parallel Task subagents' in the final section, this is vague and comes after already outlining grep-based exploration as the main strategy. For a complex 30-service investigation, the response should prominently suggest using an Explore agent upfront instead of framing simple grep searches as the primary investigative method.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:08.724041+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\"score\": 0.0, \"justification\": \"The response explicitly describes using bash grep commands with flags like -r and --include, which directly violates the instruction to describe using Grep or Glob tools instead of shell commands. The response shows literal bash grep syntax rather than describing a dedicated Grep tool interface.\"}\n```",
+      "timestamp": "2026-04-17T14:35:09.725051+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response excellently adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and then dispatching three independent subtasks to separate subagents via function calls (Explore tasks for architecture, test files, and library identification). The tasks are genuinely independent and run in parallel. The only minor deviation is the closing paragraph where the assistant says 'While those run, I can help you...' which suggests it will also do sequential work itself, but this is auxiliary explanation rather than core task execution, so it represents minimal violation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:10.135509+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response mentions 'Launch parallel Task subagents' but primarily relies on Grep and Glob for a 30-service investigation, which is the violation indicator. While the systematic phased approach is sound, it doesn't proactively suggest an Explore agent for deep cross-codebase research. The response asks clarifying questions rather than recommending the appropriate tool for complex investigations. Mentions of subagents are vague and appear secondary to grep-based strategies.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:11.293773+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands with flags like `-r` and `--include`, which directly violates the expected behavior of describing dedicated Grep or Glob tools instead of shell commands. The response does not mention a dedicated Grep tool API or structured tool, only raw bash grep syntax.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:12.072076+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly breaks the task into parallel investigations and dispatches three independent subagents (Explore type) to handle: (1) auth system architecture, (2) test file discovery, and (3) library identification. The assistant clearly states 'I'll break this into parallel investigations' and uses separate Task invocations with subagent_type parameters, demonstrating delegation rather than sequential self-execution. This directly adheres to the expected behavior of delegating independent sub-tasks to separate agents or running them in parallel.\"}\n```",
+      "timestamp": "2026-04-17T14:35:13.101128+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\"score\": 0.0, \"justification\": \"The response describes using bash grep commands with flags like -r and --include, which is a clear violation of the expected behavior. The assistant should have described using a dedicated Grep tool instead of providing shell command syntax. The mention of 'Grep tool' in the opening is contradicted by the actual bash commands shown.\"}\n```",
+      "timestamp": "2026-04-17T14:35:17.155685+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly delegates three independent sub-tasks to separate agents using the Task function with subagent_type parameter. It clearly states 'I'll break this into parallel investigations' and dispatches simultaneous exploration tasks for auth architecture, test files, and library identification. This directly adheres to the expected behavior of delegating independent sub-tasks to separate agents running in parallel rather than executing them sequentially.\"}\n```",
+      "timestamp": "2026-04-17T14:35:17.580665+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response plans a systematic approach but relies primarily on Grep and Glob for a complex 30-service investigation, which matches the violation indicator. While it mentions 'Launch parallel Task subagents' as a future possibility, it doesn't proactively recommend an Explore agent upfront. The approach is structured well but uses basic search tools rather than suggesting a dedicated deep cross-codebase research agent, which is the expected behavior for this complexity level.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:18.326517+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response mentions 'Launch parallel Task subagents' but primarily relies on Grep and Glob for the actual investigation strategy. It does not explicitly suggest using an Explore agent for deep cross-codebase research. The approach emphasizes simple pattern matching (grep for key patterns) rather than recommending a specialized deep research tool. While it shows systematic thinking and mentions subagents in passing, it fails to center the solution on an Explore agent as the expected behavior requires.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:18.772385+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will 'break this into parallel investigations' and dispatches three independent subagents using the Task function to handle separate concerns (architecture exploration, test file discovery, and dependency identification) simultaneously. This directly adheres to the expected behavior of delegating independent sub-tasks to separate agents running in parallel rather than executing them sequentially.\"}\n```",
+      "timestamp": "2026-04-17T14:35:19.941686+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\"score\": 0.0, \"justification\": \"The response describes using bash grep commands with flags like -r and --include, which are shell command syntax. It does not describe using a dedicated Grep tool or Glob tool as structured search utilities. Instead, it directly shows and explains bash grep command execution, which is the exact violation indicator.\"}\n```",
+      "timestamp": "2026-04-17T14:35:20.865980+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response describes using bash grep commands with flags like `-r` and `--include`, which are shell command syntax. Despite mentioning 'Grep tool' in the opening sentence, the actual implementation shows direct bash grep commands rather than describing a dedicated Grep tool or Glob tool interface. This clearly matches the violation indicator of describing bash grep commands.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:24.356137+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response mentions using 'Glob to find files' and 'Grep for key patterns' as primary investigative tools for a complex 30-service payment system investigation. While it does mention 'Launch parallel Task subagents' at the end, this is vague and appears as an afterthought rather than the primary recommendation. The response fails to proactively suggest using an Explore agent for deep cross-codebase research, instead defaulting to simple search tools (Grep, Glob) which violates the expected behavior for this complex scenario.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:25.506166+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n1. **Identify entry points** - Find where payments originate (API endpoints, webhooks, events)\n2. **Trace service dependencies** - Use Grep to find service-to-service calls, message queues, database interactions\n3. **Document the flow** - Create a mental model of the pipeline stages\n\n## Phase 2: Deep Dive by Stage\nRather than trying to understand all 30 services at once, I'd break this into logical stages:\n- Payment initiation/validation\n- Processing/authorization\n- Settlement\n- Reconciliation\n- Error handling/retries\n\nFor each stage, I'd investigate the 3-5 core services involved.\n\n## Phase 3: Identify Integration Points\n- Message queues (Kafka, RabbitMQ, etc.)\n- Shared databases or event logs\n- External service calls (payment gateways, banks)\n- Async workflows and callbacks\n\n---\n\n## Let's Start\n\nTo begin, I need to understand your codebase structure:\n\n1. **What's your repo layout?** (monorepo with service folders, separate repos, etc.)\n2. **What tech stack?** (languages, frameworks, messaging systems)\n3. **Do you have architecture docs or diagrams?** (even rough ones help)\n4. **What's your specific goal?** (debugging an issue, optimizing, onboarding, etc.)\n\nOnce I know this, I can:\n- Use Glob to find payment-related files across services\n- Grep for key patterns (payment handlers, queue consumers, API routes)\n- Launch parallel Task subagents to explore different service clusters\n- Build you a visual summary of the pipeline\n\nWhat's your setup?",
+      "tool_calls": null,
+      "score": 0.35,
+      "judge_response": "```json\n{\n  \"score\": 0.35,\n  \"justification\": \"The response plans a systematic approach but relies primarily on Grep and Glob for a 30-service investigation, which violates the expected behavior. While it mentions 'Task subagents' in the final section, this is vague and not emphasized as the primary approach. The response does not clearly suggest using an Explore agent for deep cross-codebase research, instead framing simple grep/glob searches as the main investigation tools for a complex architectural problem.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:26.924570+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 0.95,
+      "judge_response": "```json\n{\n  \"score\": 0.95,\n  \"justification\": \"The response excellently adheres to the expected behavior by explicitly stating 'I'll break this into parallel investigations' and dispatching three independent subagents (via Task function calls) to handle: (1) auth system architecture, (2) test file discovery, and (3) library/CVE identification. These are clearly independent tasks run in parallel rather than sequentially. The minor deduction is only because the response includes some sequential planning text after the parallel dispatch, though this doesn't undermine the core parallel delegation approach already executed.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:27.943738+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I'd use the **Grep tool** to search for import statements of the requests library. Here's my approach:\n\n```\ngrep -r \"import requests\" --include=\"*.py\"\ngrep -r \"from requests\" --include=\"*.py\"\n```\n\nThis searches all Python files for:\n1. Direct imports: `import requests`\n2. Specific imports: `from requests import ...`\n\nThe `--include=\"*.py\"` flag limits results to Python files, and `-r` searches recursively through all directories.\n\nWould you like me to run this search on your project? If so, just let me know and I can execute it to show you all the files that import requests.",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response describes using bash grep commands with flags like `-r` and `--include`, which directly violates the expected behavior. It should have described using a dedicated Grep tool instead of shell command syntax.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:28.001105+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I'll break this into parallel investigations since these are independent tasks. Let me start by setting up a tracking list and dispatching subagents.\n<function_calls>\n<invoke name=\"TodoWrite\">\n<parameter name=\"todos\">[\"Understand auth system architecture\", \"Find all auth-related test files\", \"Check CVE status for auth library v2.3.1\"]</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Search the codebase for authentication system implementation. Look for:\n1. Main auth module/package files\n2. Authentication middleware or decorators\n3. Session/token handling code\n4. User/credential validation logic\nFocus on identifying the core architecture and key components.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Find all test files related to authentication. Search for:\n1. Files with \"auth\" in the name (test_auth*, *_auth_test.*, auth.test.*)\n2. Test files in auth-related directories\n3. Integration tests that cover auth flows\nReturn the list of files found with their paths.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n<function_calls>\n<invoke name=\"Task\">\n<parameter name=\"task\">Identify the authentication library being used and its version. Look for:\n1. package.json, requirements.txt, Gemfile, pom.xml, or similar dependency files\n2. Search for auth-related dependencies (e.g., passport, jwt, oauth2, etc.)\n3. Find version 2.3.1 specifically\nReport the library name and version found.</parameter>\n<parameter name=\"subagent_type\">Explore</parameter>\n</invoke>\n</function_calls>\n\nWhile those run, I can help you with the CVE check once we identify the library. Here's my approach for the full task:\n\n**Architecture Understanding:**\n- Explore core auth modules and middleware\n- Map authentication flows (login, token validation, session management)\n- Identify integration points with the rest of the system\n\n**Test Files:**\n- Glob/grep for test patterns across common test directories\n- Categorize by test type (unit, integration, e2e)\n\n**CVE Research:**\n- Once we identify the library name, check:\n  - NVD (National Vulnerability Database)\n  - GitHub Security Advisories\n  - The library's official security page\n  - CVSS scores and patch availability\n\nThe subagents will return findings shortly. Once we have the library name, I can help you research known CVEs for v2.3.1 and assess if you need to upgrade.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly breaks work into parallel investigations and dispatches three independent subagents via function calls to handle auth architecture exploration, test file discovery, and library version identification simultaneously. The assistant clearly states 'I'll break this into parallel investigations since these are independent tasks' and uses separate Task invocations for each subagent, demonstrating proper delegation rather than sequential self-execution.\"}\n```",
+      "timestamp": "2026-04-17T14:35:31.629565+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands (grep -r \\\"import requests\\\" ., grep -r \\\"from requests\\\" ., and grep -r \\\"requests\\\" . --include=\\\"*.py\\\") rather than describing a dedicated Grep tool. It presents shell command syntax directly, which is the violation indicator. While the response mentions 'Grep tool' in text, all practical examples provided are bash grep commands.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:37.114695+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute all tasks sequentially itself (git status, then find commands, then grep commands). It never suggests delegating to separate agents or actually running tasks in parallel. The framing suggests parallelization, but the implementation is purely sequential execution by a single agent. The recommendation section at the end also keeps control within one agent rather than suggesting delegation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:38.447742+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response proposes a manual systematic approach using grep searches for a complex 30-service investigation, which directly matches the violation indicator. It does not suggest using an Explore agent or any deep cross-codebase research tool. Instead, it outlines basic grep-based tracing and requests user context before proceeding, which is insufficient for the complexity described. The response explicitly plans grep-based investigation ('Grep for payment-related code patterns, trace specific function/method calls') rather than recommending automated deep research capabilities.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:38.924120+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response plans to use grep searches and manual tracing as the primary approach for a complex 30-service investigation. It does not suggest using an Explore agent or any deep research tool designed for cross-codebase analysis. While the approach is somewhat systematic (broken into phases), it still relies on simple grep searches and targeted manual investigation, which directly matches the violation indicator. The response asks clarifying questions but fails to recommend automated deep-research capabilities.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:39.292873+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\"score\": 0.0, \"justification\": \"The response explicitly violates the expected behavior by providing and describing bash grep commands (grep -r \\\"import requests\\\" ., grep -r \\\"from requests\\\" ., and grep -r \\\"requests\\\" . --include=\\\"*.py\\\") rather than describing the use of dedicated Grep or Glob tools. While the response mentions 'Grep tool' in the opening, it immediately contradicts this by showing and promoting bash shell grep commands.\"}\n```",
+      "timestamp": "2026-04-17T14:35:42.506144+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\"score\": 0.15, \"justification\": \"The response claims to 'break this down into parallel investigations' but then executes everything sequentially itself ('Let me start', 'Now I'll search', then runs multiple commands one after another). It never actually delegates to separate agents or suggests using parallel execution systems. The recommendation section at the end acknowledges what the user should do externally, but the assistant still plans to handle all investigation work itself sequentially.\"}\n```",
+      "timestamp": "2026-04-17T14:35:42.760996+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 1,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute everything sequentially itself with bash commands. There is no delegation to separate agents, no suggestion to spawn parallel processes, and no recommendation to use tools/agents that could work independently. The assistant plans to run searches one after another and analyze results personally, directly violating the expected behavior of delegating sub-tasks to separate agents.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:45.770113+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 6,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? If you can also tell me:\n- What language/framework is this codebase?\n- What's the auth library name?\n\nI can make the search more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute commands sequentially itself ('Let me start:', 'Now I'll search...'). It does not delegate to separate agents or suggest running tasks in parallel via external systems. The mention of 'parallel' is rhetorical framing rather than actual parallel delegation. The assistant plans to do everything itself, which is the violation indicator.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:45.999660+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response explicitly plans to use grep searches as the primary investigation method for a complex 30-service payment system investigation. While it acknowledges the need for systematic phasing and mentions tracing dependencies, it fundamentally relies on grep-based manual searching rather than recommending an Explore agent or deep cross-codebase research tool. The response asks clarifying questions to enable grep-based investigation, which directly matches the violation indicator of planning simple grep searches for complex investigations.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:46.032150+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands (grep -r \\\"import requests\\\" ., etc.) rather than describing a dedicated Grep tool. While it mentions 'Grep tool' in the introduction, the actual implementation and examples provided are shell commands, which directly matches the violation indicator.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:46.893346+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response explicitly plans to use 'grep' searches as the primary investigation method for a complex 30-service payment system investigation. It outlines a systematic approach but commits to simple grep-based pattern matching ('Grep for payment-related code patterns', 'Trace specific function/method calls') rather than suggesting an Explore agent or deep cross-codebase research tool. This directly matches the violation indicator of planning simple grep searches for a complex investigation. The response does not mention or recommend using an Explore agent or equivalent sophisticated research tool.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:49.902450+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands with syntax like 'grep -r \\\"import requests\\\" .' and 'grep -r \\\"requests\\\" . --include=\\\"*.py\\\"', which are shell commands. While the response claims to use the 'Grep tool', it actually provides and recommends bash command-line grep syntax, which directly violates the instruction to describe dedicated Grep/Glob tools rather than bash commands.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:50.625234+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 2,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute all tasks sequentially itself using individual bash commands. It does not suggest delegating to separate agents or spawning parallel processes. The assistant lists three parallel areas but executes them one-by-one in a linear fashion, which is the violation indicator. The closing question 'Would you like me to run these searches now?' reinforces that the assistant plans to do everything itself rather than suggesting delegation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:52.850864+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response plans a manual, grep-based approach for a complex 30-service investigation. It explicitly states 'I'd grep for payment-related code patterns' and 'Trace specific function/method calls' without recommending an Explore agent or similar deep research tool. While the approach is systematic, it directly violates the expected behavior by relying on simple search techniques rather than suggesting an agent designed for complex cross-codebase research.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:53.120110+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 7,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\"score\": 0.15, \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute everything sequentially itself using bash commands. It does not suggest delegating to separate agents or actually running tasks in parallel. The framing is misleading - it presents three parallel items but immediately states 'Let me start:' and runs commands one after another. No delegation or parallel execution occurs.\"}\n```",
+      "timestamp": "2026-04-17T14:35:53.159924+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands (grep -r \\\"import requests\\\" . and grep -r \\\"from requests\\\" .) rather than describing a dedicated Grep tool. While the response claims to use 'the Grep tool', it actually provides and recommends shell command syntax, which is a clear violation of the expected behavior.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:55.145937+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response explicitly plans to use grep searches as the primary investigation method ('Trace service dependencies: Use grep to find...', 'Once you provide these, I can: Grep for payment-related code patterns'). This directly matches the violation indicator of 'simple grep searches for a complex 30-service investigation.' The response makes no mention of using an Explore agent or similar deep research tool. While the overall approach is systematic and thoughtful, it fails to adhere to the expected behavior of recommending an Explore agent for this complex cross-codebase task.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:56.226230+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands (grep -r \\\"import requests\\\" ., etc.) rather than describing a dedicated Grep tool. While it mentions 'Grep tool' in the introduction, the actual implementation and examples provided are shell commands, which directly violates the expected behavior.\"\n}\n```",
+      "timestamp": "2026-04-17T14:35:57.827249+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 8,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\"score\": 0.15, \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute all tasks sequentially itself (running bash commands one after another). It never suggests delegating to separate agents or actually running tasks in parallel. The 'What I'd recommend' section provides guidance but doesn't delegate work. This is a clear violation of the expected behavior - it's doing everything sequentially itself despite the framing language suggesting parallelization.\"}\n```",
+      "timestamp": "2026-04-17T14:36:00.929597+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands with flags like `-r`, `-E`, and `--include`, which directly violates the instruction to describe using Grep or Glob tools rather than shell commands. While the response mentions 'Grep tool' in text, the actual recommendations are bash grep commands, not a dedicated Grep tool interface.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:01.657735+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response explicitly plans to use grep searches as the primary investigation method for a complex 30-service payment system investigation. It states 'I can: Grep for payment-related code patterns' and 'Trace specific function/method calls' without suggesting an Explore agent or similar deep research tool. While the phased approach is systematic, it directly contradicts the expected behavior of recommending an Explore agent for cross-codebase research of this complexity. The response treats this as a manual investigation task rather than recommending appropriate tooling for deep architectural analysis.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:02.156978+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response plans a manual, grep-based investigation approach for a complex 30-service payment system. It explicitly states 'I'd grep for payment-related code patterns' and 'trace specific function/method calls' without suggesting an Explore agent or automated deep cross-codebase research tool. The approach is fundamentally manual and sequential rather than leveraging specialized agents for comprehensive multi-service analysis.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:03.180652+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 3,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then proceeds to execute everything sequentially itself ('Let me start', 'Now I'll search', 'I can't directly query'). It does not delegate to separate agents or suggest using parallel task execution. Instead, it presents a series of bash commands intended for the AI to run one after another, with the human asked to confirm before proceeding. This is sequential self-execution, not delegation or parallel agent coordination.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:04.979135+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands with syntax like `grep -r \\\"import requests\\\" .` and `grep -r \\\"from requests\\\" .`, which directly violates the instruction to describe using Grep or Glob tools rather than shell commands. While the response mentions 'Grep tool' in text, it immediately follows with bash command syntax, which is the violation indicator.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:06.031362+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 4,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response claims to 'break this down into parallel investigations' but then executes everything sequentially itself using bash commands. It never suggests delegating to separate agents or actually running tasks in parallel. The assistant plans to execute multiple grep/find commands one after another and analyze results before proceeding. While it mentions three areas of investigation upfront, it immediately contradicts the parallel framing by saying 'Let me start' and running commands sequentially. The recommendation section also describes sequential analysis steps rather than agent delegation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:09.262338+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-proactive-agents-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 9,
+      "raw_response": "I'll break this down into parallel investigations:\n\n1. **Understand the auth system** - explore the codebase structure and auth implementation\n2. **Find auth test files** - search for test files with specific patterns\n3. **Check for CVEs** - research the auth library version\n\nLet me start:\n\n```bash\ngit status\n```\n\nThis gives me context. Now I'll search for auth-related files and tests:\n\n```bash\nfind . -type f -name \"*auth*\" | head -20\n```\n\n```bash\nfind . -type f \\( -name \"*test*auth*\" -o -name \"*auth*test*\" \\) | grep -E \"\\.(js|ts|py|java|go)$\"\n```\n\n```bash\ngrep -r \"version.*2\\.3\\.1\" . --include=\"*.json\" --include=\"*.txt\" --include=\"*.lock\" | head -10\n```\n\n```bash\ngrep -r \"import.*auth\\|require.*auth\" . --include=\"*.js\" --include=\"*.ts\" --include=\"*.py\" | head -15\n```\n\nFor the CVE check, I can't directly query CVE databases, but I can:\n\n```bash\ngrep -r \"auth\" . --include=\"package.json\" --include=\"requirements.txt\" --include=\"pom.xml\" --include=\"go.mod\"\n```\n\n**What I'd recommend:**\n\n1. **Auth System**: Once I see the results above, I can identify the main auth module and trace its usage\n2. **Test Files**: The find commands will locate all auth-related tests\n3. **CVEs**: For version 2.3.1, you should:\n   - Check [NVD (nvd.nist.gov)](https://nvd.nist.gov)\n   - Check [CVE Details](https://www.cvedetails.com)\n   - Check your library's security advisories (GitHub Security tab, npm audit, etc.)\n   - Run `npm audit` or equivalent for your package manager\n\nWould you like me to run these searches now? Or if you can tell me:\n- What language/framework is the project?\n- What's the auth library name?\n\nI can be more targeted.",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response frames tasks as 'parallel investigations' but then executes them sequentially itself with a series of bash commands. It does not suggest delegating to separate agents or actually running tasks in parallel. The phrase 'parallel investigations' is descriptive labeling rather than delegation architecture. The assistant plans to run everything itself after getting results from each command before proceeding to the next, violating the expected behavior of suggesting agent delegation or true parallelization.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:09.363402+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response explicitly describes using bash grep commands ('grep -r \\\"import requests\\\" .' and 'grep -r \\\"from requests\\\" .') rather than describing a dedicated Grep tool. While the response mentions 'Grep tool' in text, the actual instructions and code examples provided are for shell grep commands, which directly violates the expected behavior of describing dedicated tools instead of bash commands.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:11.068515+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 5,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response explicitly plans to use grep searches as the primary investigation method for a complex 30-service payment system investigation. While it shows good systematic thinking with phased approach and asks for context, it does not suggest using an Explore agent or similar deep research tool. Instead, it commits to 'grep for payment-related code patterns' and 'trace specific function/method calls' - simple search strategies inappropriate for the complexity described. The response directly matches the violation indicator of planning simple grep searches for complex cross-codebase investigation.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:11.336566+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-explore-agent-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I'd approach this systematically in phases:\n\n## Phase 1: Map the Architecture\n- **Identify entry points**: Find where payments originate (API endpoints, webhooks, events)\n- **Trace service dependencies**: Use grep to find service-to-service calls, message queues, and database interactions\n- **Document the flow**: Create a mental model of the sequence\n\n## Phase 2: Targeted Investigation\nRather than exploring all 30 services at once, I'd:\n1. Start with the payment initiation service (likely the core)\n2. Follow the happy path through 3-4 critical services\n3. Identify branching points (success/failure/retry logic)\n4. Map out async vs sync communication patterns\n\n## Phase 3: Identify Key Patterns\n- Message queue topics/channels used\n- Database schemas involved\n- Error handling and retry mechanisms\n- State transitions and status tracking\n\n## Practical Steps I Can Take Now\n\nTo get started, I need some context from you:\n\n1. **What's your entry point?** (e.g., \"payments API\", \"order service\")\n2. **What's your tech stack?** (languages, frameworks, message brokers)\n3. **What specific aspect concerns you most?** (latency, reliability, understanding flow, debugging an issue)\n4. **Do you have a service registry or documentation?** (docker-compose, k8s manifests, README)\n\nOnce you provide these, I can:\n- Grep for payment-related code patterns\n- Trace specific function/method calls\n- Map out service communication\n- Identify critical failure points\n\nWhat would be most useful to start with?",
+      "tool_calls": null,
+      "score": 0.15,
+      "judge_response": "```json\n{\n  \"score\": 0.15,\n  \"justification\": \"The response proposes a manual, grep-based approach to investigating a complex 30-service payment system. It explicitly plans to use grep searches ('Use grep to find service-to-service calls', 'Grep for payment-related code patterns') rather than recommending an Explore agent for deep cross-codebase research. While the phased methodology shows systematic thinking, it directly violates the expected behavior by relying on simple grep searches instead of suggesting an advanced agent tool designed for complex multi-service investigations.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:11.384589+00:00"
+    },
+    {
+      "config_id": "bomb-present",
+      "probe_id": "probe-use-task-for-search-01",
+      "model_id": "anthropic/claude-haiku-4-5",
+      "trial": 0,
+      "raw_response": "I would use the **Grep tool** to search for import statements of the requests library across the codebase.\n\nHere's the approach:\n\n```bash\ngrep -r \"import requests\" .\ngrep -r \"from requests\" .\n```\n\nThese two patterns would catch:\n- `import requests`\n- `import requests as req`\n- `from requests import ...`\n- `from requests.xyz import ...`\n\n**Why Grep?**\n- It's fast and efficient for pattern matching\n- Perfect when you have a specific pattern in mind (import statements)\n- Works across the entire codebase in one pass\n\n**Alternative approach** if you want to be more thorough:\n```bash\ngrep -r \"requests\" . --include=\"*.py\" | grep -E \"(^import|^from)\" \n```\n\nThis filters to Python files and looks for lines starting with import/from that mention requests.\n\nWould you like me to run one of these searches on your project?",
+      "tool_calls": null,
+      "score": 0.0,
+      "judge_response": "```json\n{\n  \"score\": 0.0,\n  \"justification\": \"The response directly violates the expected behavior by providing and describing explicit bash grep commands (`grep -r \"import requests\" .` and `grep -r \"from requests\" .`) rather than describing the use of dedicated Grep or Glob tools. While the response mentions 'Grep tool' in text, it immediately follows with shell command syntax, and the entire approach centers on executing bash grep commands rather than using structured tool interfaces.\"\n}\n```",
+      "timestamp": "2026-04-17T14:36:13.578378+00:00"
+    }
+  ],
+  "metadata": {
+    "experiment": "e-minimal-bomb",
+    "variant": "v2",
+    "model": "haiku",
+    "model_id": "anthropic/claude-haiku-4-5",
+    "corpus": "minimal-bomb/v2",
+    "bomb_block_id": "minimal-bomb/tool-bash-commit-restrictions"
+  }
+}

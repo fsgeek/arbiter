@@ -1,0 +1,2473 @@
+Diagnosing Live Within-Policy Instruction Conflicts in LLM Agents with
+Witnessed Resolution Profiles
+
+Lu Yan and Xuan Chen and Xiangyu Zhang
+Purdue University
+
+6
+2
+0
+2
+
+y
+a
+M
+7
+2
+
+]
+I
+
+A
+.
+s
+c
+[
+
+1
+v
+4
+8
+7
+7
+2
+.
+5
+0
+6
+2
+:
+v
+i
+X
+r
+a
+
+Abstract
+
+LLM agents are governed by long-lived natural-
+language prompt policies, but individually rea-
+sonable standing rules can interact in unin-
+spected ways. We study live intra-policy rule-
+conflict diagnosis: finding rule pairs inside a
+single prompt policy that can co-govern a re-
+alistic state, and measuring how models re-
+solve that pressure in responses or tool ac-
+tions. We introduce WIRE, a Witnessed Intra-
+WIRE ex-
+policy Rule Evaluation pipeline.
+tracts source-grounded rules, encodes them
+as PyRule clauses, uses satisfiability checks
+to retain same-surface hard-collision candi-
+dates, realizes those candidates as concrete
+co-governance witnesses, and judges model
+outputs against the original source-rule text.
+Across six public prompt policies, WIRE ex-
+tracts 276 source rules and 560 atomic clauses,
+classifies 30,944 within-policy clause-pair com-
+parisons, retains 170 encoded hard-collision
+candidate source-rule pairs, and realizes them
+as 1,402 concrete witnesses.
+In policy-only
+evaluation, these witnesses yield 13,335 post-
+generation trials where both source rules gov-
+ern and both compliance labels are judgeable.
+Only 35.4% fall in joint compliance; 64.6% vi-
+olate at least one governed source rule. These
+profiles are conditional diagnostics for WIRE-
+selected candidates, not deployment-frequency
+or causal excess failure estimates, but they re-
+veal distinct policy, model, and tool-action res-
+olution patterns.
+
+1
+
+Introduction
+
+LLM agents are governed by long-lived prompt
+policies: system messages, developer instructions,
+tool manifests, and deployment-specific operating
+rules. These policies regulate recurring behavior
+such as tool use, file editing, refusal, clarification,
+output format, source priority, and task termination.
+In tool-using settings, they act less like conversa-
+tional context and more like an executable control
+surface (Yang et al., 2024; Wang et al., 2025; Mu
+
+1
+
+et al., 2025). Yet they remain natural-language
+documents, often expanded incrementally. As they
+grow, individually reasonable rules can interact in
+ways their authors did not explicitly inspect.
+
+Existing evaluations largely miss this failure
+mode. Instruction-following benchmarks test ex-
+plicit user-facing constraints (Zhou et al., 2023;
+Jiang et al., 2024; Qin et al., 2024); instruction hier-
+archy and prompt-injection work studies conflicts
+across sources or privilege levels (Wallace et al.,
+2024; Greshake et al., 2023; Debenedetti et al.,
+2024); and recent conflict benchmarks test explic-
+itly contradictory user instructions (He et al., 2026).
+These settings are important, but they mostly as-
+sume that the standing policy itself is coherent. We
+ask instead whether rules inside a single prompt
+policy can create same-state co-governance pres-
+sure, and how models resolve that pressure when it
+becomes observable in responses or tool actions.
+
+We call this setting live intra-policy rule-conflict
+diagnosis. A rule pair is intra-policy when both
+source rules come from the same standing prompt
+policy. It is witnessed when a concrete user request
+or environment state makes both source rules gov-
+ern before generation. It is behaviorally live when
+the realized model response or action trace can be
+judged against both governed rules after genera-
+tion. This distinction matters because an encoded
+rule collision is not by itself a behavioral failure: a
+model may satisfy both rules, satisfy only one, or
+violate both.
+
+For example, a coding-agent policy may require
+refactoring inefficient code, while another rule
+in the same policy forbids editing when the re-
+quested feature already exists. A request involving
+an already-implemented feature in code that also
+needs refactoring can activate both rules at once.
+The relevant question is not only whether the two
+rules appear tense in the policy text, but how the
+model behaves on a concrete state where both rules
+govern. A scalar compliance score would hide
+
+ 
+ 
+ 
+ 
+ 
+ 
+whether the model jointly satisfies the rules, priori-
+tizes one side, or fails both.
+
+We introduce WIRE, a Witnessed Intra-policy
+Rule Evaluation pipeline. Starting from one prompt
+policy, WIRE extracts source-grounded prescriptive
+rules, rewrites them into PyRule clauses with ex-
+plicit decision surfaces, uses satisfiability checks
+to retain same-surface hard-collision candidates,
+realizes satisfying assignments as concrete co-
+governance witnesses, and evaluates model re-
+sponses or tool actions against the original source-
+rule text. The solver is only a candidate filter: be-
+havioral resolution is measured on concrete model
+outputs, not inferred from the symbolic abstraction
+alone.
+
+Across six public prompt policies, WIRE extracts
+276 source rules and 560 atomic clauses, classifies
+30,944 within-policy clause-pair comparisons, re-
+tains 170 encoded hard-collision candidate source-
+rule pairs, and realizes them as 1,402 concrete
+co-governance witnesses. In policy-only evalua-
+tion, the resulting post-generation support contains
+13,335 jointly governed, judgeable trials. Of these,
+35.4% fall in joint compliance and 64.6% violate
+at least one governed source rule. These percent-
+ages are conditional diagnostics for WIRE-selected
+candidates, not estimates of deployment frequency
+or counterfactual excess failure caused by conflict.
+They nevertheless reveal distinct resolution pro-
+files across policies, subject models, and evaluation
+regimes; tool-action evaluation changes these pro-
+files rather than uniformly improving compliance.
+This paper makes three contributions. First, we
+formulate live intra-policy rule-conflict diagnosis
+as a witnessed behavioral analysis problem: sym-
+bolic rule collisions nominate candidates, while
+concrete model outputs determine resolution pro-
+files. Second, we present WIRE, a source-grounded
+neuro-symbolic pipeline that mines encoded hard-
+collision candidates from real prompt policies and
+tests them on concrete witnesses. Third, we show
+that these candidates are sparse in clause space but
+expose distinct behavioral signatures across mod-
+els, policies, and harnesses.
+
+2 Related Work
+
+Prior work has studied instruction following, in-
+struction hierarchy, and prompt-injection robust-
+ness. IFEval evaluates compliance with verifiable
+user-facing constraints (Zhou et al., 2023), while
+instruction-hierarchy work trains or benchmarks
+
+models to prioritize higher-privilege instructions
+over lower-privilege ones (Wallace et al., 2024;
+Zhang et al., 2025). Recent conflict benchmarks
+also test whether models detect and resolve in-
+compatible constraints inside user instructions (He
+et al., 2026). These settings differ from ours:
+they assume either explicit user-level conflicts or
+a predefined priority hierarchy across instruction
+sources. We study latent conflicts among stand-
+ing rules within a single prompt policy. Rather
+than hand-writing conflict cases, we extract rules
+from the policy, encode their regulated decision
+surfaces, use satisfiability checks to find symbolic
+candidates, realize them as concrete witnesses, and
+measure model-specific resolution profiles. A com-
+prehensive study of related works can be found in
+Appendix D.
+
+3 Preliminaries
+
+3.1 Policies, Rules, and Clauses
+
+A prompt policy P is a standing system, developer,
+or policy prompt that regulates recurring agent be-
+havior. We study only interactions internal to one
+policy: if a deployment supplies several standing
+prompt fragments as one configuration, we treat
+their union as one P .
+
+The source-rule set is
+
+R(P ) = {ρi}nP
+
+i=1.
+
+(1)
+
+A source rule ρi is a prescriptive span of P that
+imposes a persistent behavioral constraint. A rule
+governs a state when its activation condition holds;
+governance is distinct from satisfaction.
+
+For symbolic triage, each rule is encoded as a
+
+finite clause set:
+
+Ci = enc(ρi) = {cik}mi
+
+k=1.
+
+The encoded policy is
+
+C(P ) =
+
+nP(cid:91)
+
+i=1
+
+Ci.
+
+(2)
+
+(3)
+
+Each clause has the form
+
+cik = (ϕik, σik, pik, θik, dik).
+
+(4)
+
+Here ϕik is the activation condition, σik is the force
+sign, pik is the behavior primitive, θik is the primi-
+tive argument tuple, and dik is the decision surface.
+The decision surface is computed by projection:
+
+dik = δ(pik, θik).
+
+(5)
+
+2
+
+The main analysis uses only hard signs, REQUIRE
+and FORBID; soft signs are preserved for audit but
+are not counted as hard contradictions.
+
+3.2 Collision Candidates and Witnesses
+
+A within-policy pair (ρi, ρj) is an encoded hard-
+collision candidate when some clause from each
+rule can co-govern and impose incompatible hard
+constraints on the same decision surface. For a
+clause pair, define
+
+that their compliance labels are judgeable. The
+support count is
+
+Gα
+
+ij = |Sα
+ij|.
+
+(11)
+
+For a, b ∈ {0, 1}, let JA(s) and JB(s) indicate
+compliance with the earlier and later rules. The
+resolution-cell counts are
+
+N α
+
+ab,ij =
+
+(cid:88)
+
+s∈Sα
+ij
+
+1{JA(s) = a}1{JB(s) = b}.
+
+Γik,jℓ = ϕik ∧ ϕjℓ ∧ κik,jℓ.
+
+(6)
+
+When Gα
+
+ij > 0, the resolution profile is
+
+Here κik,jℓ is the surface-specific collision formula.
+The candidate set is
+
+A(P ) = {(ρi, ρj) : i < j, ∃k, ℓ : SAT(Γik,jℓ)}.
+(7)
+This is a claim about the encoded abstraction, not
+a proof that the original English rules are globally
+contradictory.
+
+A satisfying assignment to Equation 6 is a sym-
+bolic witness. A concrete witness x is a realistic
+pre-generation user or environment state that re-
+alizes such an assignment and makes both source
+rules govern. The accepted witness set is
+
+Xij = {x : Conc(x) = 1, Vi(x) = 1, Vj(x) = 1}.
+(8)
+Here Conc(x) says that x is concrete, and Vi, Vj
+are pre-generation verifier judgments that ρi, ρj
+govern x. Pairs with Xij = ∅ are unrealized and
+excluded from behavioral resolution measurement.
+
+3.3 Resolution Profiles
+
+Behavioral measurement is indexed by
+
+α = (M, P, e),
+
+(9)
+
+where M is the model, P is the policy, and e is
+the evaluation regime. For a realized pair (ρi, ρj),
+orient the pair by source order: ρA is earlier in P ,
+and ρB is later.
+
+Let Y α
+
+ij be the completed trials for the pair under
+evaluation cell α. Each trial is s = (x, y), where
+x ∈ Xij is the witness and y is the model response
+or action trace. The post-generation support set is
+
+ij = {s ∈ Y α
+Sα
+
+ij : HA(s) = 1, HB(s) = 1,
+LA(s) = 1, LB(s) = 1}.
+
+(10)
+
+Here HA, HB indicate that the earlier and later
+rules govern after generation, and LA, LB indicate
+
+3
+
+(12)
+
+(13)
+
+ab,ij = N α
+qα
+
+ab,ij/Gα
+ij.
+
+Thus q11 is joint compliance, q10 is earlier-rule-
+only compliance, q01 is later-rule-only compliance,
+and q00 is violation of both. Profiles with Gα
+ij = 0
+are undefined. We also report non-joint compliance
+1 − q11 and source-order asymmetry ∆src = q10 −
+q01.
+
+4 Operationalizing Live Conflict
+
+Diagnosis
+
+WIRE maps a policy P to behavioral resolution
+profiles. It extracts source rules, encodes them as
+PyRule clauses, triages within-policy pairs with
+SAT checks, realizes symbolic assignments as con-
+crete witnesses, and evaluates model behavior on
+those witnesses. Figure 1 summarizes the work-
+flow, and Appendix E gives an end-to-end example.
+The symbolic stages nominate candidate pairs;
+they do not establish behavioral failure. Behavioral
+liveness is measured only after concrete witness
+realization and post-generation judging against the
+original quoted source rules.
+
+4.1 Extracting Prescriptive Rule Records
+
+The first stage maps a line-numbered prompt pol-
+icy to R(P ) from Equation 1. The extractor keeps
+spans that impose standing behavioral constraints,
+including constraints on tool use, file operations,
+refusal, clarification, disclosure, output format, or-
+dering, or termination.
+It excludes descriptive
+prose, headings, tutorials, rationales, capability
+summaries, and non-binding examples unless the
+text itself is normative.
+
+Each record ρi stores a policy-local identifier,
+source span, exact quote, and short normalized gist.
+The quote remains authoritative for encoding, wit-
+ness construction, and compliance judging; the gist
+is used only for compact inspection and retrieval.
+Appendix B gives the full extraction conventions.
+
+Figure 1: Workflow for diagnosing conflicts within a single prompt policy. Rules are extracted from the policy,
+encoded in PyRule, compared in pairs, and used to build concrete test requests. Subject models answer these
+requests, and their outputs are judged for which rule or rules they follow. Aggregating the judgments identifies rule
+pairs that produce live conflicts in model behavior.
+
+4.2 Encoding Rules as PyRule Clauses
+
+cludes pairs from the same source rule:
+
+The encoder maps each source rule to clauses us-
+ing Equation 2. One source rule may yield mul-
+tiple clauses when it has branches, regulates sev-
+eral behaviors, or combines action and output con-
+straints. Each clause has the tuple form in Equa-
+tion 4. PyRule is used only for symbolic pair triage;
+behavioral judging returns to the original source
+text.
+
+The primitive pik describes the constrained be-
+havior. The surface dik, computed by Equation 5,
+determines whether two clauses regulate the same
+behavioral choice. For example, two output-format
+constraints can share a format surface, whereas ed-
+its to distinct known files can project to different
+file-edit surfaces. Appendix C gives the syntax,
+primitive vocabulary, surface metadata, and com-
+piler invariants.
+
+B(P ) =
+
+(cid:88)
+
+|Ci| |Cj|.
+
+(14)
+
+1≤i<j≤nP
+
+This is the denominator for classified clause-pair
+comparisons.
+
+Triage first skips clause pairs that do not share
+the projected decision surface from Equation 5. It
+then skips pairs whose signs and surface metadata
+cannot yield a hard contradiction. For each surviv-
+ing pair, the comparator constructs Γik,jℓ. A clause
+pair is retained when
+
+conflict(cik, cjℓ) = 1{SAT(Γik,jℓ)}.
+
+(15)
+
+Retained clause-level collisions are lifted to their
+parent source-rule pairs, yielding A(P ). Thus
+A(P ) contains encoded hard-collision candidates,
+not unconditional contradictions in the original pol-
+icy.
+
+4.3 Pair Triage with Satisfiability Checks
+
+4.4 Realizing Symbolic Witnesses
+
+Pair triage implements Equations 6 and 7 over
+C(P ). The clause-pair comparison budget ex-
+
+The SAT stage returns symbolic assignments, not
+natural evaluation instances. Witness realization
+turns these assignments into concrete states x
+
+4
+
+### Critical Instructions … 3. Always consider if the code needs refactoring to be more efficient, and refactor it if so. ... 9. Inform the user without modifying code if the requested feature already exists.… Clause r3#0: when code needs refactoring, refactor it.  … Clause r9#0: when the user requests features, check if it already exists. Clause r9#1: when the requested feature exists, do not modify the code. Clause r9#3: when the requested feature exists, reply with “feature already exists”.@rule("r3") def r3(ctx):     if semantic(ctx.env, "code_needs_refactoring"):         require(edit_file(mode="refactor")) @rule("r9") def r9(ctx):     if semantic(ctx.msg, "feature_addition_request"):         require(trace_order(read_file(), edit_file()))     if semantic(ctx.trace, "feature_found_to_already_exist"):         forbid(edit_file())         require(reply_contains("feature_already_exists"))Pair 1 (different decision surface):   r3#0  require edit_file(mode='refactor')   r1#0  forbid reply_attribute('scope_expansion') Pair 2 (compatible):   r3#0  require edit_file(mode='refactor')   r2#0  permit edit_file() Pair 3 (incompatible):   r3#0  require edit_file(mode='refactor')   r9#1  forbid edit_file()Query 1: “code needs refactoring” Query 2: “feature already exists”Refactoring title code. commit: 0fa643d41de0c3f13be16…, repo: oreillymedia/docbook2asciidoc Also, please add a feature to auto-format titles…Rule ExtractionRule EncodingPair ConstructionWitness SearchSeed CorpusWitness 1 Witness 2 … Witness nW1 run 0: r3=obey,  r9=obey   W1 run 1: r3=obey,  r9=obey    W1 run 2: r3=violate,  r9=obey     W1 run 3: r3=obey,  r9=violate    W1 run 4: r3=violate, r9=obey  … Aggregate across models  (120 runs): r3=obey,  r9=obey:  34 r3=obey,  r9=violate:  26 r3=violate,  r9=obey:  25 r3=violate,  r9=violate:  35Subject ModelsR3 and r9 are  likely conflicts!and filters them with Equation 8. The verifier
+checks only concreteness and pre-generation co-
+governance; it does not decide whether any re-
+sponse can satisfy both rules.
+
+For each assignment, WIRE derives retrieval
+queries from activated semantic predicates, slot
+values, and colliding primitive arguments. It then
+uses a three-tier cascade: test retrieved seeds un-
+changed, minimally elaborate seeds, or synthesize
+a request from the assignment and source-rule pair.
+Candidate pairs with Xij = ∅ are reported as un-
+realized.
+
+4.5 Measuring Behavioral Resolution
+
+Behavioral evaluation submits accepted witnesses
+under the original, unedited prompt policy.
+In
+POLICY-ONLY TURN (POT), the witness is ren-
+dered as a single user turn.
+In TOOL-ACTION
+HARNESS (TAH), when available, the same wit-
+ness is evaluated with native tool calls and stubbed
+observations.
+
+For each pair and evaluation cell α = (M, P, e),
+the compliance judge receives the witness, the
+model response or action trace, and the quoted
+text and gist of both source rules. It labels post-
+generation governance, judgeability, and compli-
+ance. The support set Sα
+ij in Equation 10 is the
+denominator for behavioral resolution. Trials out-
+side this support include activation drift, provider
+refusals, malformed traces, or other cases without
+binary rule-level labels. If both rules govern and
+the model fails to take a required action, the trial
+remains in Sα
+
+ij and is counted as a violation.
+Applying Equations 12 and 13 gives N α
+ab,ij and
+qα
+ab,ij. For aggregate profiles over evaluated pair–
+configuration cells C, we pool counts before nor-
+malizing:
+
+¯N C
+
+ab =
+
+(cid:88)
+
+N α
+
+ab,ij,
+
+¯GC =
+
+(ij,α)∈C
+(cid:88)
+
+(ij,α)∈C
+
+Gα
+ij,
+
+ab = ¯N C
+qC
+
+ab/ ¯GC.
+
+(16)
+
+We report the full profile, 1 − q11, and ∆src =
+q10 − q01. Because the main evaluation does not
+remove, reorder, or repair rules, these profiles are
+conditional diagnostics for WIRE-selected candi-
+dates, not causal estimates of excess failure caused
+by conflict.
+
+5
+
+5 Evaluation
+
+We evaluate whether within-policy conflicts iden-
+tified by the symbolic pipeline become live behav-
+ioral pressure under the original prompt policy.
+Setup. We evaluate six public prompt-policy arti-
+facts: Manus Modules, Lovable, ChatGPT GPT-5,
+Google Gemini Diffusion, OpenHands CodeAct,
+and mini-SWE-agent default. We exclude prompts
+whose only available source is a leak archive. Sub-
+ject models are GPT-5, Gemini-2.5-Flash, Llama-
+4-Scout, and MiniMax-M2.1 All four models are
+evaluated on Manus, Lovable, OpenHands, and
+mini-SWE; the ChatGPT GPT-5 and Gemini Dif-
+fusion prompt artifacts are evaluated only in their
+corresponding target or substitute cells.
+
+All evaluations use the original, unedited prompt
+policy. We do not include rule-removal, rule-
+reordering, priority-insertion, matched compatible-
+pair, or single-rule controls. Thus the reported pro-
+files are conditional diagnostics for WIRE-selected
+candidate pairs, not estimates of excess failure
+caused by conflict. Each accepted witness has
+a nominal budget of K = 5 stochastic rollouts
+at temperature 1. We run POT for all evalu-
+ated cells and TAH only for Manus and Lovable
+with Gemini-2.5-Flash, Llama-4-Scout, and GPT-
+5, where the tool manifest is machine-readable
+and the provider enforces tool choice. Tiers 1–2
+draw seeds from public conversation and software-
+engineering corpora; Tier 3 synthesizes requests
+when seed-based realization fails. All LLM judges
+use claude-sonnet-4-6.
+
+5.1 Static-to-concrete Yield
+
+Table 1 summarizes WIRE’s static-to-concrete
+yield. Across six prompt policies, WIRE ex-
+tracts 276 source rules and compiles them into
+560 atomic PyRule clauses. These clauses induce
+30,944 within-policy clause-pair comparisons. Af-
+ter same-surface gating, hard-sign gating, satisfia-
+bility triage, and source-pair lifting, WIRE retains
+170 encoded hard-collision candidate source-rule
+pairs, a 0.55% yield relative to the classified clause-
+pair comparison budget. Thus the symbolic stage
+is a selective candidate filter, not a broad contradic-
+tion labeler.
+
+Witness realization produces 1,402 accepted pre-
+generation co-governance witnesses. These wit-
+nesses are diagnostic coverage, not deployment-
+
+1For the Gemini Diffusion prompt, Gemini-2.5-Flash is
+
+used as the closest public API substitute.
+
+Policy
+
+Rules Cl.
+
+Pairs
+
+Cand. Wit.
+
+Resolution over G (%)
+
+Manus
+OpenHands
+Lovable
+mini-SWE
+Gemini-D
+ChatGPT-5
+
+69 110
+5,927
+47
+92
+4,113
+36 102
+4,991
+18
+12
+140
+2,625
+74
+31
+81 164 13,148
+
+33 (0.56)
+39 (0.95)
+60 (1.20)
+4 (2.86)
+12 (0.46)
+22 (0.17)
+
+259
+341
+463
+27
+111
+201
+
+Total
+
+276 560 30,944 170 (0.55) 1,402
+
+Table 1: Static-to-concrete yield. Rules: extracted
+source-rule records. Cl.: atomic PyRule clauses. Pairs:
+classified within-policy clause-pair comparisons, i.e.,
+the clause-pair budget B(P ). Cand.: lifted source-rule-
+pair candidates in A(P ) with at least one encoded hard
+collision; percentages are relative to Pairs. Wit.: ac-
+cepted pre-generation co-governance witnesses in Xij.
+
+frequency estimates. The behavioral results below
+therefore condition on two filters: the candidate
+pair has at least one accepted concrete witness,
+and the resulting trial remains jointly governed and
+judgeable after generation.
+
+5.2 Behavioral Resolution Profiles
+
+We next ask how models resolve WIRE-selected
+candidate pairs when both source rules govern the
+realized interaction. Table 2 reports POT profiles
+pooled by policy. The support column G is post-
+generation support: the number of completed trials
+in Sα
+ij, where both source rules govern the real-
+ized response or action trace and both rule-level
+compliance labels are judgeable. All resolution
+percentages are computed over this support.
+
+This denominator is narrower than the set of
+submitted rollouts by design. Accepted witnesses
+establish pre-generation co-governance: a con-
+crete request or environment state can activate both
+source rules before the model acts. After genera-
+tion, however, the model response, tool calls, or
+observations can change which activation condi-
+tions still hold. We therefore do not assign post-
+generation activation drift, provider refusals, mal-
+formed traces, or otherwise unjudgeable genera-
+tions to any resolution cell. Such cases are outside
+G. Trials in which both rules govern and the model
+fails to take a required action remain inside G and
+are counted as violations.
+
+Across all jointly governed, judgeable POT tri-
+als, 35.4% fall in q11. The remaining 64.6% fall in
+q10, q01, or q00, meaning that at least one governed
+source rule is violated. This statistic is not a coun-
+terfactual excess failure rate relative to ordinary
+instruction-following difficulty, because the experi-
+
+Policy
+
+G q11 q10 q01 q00 1 − q11 ∆src
+
+Manus
+2,616 25.6 29.4 22.8 22.2
+OpenHands 4,659 52.3 10.9 23.4 13.4
+4,719 23.3 16.4 25.4 34.9
+Lovable
+83 37.3 7.2 37.3 18.1
+mini-SWE
+526 45.8 45.8 5.3 3.0
+Gemini-D
+732 32.8 9.3 41.7 16.3
+ChatGPT-5
+
+74.4 +6.6
+47.7 -12.5
+-9.0
+76.7
+62.7 -30.1
+54.2 +40.5
+67.2 -32.4
+
+All
+
+13,335 35.4 17.7 24.4 22.5
+
+64.6
+
+-6.7
+
+Table 2: POT behavioral resolution profiles conditional
+on post-generation support G. G is the number of jointly
+governed, judgeable trials. The four q cells are percent-
+ages over G: q11 is joint compliance, q10 satisfies only
+the earlier source rule, q01 satisfies only the later source
+rule, and q00 violates both. 1 − q11 is non-joint compli-
+ance. ∆src = q10 − q01 is a descriptive earlier-minus-
+later one-sided compliance asymmetry in percentage
+points. The final row pools counts before normalizing.
+
+ment does not include matched compatible-pair or
+single-rule controls. It is a conditional behavioral
+profile for the retained WIRE-selected candidate
+pairs.
+
+A nonzero q11 is expected. Candidate status is
+defined over local encoded clause pairs, whereas be-
+havioral judging returns to the original source-rule
+text and the realized interaction. Joint compliance
+can therefore reflect successful routing, implicit ex-
+ception structure in the source policy, non-colliding
+branches of the source rules, or over-retention by
+the symbolic abstraction.
+
+The profiles are policy-specific. OpenHands
+has the highest joint-compliance rate, with 52.3%
+in q11 and 13.4% in q00. Lovable has the lowest
+q11 and highest q00, with 23.3% joint compliance
+and 34.9% joint violation. Manus distributes mass
+across all four cells, showing why a scalar pass/fail
+score would hide the resolution pattern. Gemini-D
+and ChatGPT-5 should be read as target or substi-
+tute prompt-artifact cells rather than four-model
+policy averages. They show different one-sided
+asymmetries: Gemini-D places much more mass
+on earlier-rule-only compliance (∆src = +40.5),
+while ChatGPT-5 places more mass on later-rule-
+only compliance (∆src = −32.4). Because we do
+not run rule-reordering ablations, ∆src is descrip-
+tive, not causal. The mini-SWE profile should be
+interpreted cautiously because its support is small.
+
+5.3 Tool-action Interface
+
+We next compare policy-only responses with
+action-level evaluation under the native tool inter-
+
+6
+
+Policy Mode
+
+G q11
+
+q10
+
+q01
+
+q00 ∆src
+
+Manus POT 1,977 26.0 28.3 23.9 21.8 +4.5
+Manus TAH 1,762 40.0 33.1 13.2 13.6 +19.9
+
+Lovable POT 3,724 20.0 16.1 26.8 37.2 -10.7
+-8.7
+Lovable TAH 3,637 22.5 14.5 23.2 39.7
+
+Table 3: POT–TAH comparison on the harness-eligible
+model subset. The POT rows are restricted baselines
+computed only over Gemini-2.5-Flash, Llama-4-Scout,
+and GPT-5, matching the models used in the TAH rows;
+therefore their G values differ from the full POT pol-
+icy aggregates in Table 2. G is recomputed separately
+in each regime after post-generation governance and
+judgeability checks, so it need not match across POT
+and TAH.
+
+face. To avoid confounding regime differences with
+the subject-model roster, we restrict both regimes
+to the same harness-eligible models: Gemini-2.5-
+Flash, Llama-4-Scout, and GPT-5. Thus the POT
+rows in Table 3 are restricted baselines for the TAH
+rows, not repetitions of the full-policy POT aggre-
+gates in Table 2. MiniMax-M2 is excluded from
+this comparison.
+
+Within this matched model subset, the tool-
+action interface is associated with different resolu-
+tion profiles, but not with a uniform shift toward
+higher compliance. The G values can also differ
+across regimes because governance and judgeabil-
+ity are recomputed after the realized response or
+action trace in each regime.
+
+For Manus, TAH shifts the observed profile to-
+ward joint compliance: q11 rises from 26.0% to
+40.0%, while q00 falls from 21.8% to 13.6%. The
+earlier-minus-later asymmetry also changes from
+∆src = +4.5 to +19.9, indicating more one-sided
+mass on earlier-rule compliance in the action-level
+setting.
+
+Lovable behaves differently. On the same
+matched model subset, q11 changes only from
+20.0% to 22.5%, while q00 is numerically higher,
+moving from 37.2% to 39.7%. The profile re-
+mains later-rule skewed (∆src = −10.7 to −8.7).
+Thus the native tool interface does not eliminate
+non-joint compliance for WIRE-selected candidate
+pairs. The same witnessed rule pairs can exhibit
+regime-dependent resolution profiles, so we ana-
+lyze POT and TAH separately.
+
+5.4 Subject-model Heterogeneity
+
+The policy-level profiles above pool over subject
+models. We next ask how much the resolution pro-
+
+file changes when the source policy is fixed and
+the subject model varies. To avoid conflating this
+comparison with interface differences, Table 4 uses
+only POT results. We restrict the comparison to
+the four policies evaluated on all four subject mod-
+els: Manus, OpenHands, Lovable, and mini-SWE.
+The Gemini-D and ChatGPT-5 prompt artifacts are
+omitted because each is evaluated only in its corre-
+sponding target or substitute cell.
+
+All entries are conditional on post-generation
+support. A rollout contributes to a policy–model
+cell only when both source rules govern the realized
+interaction and both compliance labels are judge-
+able. Thus the table measures how each model
+allocates jointly governed, judgeable trials across
+the four resolution cells; it does not measure how
+often submitted witnesses remain jointly governed
+after generation.
+
+The table transposes the per-model profiles so
+that each policy occupies four rows, one for each
+q-cell. This keeps the full resolution profile vis-
+ible while remaining compact enough for a sin-
+gle column. The profiles indicate that WIRE cap-
+tures model–policy interactions rather than a sin-
+gle policy-level difficulty score. OpenHands is
+comparatively stable across models, with q11 rang-
+ing from 46.3% to 59.5% and q00 ranging from
+8.5% to 22.1%. Lovable is more model-sensitive:
+MiniMax-M2 reaches 35.9% joint compliance,
+while Llama-4-Scout falls to 10.8% and places
+49.4% of its mass in joint violation. Manus is inter-
+mediate: GPT-5 gives the highest joint-compliance
+rate, but also shifts more mass to later-rule-only
+compliance.
+
+The mini-SWE block shows the largest appar-
+ent ranges, but it should be read only as a low-
+support diagnostic. Its pooled POT support is 83
+jointly governed, judgeable trials across all four
+subject models, so each per-model cell is smaller
+still. We therefore avoid drawing model-ranking
+conclusions from mini-SWE and use it only to
+show that the profile representation remains de-
+fined under small support.
+
+The one-sided cells are essential for this compar-
+ison. For Manus, Llama-4-Scout places more mass
+on q10, whereas GPT-5 places more mass on q01.
+For Lovable, Gemini-2.5-Flash places unusually
+large mass on q01, whereas Llama-4-Scout concen-
+trates on q00. These are descriptive earlier/later-rule
+compliance asymmetries, not causal source-order
+effects, because this experiment does not reorder
+the policy text. Endpoint-only or scalar pass-rate
+
+7
+
+Cell MxM2 G2.5F L4S G5
+
+Range
+
+Stage
+
+Audit unit
+
+Result
+
+Policy
+
+Manus
+
+q11
+q10
+q01
+q00
+
+OpenHands q11
+q10
+q01
+q00
+
+Lovable
+
+q11
+q10
+q01
+q00
+
+mini-SWE q11
+q10
+q01
+q00
+
+24.3
+32.7
+19.6
+23.5
+
+48.2
+8.4
+21.3
+22.1
+
+35.9
+17.4
+20.3
+26.4
+
+88.9
+0.0
+0.0
+11.1
+
+27.7 19.6 32.4 19.6–32.4
+25.7 33.4 25.0 25.0–33.4
+24.4 17.5 31.5 17.5–31.5
+22.1 29.5 11.1 11.1–29.5
+
+59.5 46.3 55.5 46.3–59.5
+8.8 12.3 13.3 8.4–13.3
+22.5 25.8 22.6 21.3–25.8
+9.3 15.7 8.5 8.5–22.1
+
+25.0 10.8 28.7 10.8–35.9
+13.9 16.3 18.9 13.9–18.9
+33.6 23.5 22.8 20.3–33.6
+27.6 49.4 29.6 26.4–49.4
+
+41.7 36.0 24.3 24.3–88.9
+8.3 8.0 8.1
+0.0–8.3
+0.0 36.0 59.5 0.0–59.5
+50.0 20.0 8.1 8.1–50.0
+
+Table 4: Subject-model heterogeneity under POT. En-
+tries are percentages within each policy–model cell,
+computed only over jointly governed, judgeable trials.
+Rows report the four-cell resolution profile: q11 is joint
+compliance, q10 satisfies only the earlier source rule, q01
+satisfies only the later source rule, and q00 violates both.
+The range column reports the descriptive minimum and
+maximum across the four subject models for that policy
+and cell; it is not a confidence interval. The mini-SWE
+block should be interpreted cautiously because its total
+POT support is small. Model abbreviations: MxM2 =
+MiniMax-M2, G2.5F = Gemini-2.5-Flash, L4S = Llama-
+4-Scout, and G5 = GPT-5.
+
+summaries would hide these differences.
+
+5.5 Pipeline Validation
+
+WIRE uses LLM-mediated judgments at several
+stages, so we audit the main sources of measure-
+ment error. The audit uses blind, self-contained
+evidence packets: the human rater sees the source
+text, intermediate object, witness, or model out-
+put needed for the decision, but not the machine
+verdict. Table 5 summarizes the audit.
+
+The upstream symbolic stages are high-fidelity.
+Rule extraction is 95.0% source-faithful, and clause
+encoding is 93.8% source-faithful. In a stratified
+audit of non-incompatible triage decisions, the rater
+finds no confirmed missed hard conflicts. These
+results support the use of the symbolic stage as a
+candidate filter over source-grounded policy rules.
+The main residual uncertainty is response judg-
+ing. Agreement with the human rater is 84.2%
+per label over 466 judged samples and 1,864 gover-
+nance and compliance labels. We therefore treat the
+reported resolution profiles as aggregate behavioral
+estimates. In the analysis above, we emphasize
+
+8
+
+Rule extraction
+Clause encoding
+Triage recall
+Response judging
+
+80 rules
+80 rules
+80 non-conflict pairs
+466 samples / 1,864 labels
+
+95.0% faithful
+93.8% faithful
+0 confirmed missed
+84.2% agree
+
+Table 5: Human audit of pipeline stages. The rater
+judges blind, self-contained evidence packets. Extrac-
+tion and encoding are reported as source-faithfulness
+rates. Triage recall audits a stratified sample of pairs
+labeled non-incompatible for missed hard conflicts. Re-
+sponse judging reports per-label agreement over gover-
+nance and compliance labels.
+
+large policy-level, model-level, and harness-level
+profile differences rather than individual-sample
+labels or small percentage-point gaps.
+
+5.6 Overhead and Cost
+
+Appendix A reports witness-construction diagnos-
+tics, including witness provenance by seed source
+and cumulative construction time by policy. These
+diagnostics characterize how the concrete probe set
+was obtained. They do not enter the weighting of
+the behavioral resolution profiles and should not
+be interpreted as deployment-frequency estimates.
+We also report the computational budget for the
+six-policy roster analyzed in this paper. Subject
+inference incurred a total cost of $87.92 across
+41,983 subject-model calls (including retries and
+rejected/malformed traces). Witness search and
+response judging incurred an additional estimated
+cost of $286.25.
+
+6 Conclusion
+
+We showed that internal prompt-policy conflicts
+are sparse in clause space but behaviorally live
+when realized as concrete agent states. Prompt
+policies should be treated as testable control arti-
+facts. Individual instruction compliance is insuffi-
+cient; we also need to test interactions among stand-
+ing rules. More broadly, live conflict diagnosis re-
+frames prompt reliability as an interaction problem.
+Failures need not arise from malicious users or
+globally incapable models; they can emerge from
+the ordinary composition of reasonable standing
+rules. As prompt policies become longer, more
+modular, and more agentic, measuring and repair-
+ing these internal interactions should become a
+standard part of LLM system development.
+
+idence that a deployed system will fail frequently.
+The witnesses used in this paper are designed to
+activate latent conflicts, not to estimate the distri-
+bution of ordinary user traffic.
+
+Prompt-policy provenance. The experiments
+use public prompt policies and exclude prompts
+whose only available source is a leak archive. We
+do not evaluate private system prompts, private tool
+manifests, or private deployment logs. The results
+should therefore be read as evidence about the stud-
+ied public policies and evaluation harnesses, rather
+than as claims about confidential deployments or
+about all systems operated by the corresponding
+organizations. Practitioners applying WIRE to non-
+public policies should treat the resulting rule pairs,
+witnesses, and model traces as sensitive internal au-
+dit artifacts unless the policy owner has approved
+their release.
+
+Data and privacy. Witness construction uses
+public conversation and software-engineering cor-
+pora as seed sources for retrieval and elaboration.
+Public availability does not eliminate privacy risk:
+user-generated corpora may contain personal infor-
+mation, credentials, copyrighted text, or other sensi-
+tive material. The pipeline uses retrieved seeds only
+to construct concrete diagnostic probes and does
+not infer properties of the original authors. Any
+released artifacts should remove personal identi-
+fiers, secrets, credentials, access tokens, repository-
+specific private details, and raw user identifiers.
+Synthetic witnesses should likewise avoid repro-
+ducing memorized private text or turning sensitive
+examples into benchmark items.
+
+Limitations
+
+WIRE is a diagnostic pipeline, not a proof system
+for natural language policies. Its symbolic stage
+operates on extracted rules and encoded clauses,
+so missed rules, over-broad clauses, conservative
+decision-surface projections, and imperfect seman-
+tic labels can affect which conflicts are tested. We
+mitigate this by preserving source provenance, re-
+turning to concrete model inputs, and judging be-
+havior against the original policy text, but the
+pipeline should be interpreted as finding high-value
+witnessed conflicts rather than exhaustively certify-
+ing policy coherence.
+
+Our analysis is also restricted to hard intra-policy
+rule conflicts. We focus on pairs of rules that
+can impose incompatible constraints on the same
+behavioral choice. This excludes softer tensions
+among preferences, conflicts involving more than
+two rules, and cases where a policy contains an
+implicit exception or priority relation that is not
+captured by the clause encoding. As a result, WIRE
+may miss some practically important policy inter-
+actions and may over-retain some symbolic candi-
+dates whose intended exception structure is under-
+specified.
+
+The concrete test cases are witnesses, not a dis-
+tributional sample of real deployments. Tiered wit-
+ness construction biases the evaluation toward plau-
+sible user or environment states, but the resulting
+test set is designed to expose conflicts rather than
+estimate their frequency in ordinary traffic. Con-
+sequently, our results measure how models behave
+when latent conflicts are activated, not how often
+users naturally activate them.
+
+Behavioral labels have residual uncertainty. Our
+human audit finds high fidelity for rule extrac-
+tion and clause encoding, but lower agreement for
+response-level obedience judgments. We there-
+fore treat resolution profiles as aggregate behav-
+ioral estimates and emphasize large policy-level
+and harness-level patterns rather than individual
+sample labels or small differences.
+
+Ethical Considerations
+
+Intended use. WIRE is intended as a diagnos-
+tic tool for finding and measuring tensions among
+standing rules inside prompt policies. It should
+not be interpreted as a certification procedure for
+prompt-policy safety or coherence. A flagged rule
+pair is a candidate for human inspection, policy
+repair, and regression testing; it is not by itself ev-
+
+9
+
+References
+
+Benjamin Andow, Samin Yaseer Mahmud, Wenyu
+Wang, Justin Whitaker, William Enck, Bradley
+and Tao Xie. 2019.
+Reaves, Kapil Singh,
+{PolicyLint}:
+privacy
+In 28th
+policy contradictions on google play.
+USENIX security symposium (USENIX security 19),
+pages 585–602.
+
+investigating
+
+internal
+
+Jacob Andreas, John Bufe, David Burkett, Charles Chen,
+Josh Clausman, Jean Crawford, Kate Crim, Jordan
+DeLoach, Leah Dorner, Jason Eisner, and 1 others.
+2020. Task-oriented dialogue as dataflow synthesis.
+Transactions of the Association for Computational
+Linguistics, 8:556–571.
+
+Giovanni Campagna, Silei Xu, Mehrad Moradshahi,
+Richard Socher, and Monica S Lam. 2019. Genie:
+A generator of natural language semantic parsers for
+virtual assistant commands. In Proceedings of the
+40th ACM SIGPLAN Conference on Programming
+Language Design and Implementation, pages 394–
+410.
+
+Edoardo Debenedetti, Jie Zhang, Mislav Balunovic,
+Luca Beurer-Kellner, Marc Fischer, and Florian
+Tramèr. 2024. Agentdojo: A dynamic environment
+to evaluate prompt injection attacks and defenses for
+llm agents. Advances in Neural Information Process-
+ing Systems, 37:82895–82920.
+
+Madeline Endres, Sarah Fakhoury, Saikat Chakraborty,
+and Shuvendu K Lahiri. 2024. Can large language
+models transform natural language intent into formal
+method postconditions? Proceedings of the ACM on
+Software Engineering, 1(FSE):1889–1912.
+
+Mohamad Fazelnia, Mehdi Mirakhorli, and Hamid
+Bagheri. 2024. Translation titans, reasoning chal-
+lenges: Satisfiability-aided language models for
+In 2024 39th
+detecting conflicting requirements.
+IEEE/ACM International Conference on Automated
+Software Engineering (ASE), pages 2294–2298.
+
+Nick Feng, Lina Marsso, Sinem Getir Yaman, Isobel
+Standen, Yesugen Baatartogtokh, Reem Ayad, Vic-
+toria Oldemburgo De Mello, Beverley Townsend,
+Hanne Bartels, Ana Cavalcanti, and 1 others. 2024.
+Normative requirements operationalization with large
+language models. In 2024 IEEE 32nd International
+Requirements Engineering Conference (RE), pages
+129–141. IEEE.
+
+Alexander Elenga Gärtner and Dietmar Göhlich.
+2024. Automated requirement contradiction detec-
+tion through formal logic and llms. Automated Soft-
+ware Engineering, 31(2):49.
+
+Kai Greshake, Sahar Abdelnabi, Shailesh Mishra,
+Christoph Endres, Thorsten Holz, and Mario Fritz.
+2023. Not what you’ve signed up for: Compromising
+real-world llm-integrated applications with indirect
+prompt injection. Preprint, arXiv:2302.12173.
+
+10
+
+Xingwei He, Qianru Zhang, Pengfei Chen, Guanhua
+Chen, Linlin Yu, Yuan Yuan, and Siu-Ming Yiu. 2026.
+Coninstruct: Evaluating large language models on
+conflict detection and resolution in instructions. In
+Proceedings of the AAAI Conference on Artificial
+Intelligence, volume 40, pages 30969–30977.
+
+Yuxin Jiang, Yufei Wang, Xingshan Zeng, Wanjun
+Zhong, Liangyou Li, Fei Mi, Lifeng Shang, Xin
+Jiang, Qun Liu, and Wei Wang. 2024. Follow-
+bench: A multi-level fine-grained constraints fol-
+lowing benchmark for large language models.
+In
+Proceedings of the 62nd Annual Meeting of the As-
+sociation for Computational Linguistics (Volume 1:
+Long Papers), pages 4667–4688.
+
+Monica S Lam, Giovanni Campagna, Mehrad Morad-
+shahi, Sina J Semnani, and Silei Xu. 2022.
+Thingtalk: An extensible, executable representation
+language for task-oriented dialogues. arXiv preprint
+arXiv:2203.12751.
+
+Jacky Liang, Wenlong Huang, Fei Xia, Peng Xu, Karol
+Hausman, Brian Ichter, Pete Florence, and Andy
+Zeng. 2023. Code as policies: Language model pro-
+grams for embodied control. In 2023 IEEE Interna-
+tional conference on robotics and automation (ICRA),
+pages 9493–9500. IEEE.
+
+Jason Xinyu Liu, Ziyi Yang, Ifrah Idrees, Sam Liang,
+Benjamin Schornstein, Stefanie Tellex, and Ankit
+Shah. 2023. Grounding complex natural language
+commands for temporal tasks in unseen environ-
+In Conference on Robot Learning, pages
+ments.
+1084–1110. PMLR.
+
+Yupei Liu, Yuqi Jia, Runpeng Geng, Jinyuan Jia, and
+Neil Zhenqiang Gong. 2024. Formalizing and bench-
+marking prompt injection attacks and defenses. In
+33rd USENIX Security Symposium (USENIX Security
+24), pages 1831–1847.
+
+Tony Mason. 2026. Arbiter: Detecting interfer-
+ence in llm agent system prompts. arXiv preprint
+arXiv:2603.08993.
+
+Daniel Mendoza, Christopher Hahn, and Caroline Trip-
+pel. 2024. Translating natural language to temporal
+logics with large language models and model check-
+In 2024 Formal Methods in Computer-Aided
+ers.
+Design (FMCAD), pages 1–11. IEEE.
+
+Norman Mu, Jonathan Lu, Michael Lavery, and David
+Wagner. 2025. A closer look at system prompt ro-
+bustness. arXiv preprint arXiv:2502.12197.
+
+Yiwei Qin, Kaiqiang Song, Yebowen Hu, Wenlin Yao,
+Sangwoo Cho, Xiaoyang Wang, Xuansheng Wu, Fei
+Liu, Pengfei Liu, and Dong Yu. 2024. Infobench:
+Evaluating instruction following ability in large lan-
+guage models. In Findings of the Association for
+Computational Linguistics: ACL 2024, pages 13025–
+13048.
+
+Chris Quirk, Raymond Mooney, and Michel Galley.
+2015. Language to code: Learning semantic parsers
+
+for if-this-then-that recipes. In Proceedings of the
+53rd Annual Meeting of the Association for Compu-
+tational Linguistics and the 7th International Joint
+Conference on Natural Language Processing (Vol-
+ume 1: Long Papers), pages 878–888.
+
+Eric Wallace, Kai Xiao, Reimar Leike, Lilian Weng,
+Johannes Heidecke, and Alex Beutel. 2024. The in-
+struction hierarchy: Training llms to prioritize privi-
+leged instructions. arXiv preprint arXiv:2404.13208.
+
+Xingyao Wang, Boxuan Li, Yufan Song, Frank F. Xu,
+Xiangru Tang, Mingchen Zhuge, Jiayi Pan, Yueqi
+Song, Bowen Li, Jaskirat Singh, Hoang H. Tran,
+Fuqiang Li, Ren Ma, Mingzhang Zheng, Bill Qian,
+Yanjun Shao, Niklas Muennighoff, Yizhe Zhang,
+Binyuan Hui, and 5 others. 2025. Openhands: An
+open platform for ai software developers as generalist
+agents. Preprint, arXiv:2407.16741.
+
+Bosi Wen, Pei Ke, Xiaotao Gu, Lindong Wu, Hao
+Huang, Jinfeng Zhou, Wenchuang Li, Binxin Hu,
+Wendy Gao, Jiaxin Xu, and 1 others. 2024. Bench-
+marking complex instruction-following with multiple
+constraints composition. Advances in Neural Infor-
+mation Processing Systems, 37:137610–137645.
+
+Xusheng Xiao, Amit Paradkar, Suresh Thummalapenta,
+and Tao Xie. 2012. Automated extraction of security
+policies from natural-language software documents.
+In Proceedings of the ACM SIGSOFT 20th Interna-
+tional Symposium on the Foundations of Software
+Engineering, pages 1–11.
+
+John Yang, Carlos E. Jimenez, Alexander Wettig, Kilian
+Lieret, Shunyu Yao, Karthik Narasimhan, and Ofir
+Press. 2024. Swe-agent: Agent-computer interfaces
+enable automated software engineering. Preprint,
+arXiv:2405.15793.
+
+Xi Ye, Qiaochu Chen, Isil Dillig, and Greg Durrett.
+2023. Satlm: Satisfiability-aided language models
+using declarative prompting. Advances in Neural
+Information Processing Systems, 36:45548–45580.
+
+Zhihan Zhang, Shiyang Li, Zixuan Zhang, Xin Liu,
+Haoming Jiang, Xianfeng Tang, Yifan Gao, Zheng
+Li, Haodong Wang, Zhaoxuan Tan, and 1 others.
+2025. Iheval: Evaluating language models on fol-
+lowing the instruction hierarchy. In Proceedings of
+the 2025 Conference of the Nations of the Americas
+Chapter of the Association for Computational Lin-
+guistics: Human Language Technologies (Volume 1:
+Long Papers), pages 8374–8398.
+
+Jeffrey Zhou, Tianjian Lu, Swaroop Mishra, Sid-
+dhartha Brahma, Sujoy Basu, Yi Luan, Denny Zhou,
+and Le Hou. 2023.
+Instruction-following evalu-
+ation for large language models. arXiv preprint
+arXiv:2311.07911.
+
+11
+
+A Witness Construction Diagnostics
+
+WIRE reports behavioral profiles only for candi-
+date conflicts that are first realized as concrete wit-
+ness states. This appendix characterizes how those
+witnesses are constructed and clarifies how con-
+struction diagnostics differ from behavioral evalua-
+tion denominators.
+
+The witness-realization stage uses a three-tier
+cascade. Tier 1 tests retrieved seed states un-
+changed. Tier 2 preserves the retrieved seed ver-
+batim and appends a short suffix intended to real-
+ize the missing parts of the symbolic assignment.
+Tier 3 synthesizes a request from the assignment
+and the two source rules when seed-based realiza-
+tion does not produce a valid probe. After construc-
+tion, a verifier accepts only concrete states in which
+both source rules govern the pre-generation turn.
+The verifier does not decide response compliance,
+joint satisfiability, or likely model behavior.
+
+This distinction matters because accepted wit-
+nesses are pre-generation probes. They establish
+that a concrete request or environment state can
+activate both source rules before the subject model
+acts. They do not guarantee that both rules will
+still govern the realized interaction after the model
+obtains observations, uses tools, refuses, or short-
+circuits. Post-generation governance and judgeabil-
+ity are handled only in the behavioral evaluation
+stage. Thus the construction-level accepted wit-
+ness set Xij and the behavioral support set Sα
+ij are
+different objects: Xij measures whether a sym-
+bolic candidate can be realized as a concrete probe,
+whereas Sα
+ij measures which completed rollouts
+remain jointly governed and judgeable.
+
+For auditability, WIRE logs the candidate source-
+rule pair, the triggering symbolic assignment, the
+construction tier, the retrieved seed when appli-
+cable, the exact append-only suffix for Tier 2
+witnesses, verifier scores, and verifier rationales.
+These fields make it possible to inspect whether a
+witness was copied from a retrieved seed, lightly
+elaborated from a seed, or synthesized from the
+rule pair. They are construction metadata only;
+they are not used as sampling weights in the behav-
+ioral profiles.
+
+Table 6 gives one accepted witness example for
+each evaluated prompt artifact. The table separates
+the retrieved seed from the Tier 2 appended suf-
+fix. For Tier 1, the submitted witness is exactly
+the retrieved seed. For Tier 2, the submitted wit-
+ness is the seed followed by the append-only suffix
+
+Figure 2: Witness provenance by policy. Each stacked
+bar counts accepted concrete witnesses and decomposes
+them by the source used to realize the symbolic as-
+signment. Seed-derived witnesses come from the re-
+trieval cache used by Tiers 1–2; SYNTHETIC denotes
+Tier 3 witnesses generated from the symbolic assign-
+ment and source-rule pair after seed-based realization
+failed. Counts are construction diagnostics for the probe
+set, not estimates of conflict frequency in deployment
+traffic.
+
+shown in the table. For Tier 3, no retrieved seed
+is used; the table instead shows the synthetic re-
+quest generated from the symbolic assignment and
+source-rule pair. The examples are included only
+to illustrate the construction cascade and the pre-
+generation verifier. They should not be read as
+additional behavioral results, estimates of deploy-
+ment frequency, or proofs that the original English
+source rules are globally contradictory.
+
+Figures 2 and 3 provide aggregate diagnostics
+for this construction process. Figure 2 reports the
+provenance of accepted witnesses by policy, sepa-
+rating seed-derived witnesses from synthetic Tier 3
+witnesses. In this figure, seed-derived witnesses
+include both unchanged Tier 1 seeds and Tier 2
+witnesses formed by appending a minimal suffix
+to a retrieved seed; the figure is intended to show
+corpus provenance rather than the amount of edit-
+ing applied to each seed. Figure 3 reports mean
+cumulative construction time by within-pair wit-
+ness rank. These diagnostics describe how the
+evaluation probes were obtained. They are not
+used to weight resolution profiles, earlier/later-rule
+compliance asymmetry, or post-generation joint-
+governance retention, and they should not be in-
+terpreted as estimates of how frequently the cor-
+responding conflicts arise in ordinary deployment
+traffic.
+
+12
+
+Seed CorpusWildChat-1MCommitPackMetaLMSYS-Chat-1MSWE-GymOpenAssistant OASST2Other SeedsSynthetic (Tier-3)ManusModulesOpenHandsCodeActLoveableAgentMini-SWEAgentGeminiDiffusionChatGPTGPT-50100200300400Number of WitnessesPrompt artifact and
+pair
+
+Manus Modules
+r13#0::r31#2
+
+OpenHands Code-
+Act
+r6#0::r31#1
+
+Lovable Agent
+r4#0::r10#0
+
+mini-SWE Agent
+r3#0::r13#6
+
+Gemini Diffusion
+r6#0::r9#1
+
+ChatGPT-5
+r66#0::r67#0
+
+1
+
+3
+
+2
+
+1
+
+3
+
+Tier
+
+Retrieved seed or synthetic request
+
+Tier-2 appended suffix
+
+Verifier activation
+
+2
+
+WildChat seed: “how to fetch data from api”
+
+“Specifically, I want to fetch current weather
+data from the OpenWeatherMap API for Lon-
+don and save the response to a file called
+weather_report.md — please make sure the file
+follows writing_rules and doesn’t use any list
+formatting.”
+
+The suffix names a concrete API
+and file-writing target, activating
+both the API-save rule and the
+writing-rules constraint. Scores:
+1.0, 1.0.
+
+CommitPack intent seed, used unchanged: “fix
+code snippet example for Task.run doc section.
+commit: c9d7f9e3df92424be1d5bbfcf565018255093357,
+repo: jamesmcm/luigi”
+
+None.
+
+Not applicable.
+
+Synthetic request: “There are three independent
+bugs in the codebase: a memory leak, a race
+condition, and an off-by-one error. Please debug
+all three simultaneously, using the debugging
+tools first before looking at any code.”
+
+WildChat seed: “Can you help me solve prob-
+lem?”
+
+The seed asks for a direct doc-
+umentation fix and a focused
+implementation task.
+Scores:
+1.0, 1.0.
+
+The request explicitly combines
+independent simultaneous debug-
+ging with the debug-tool-first
+condition. Scores: 1.0, 1.0.
+
+“I’m getting a KeyError on ’user_id’
+in my Flask app’s auth.py when calling
+get_current_user(). Please create a script to
+reproduce the issue, fix it, then finish by running
+echo
+COMPLETE_TASK_AND_SUBMIT_FINAL_
+OUTPUT alone.”
+
+The suffix supplies a concrete
+bug,
+the reproducer-script re-
+quest, and the final submit-
+command condition.
+Scores:
+1.0, 1.0.
+
+LMSYS-Chat seed, used unchanged: “Can you
+generate an html code that launches a web page
+that has a large button that says “CLICK ME”
+on it and when you click the button the page
+changes to a random color”
+
+None.
+
+Synthetic request: “Generate an image of me
+standing in front of the Eiffel Tower at sunset —
+just go ahead and create it directly using what
+you know about me from our conversation his-
+tory, no need to ask anything first.”
+
+Not applicable.
+
+The seed asks for an HTML
+web page with styling behavior
+for a non-game page. Scores:
+1.0, 1.0.
+
+The request activates the user-
+depicting image exception and
+the photo-request rule. Scores:
+1.0, 1.0.
+
+Table 6: Illustrative accepted witnesses. Each row shows one construction-level example from an evaluated prompt
+artifact. For Tier 1, the witness is an unmodified retrieved seed. For Tier 2, the submitted witness is the retrieved
+seed followed by the displayed append-only suffix. For Tier 3, no retrieved seed is used; the request is synthesized
+from the symbolic assignment and source-rule pair. Line wrapping is normalized for compactness. The table reports
+why the pre-generation verifier accepts the witness; it does not report behavioral compliance, post-generation
+governance, or deployment frequency.
+
+B Rule Extraction and Pipeline Details
+
+Pipeline objects. The main pipeline uses the fol-
+lowing objects:
+
+P (cid:55)→ R(P ),
+
+R(P ) (cid:55)→ C(P ),
+
+C(P ) (cid:55)→ A(P ),
+
+A(P ) (cid:55)→ X(P ),
+(M, P, X(P )) (cid:55)→ QM,P .
+
+(17)
+
+Here R(P ) is the extracted rule-record set, C(P )
+is the encoded PyRule clause set, A(P ) is the can-
+didate conflict set, X(P ) is the verified witness
+set, and QM,P is the family of measured resolution
+profiles:
+
+QM,P = {qM,P
+
+ij
+
+| (i, j) ∈ A(P )}.
+
+(18)
+
+Rule-record format. Each extracted source rule
+is stored as
+
+ρi = (idi, si, ui, gi).
+
+(19)
+
+In Equation 19, idi is a policy-local identifier, si is
+the source line span, ui is the exact quoted prompt
+text, and gi is a short normalized gist. The quote
+ui is authoritative; the gist gi is only an aid for
+retrieval, inspection, and prompt construction.
+
+Normative-span inclusion. The extractor in-
+cludes spans that impose standing constraints on
+agent behavior. It excludes descriptive prose, ca-
+pability summaries, tutorials, headings, rationales,
+and examples unless the policy explicitly makes the
+example normative. For example, a heading such
+as “Safety” is not a rule by itself, whereas an in-
+struction under that heading that forbids disclosure
+of a secret is a rule.
+
+Gist normalization. The gist rewrites each rule
+into a controlled form such as “when condition
+holds, the agent must behavior” or “when condition
+holds, the agent must not behavior.” This normal-
+ization exposes recurring structure without replac-
+ing the source text. For instance, “Use browser for
+
+13
+
+C.1 Accepted PyRule Form
+
+PyRule is a restricted normal form for prompt-
+policy rules. Each accepted rule is a top-level deco-
+rated function with one symbolic context argument:
+
+@rule("r_i")
+def r_i(ctx):
+
+if CONDITION:
+
+SIGN(PRIMITIVE(args))
+
+else:
+
+SIGN(PRIMITIVE(args))
+
+Unconditional signed primitive calls are also ac-
+cepted. The compiler parses the abstract syntax
+tree and never executes Python code.
+
+For symbolic triage, the context denotes the pre-
+
+response state:
+
+ctxpre = (msg, trace, env).
+
+(20)
+
+Here msg is the current user message or task, trace
+is the available prior action or observation trace,
+and env is the environment, repository, browser, or
+tool state. The model response or action trace is
+not part of this symbolic context; it is supplied later
+to the post-generation compliance judge.
+
+Accepted syntax includes rule decorators, finite
+conditional blocks, Boolean connectives, compar-
+isons, constants, names, attributes, finite containers,
+and calls to whitelisted predicates, extractors, force
+signs, and behavior primitives. Loops, recursion,
+mutation, dynamic dispatch, arbitrary imports, ar-
+bitrary function calls, and Python execution are
+rejected.
+
+C.2 Signs, Vocabulary, and Symbolic Terms
+
+PyRule uses a finite force-sign vocabulary:
+
+Σ = {REQUIRE, FORBID, PREFER,
+
+AVOID, PERMIT}.
+
+(21)
+
+The hard-conflict analysis uses only the hard sub-
+set:
+
+Σhard = {REQUIRE, FORBID}.
+
+(22)
+
+Soft signs are preserved in the encoded clauses for
+audit, but they are not counted as hard contradic-
+tions in the main analysis.
+
+response
+
+names with
+
+PyRule uses a closed vocabulary of prim-
+values.
+open
+itive
+Representative
+include
+reply_format, reply_style, reply_contains,
+question_count,
+and
+citation_policy. Tool and operation primitives
+web_search,
+include use_tool,
+
+argument
+primitives
+
+section_order,
+
+tool_call,
+
+Figure 3: Mean cumulative witness-construction time
+by policy and within-pair witness rank. For each can-
+didate source-rule pair, witness search attempts Tier 1
+retrieved seeds first, then Tier 2 append-only seed elab-
+orations, then Tier 3 synthetic requests, stopping when
+either 10 accepted witnesses are obtained or the per-pair
+construction-time budget is exhausted. The x-axis i de-
+notes the i-th accepted witness for a candidate pair, not
+the i-th witness globally within the policy. Each plotted
+point averages cumulative construction time over candi-
+date pairs from the same policy that reached rank i; the
+number of contributing pairs can decrease as i increases.
+The y-axis includes retrieval, elaboration, synthesis, and
+construction-verifier calls, but excludes subject-model
+rollouts and post-generation response judging.
+
+current facts” may yield the gist “when the user
+asks for current information, the agent must use
+browser search.”
+
+Splitting and merging. A single source span is
+split when it contains independent prescriptions
+with different activation conditions or different reg-
+ulated behaviors. Conversely, adjacent lines are
+preserved as one record when they jointly express
+one prescription. This keeps pair construction close
+to atomic behavioral constraints while preserving
+enough source context for audit.
+
+C PyRule Grammar and SAT Pair-Triage
+
+Details
+
+This appendix expands the compact PyRule and
+SAT-triage descriptions in Sections 4.2 and 4.3. It
+assumes the main-text definitions of rule records,
+clause sets, clause tuples, decision-surface projec-
+tion, hard-conflict queries, and source-pair lifting
+from Equations 2–5 and Equations 1–7. The details
+below are guarantees about the encoded PyRule
+representation. They are not claims that the original
+natural-language policy was extracted or encoded
+perfectly, nor that every symbolic assignment is
+already a natural user request.
+
+14
+
+12345678910Witness Index i020406080Cumulative Time (min)Manus ModulesOpenHands CodeActLoveable AgentMini-SWE-AgentGemini DiffusionChatGPT GPT-5read_file,
+
+and
+refusal,
+
+edit_file.
+run_shell,
+clarification,
+Other primitives cover
+disclosure,
+such as
+and trace constraints,
+refuse, ask_clarify, disclose, withhold,
+trace_contains, and trace_order. Primitive
+arguments preserve prompt-specific values such as
+tool names, paths, commands, schemas, formats,
+quoted text, disclosure categories, and semantic
+labels.
+
+and exact_text.
+
+Predicates are allowed in activation condi-
+tions, while signed consequents use behavior
+primitives. Text predicates include contains,
+regex,
+Semantic predi-
+cates include semantic, asks_for, has_intent,
+and has_slot.
+Environment and trace pred-
+icates include tool_available, file_exists,
+permission_granted, and trace_has. Extrac-
+tors and typed symbolic terms may appear in acti-
+vation conditions or primitive arguments.
+
+During SAT triage, semantic predicates and ex-
+
+tracted slots are lowered to symbolic variables:
+
+semantic(e, ℓ) (cid:55)→ zℓ,
+extract(e, t) (cid:55)→ st.
+
+(23)
+
+Here zℓ is a Boolean activation atom and st is a
+typed slot variable. The solver reasons over these
+variables. Witness realization later checks whether
+a concrete user or environment state realizes the
+corresponding semantic condition or slot value.
+
+The encoder
+
+follows one canonicalization
+convention: activation conditions are encoded
+as predicates, constrained agent behaviors are
+encoded as signed behavior primitives, and
+prompt-specific text, paths, schemas, commands,
+styles, or categories are encoded as primitive
+For example, “do not sing” be-
+arguments.
+forbid(reply_style("singing"));
+comes
+“use the browser for current facts” becomes
+a semantic activation condition followed by
+require(web_search()); and “do not edit con-
+figuration files” becomes a forbidden edit_file
+primitive with a configuration-file argument.
+
+C.3 Primitive Metadata and Decision
+
+Surfaces
+
+Decision surfaces provide the comparison key used
+during pair triage. Each surface has metadata:
+
+µd = (Td, cardd, cmpd).
+
+(24)
+
+Here Td gives the argument sorts relevant for com-
+parison, cardd states whether the surface is single-
+valued, multi-valued, event-like, count-valued, or
+
+temporal, and cmpd gives the comparison mode
+used to detect collisions.
+
+The type system includes primitive sorts such
+as BOOL, INT, STRING, FORMAT, LANGUAGE,
+TOOL, COMMAND, PATH, FILEKIND, SCHEMA,
+POLICY, and EVENT. Semantic-heavy spaces,
+such as reply styles, reply acts, and semantic labels,
+are modeled as open string sorts. Closed enums are
+used only where they improve mechanical compar-
+ison, such as known output formats or known tool
+names.
+
+Comparison modes include equality, set over-
+lap, numeric comparison, pattern overlap, ordering
+constraints, and custom comparators. For exam-
+ple, reply_style is single-valued and compared
+by equality; reply_contains is multi-valued and
+compared by set overlap; run_shell is event-
+like and compared by command-pattern overlap;
+question_count is count-valued and compared
+numerically; and section_order is temporal and
+compared by ordering constraints. This metadata
+avoids over-reporting: two requirements to use dif-
+ferent single-valued styles may collide, while two
+requirements to include different pieces of text are
+normally co-satisfiable.
+
+C.4 SAT Pair-Triage Details
+
+This subsection gives the deterministic gates and
+collision construction used by Section 4.3. The first
+gate removes clause pairs that do not regulate the
+same projected decision surface:
+
+dik ̸= djℓ ⇒ skipsurf (cik, cjℓ).
+
+(25)
+
+This gate uses the decision-surface projection in
+Equation 5, not primitive-name equality alone.
+Thus, two clauses may use the same primitive but
+still be separated if their projected surfaces differ,
+as with edits to distinct known files.
+
+The second gate removes pairs whose signs and
+surface metadata cannot produce a hard contradic-
+tion:
+
+Harddik (σik, σjℓ, µdik ) = 0
+⇒ skiphard(cik, cjℓ).
+
+(26)
+
+This removes soft-only pairs, FORBID/FORBID
+pairs, and same-surface hard pairs known to be
+In the main analysis, Hardd re-
+co-satisfiable.
+turns true for REQUIRE/FORBID pairs over over-
+lapping realizations and for mutually exclusive RE-
+QUIRE/REQUIRE pairs on single-valued surfaces.
+
+For each pair that passes both gates, the compara-
+tor constructs the surface-specific collision formula
+
+15
+
+used in Equation 6:
+
+κik,jℓ = Collidedik (cik, cjℓ, µdik ).
+
+(27)
+
+For a REQUIRE/FORBID pair, the collision formula
+states that the required behavior and the forbidden
+behavior can denote the same action. For two hard
+requirements on a single-valued surface, it states
+that the two required values are mutually exclusive.
+For pattern-valued or semantic-valued arguments,
+the formula may contain overlap atoms whose in-
+terpretation is provided by the surface comparator.
+Most collisions are constructed mechanically
+from force signs, surface metadata, and typed prim-
+itive arguments. When two open semantic values
+cannot be normalized deterministically, the imple-
+mentation may call a semantic-overlap judge. This
+judge is restricted to the local value-overlap sub-
+problem after the same-surface and hard-sign gates
+have passed. It does not decide end-to-end rule
+incompatibility.
+
+C.5
+
+Internal PyRule Invariants
+
+The following invariants describe the PyRule com-
+piler and pair-triage procedure. They are internal
+to the encoded representation and do not imply
+source-level correctness.
+
+Finite
+clause generation. Every accepted
+PyRule program compiles to a finite set of typed
+atomic clauses of the form in Equation 4. Accepted
+rule bodies contain only finite conditional blocks
+and signed primitive calls. Each unconditional
+signed call emits one clause, and each conditional
+branch emits clauses whose activation conditions
+are conjoined with the branch condition or its
+negation.
+recursion, mutation,
+dynamic dispatch, arbitrary imports, arbitrary
+function calls, and Python execution are rejected,
+compilation terminates.
+
+Since loops,
+
+Different-surface pruning.
+If two clauses have
+different projected decision surfaces, they cannot
+form a direct hard conflict under the PyRule con-
+flict relation. Such clauses may still co-govern a
+turn, but PyRule does not compare them as a same-
+surface hard conflict.
+
+Hard-conflict witness soundness.
+If the SAT
+check in Equation 15 succeeds for the query in
+Equation 6, then the returned assignment is a sym-
+bolic witness that the two encoded clauses jointly
+govern and impose incompatible hard constraints
+on their shared decision surface. The assignment
+
+satisfies both activation conditions and the collision
+formula. For supported hard signs and comparison
+modes, the collision formula denotes assignments
+under which the two signed primitive calls cannot
+be jointly satisfied. When a semantic-overlap judge
+is used, this invariant is conditional on that local
+overlap decision.
+
+Scope. These invariants are not claims about the
+full natural-language policy. The compiler and
+solver operate on extracted rule records and en-
+coded clauses. Extraction errors, mis-encodings,
+conservative decision-surface projections, and im-
+perfect semantic labels can affect which symbolic
+conflicts are found. For this reason, the pipeline
+preserves source provenance, realizes symbolic as-
+signments as concrete witnesses, and judges model
+behavior against the original quoted source-rule
+text rather than against PyRule alone.
+
+D Extended Related Work
+
+Instruction following, hierarchy, and conflict
+benchmarks. Instruction-following benchmarks
+evaluate whether language models satisfy ex-
+plicit constraints. IFEval focuses on objectively
+verifiable constraints, while FollowBench, In-
+FoBench, and ComplexBench study fine-grained
+constraints, requirement-level decomposition, and
+multi-constraint composition (Zhou et al., 2023;
+Jiang et al., 2024; Qin et al., 2024; Wen et al.,
+2024). These benchmarks mainly assume that the
+input instructions are coherent and ask whether the
+model follows them. A separate line studies ex-
+plicit conflicts. Instruction-hierarchy work trains
+or evaluates models on priority relations among
+system, user, history, and tool-output instructions
+(Wallace et al., 2024; Zhang et al., 2025), while
+ConInstruct evaluates conflict detection and res-
+olution inside user instructions (He et al., 2026).
+Our setting differs from both lines: we diagnose
+latent conflicts among standing rules inside a single
+prompt policy, where no cross-role priority relation
+or explicitly contradictory user instruction is given.
+Semantic parsing and executable command
+representations. PyRule is related to work that
+maps natural language into executable or struc-
+tured representations. Quirk et al.
+learn se-
+mantic parsers from natural-language descriptions
+of IFTTT recipes to executable if-this-then-that
+programs (Quirk et al., 2015). Genie reduces
+the cost of building semantic parsers for virtual-
+assistant commands by using a formal assistant
+
+16
+
+programming language, synthetic templates, and
+paraphrases (Campagna et al., 2019). ThingTalk
+generalizes this direction with an extensible exe-
+cutable representation for task-oriented dialogues
+(Lam et al., 2022). Dataflow-based dialogue simi-
+larly represents task-oriented dialogue state as exe-
+cutable dataflow graphs, enabling more composi-
+tional modeling of events, weather, places, and peo-
+ple (Andreas et al., 2020). These works translate
+user requests into executable meaning representa-
+tions. Our target is different: we translate standing
+prompt rules into non-executable policy clauses for
+conflict triage, preserving the source text for later
+witness construction and compliance judging.
+
+Natural language to programs, temporal logic,
+and formal specifications. Recent work uses
+LLMs to translate natural language into programs
+or formal specifications. Code as Policies gener-
+ates robot-centric programs that act as embodied
+control policies (Liang et al., 2023). Lang2LTL
+grounds natural navigation commands into linear
+temporal logic for unseen environments, and Syn-
+thTL combines LLMs, model checkers, and human
+guidance to translate natural language into tempo-
+ral logic specifications (Liu et al., 2023; Mendoza
+et al., 2024). Endres et al. study whether LLMs can
+transform informal code intent into formal method
+postconditions (Endres et al., 2024). SatLM also
+uses LLMs to generate declarative specifications,
+but delegates solving to a SAT or theorem prover
+(Ye et al., 2023). Our method follows the same
+broad neuro-symbolic principle: natural language
+is first mapped into an explicit representation, and
+symbolic reasoning is then applied to that repre-
+sentation. However, PyRule is tailored to prompt
+policies: it represents activation conditions, force
+signs, behavior primitives, and decision surfaces,
+and its output is a set of candidate conflicts to test
+behaviorally rather than a final answer or an exe-
+cutable plan.
+
+Policy extraction, privacy-policy contradic-
+tions, and requirements analysis. Software-
+engineering and security work has long studied
+how to extract and analyze policies or require-
+ments from natural language. Text2Policy extracts
+access-control policies from software documents
+and use cases (Xiao et al., 2012). PolicyLint de-
+tects internal contradictions in privacy policies by
+reasoning about negation and ontology-level rela-
+tions among data objects and entities (Andow et al.,
+2019). More recent requirements-engineering work
+combines LLMs with formal reasoning. ALICE
+
+uses formal logic and LLMs to detect contradic-
+tions in controlled natural-language requirements
+(Gärtner and Göhlich, 2024). SAT-LLM integrates
+LLM translation with SMT solving for conflict-
+ing software requirements (Fazelnia et al., 2024).
+Feng et al. use LLMs to extract semantic rela-
+tions that help operationalize and analyze norma-
+tive non-functional requirements (Feng et al., 2024).
+These methods are close in spirit because they treat
+natural-language prescriptions as analyzable arti-
+facts. Our work adapts this idea to LLM prompt
+policies and adds a behavioral liveness stage: a
+symbolic collision is not the final result, but a hy-
+pothesis tested on concrete witnesses and summa-
+rized by model-specific resolution profiles.
+
+Prompt injection and system-prompt interfer-
+ence. Prompt-injection work studies adversarial
+or untrusted text that causes an LLM-integrated
+system to ignore intended instructions (Liu et al.,
+2024). Recent system-prompt analysis treats agent
+prompts themselves as software artifacts whose
+internal structure can cause interference (Mason,
+2026). Our setting is orthogonal to external attack:
+the user request may be benign, and the relevant
+pressure comes from rules already present inside
+one standing prompt policy. The goal is therefore
+not only to defend against malicious lower-priority
+instructions, but to expose within-policy rule pairs
+that become live failures for particular models.
+
+E End-to-End Pipeline Example
+
+This appendix gives one vertical example of the
+WIRE pipeline. The purpose is to show how one
+within-policy pair moves through the objects de-
+fined in Sections 3 and 4: source rules, PyRule
+clauses, SAT triage, concrete witnesses, model re-
+sponses, judge labels, and final resolution buckets.
+
+Policy, model, and pair. The example comes
+from the ChatGPT GPT-5 prompt, evaluated with
+GPT-5 in the policy-only-turn regime. The can-
+didate pair is (r66, r67). The pair is useful as a
+worked example because both source rules regu-
+late image-generation behavior, and the resulting
+model responses make the four resolution cells easy
+to inspect.
+
+Source-rule fragments. The relevant source-rule
+fragments can be summarized as follows.
+
+r66. For image-generation requests, directly gen-
+erate the image without reconfirmation or clari-
+fication, unless the requested image includes a
+rendition of the user.
+
+17
+
+Satisfiability of this query retains the pair as an
+encoded hard-collision candidate. The next stage
+realizes the assignment as concrete user requests.
+
+Concrete witnesses. The accepted witnesses for
+this pair are multi-intent turns. A lightly normal-
+ized witness, preserving the activation structure,
+is:
+
+Please create two images in this turn: first, a dra-
+matic image of the Eiffel Tower at golden hour
+with storm clouds behind it; second, a photo-
+realistic portrait image of me standing in front
+of it in the same lighting style.
+
+This witness activates r66 because the first subre-
+quest is an ordinary image-generation request that
+does not include the user, so the policy calls for di-
+rect generation without clarification. It activates r67
+because the second subrequest asks for an image
+including the user, so the policy calls for a simple
+request that the user provide a photo. The witness
+verifier checks only this pre-generation property:
+whether the concrete request is a valid probe for
+both source rules. It does not decide whether any
+model output satisfies either rule.
+
+Judged outcomes. After generation, the com-
+pliance judge evaluates each response against the
+original source-rule text. Table 7 gives compact ex-
+amples from the same policy, rule pair, model, and
+evaluation regime. The rows illustrate the four res-
+olution cells defined in Section 3.3. The examples
+are sampled outcomes from the same pair–model
+cell, but they are not required to share the same
+witness.
+
+This example illustrates why WIRE reports the
+full four-cell profile rather than a scalar pass/fail
+score. The same within-policy pair can yield cor-
+rect subrequest routing, over-application of the
+direct-generation rule, over-application of the self-
+image clarification rule, or failure on both sides. It
+also illustrates why symbolic triage and behavioral
+judging are separated: the SAT stage nominates a
+same-primitive routing candidate, the witness stage
+constructs a concrete multi-intent probe, and the
+post-generation judge determines which original
+source rules the model actually satisfies.
+
+r67. If the user requests an image that includes
+them, even if they ask the model to generate it
+from existing knowledge, respond simply by sug-
+gesting that the user provide an image of them-
+selves so the model can generate a more accurate
+result.
+
+Thus, r66 pushes the model toward direct genera-
+tion for ordinary image requests, while r67 forbids
+direct generation for images that include the user
+and requires a simple request for a user-provided
+photo.
+
+Schematic PyRule clauses. The following
+clauses are schematic; they abbreviate the compiler
+output to the subconstraints used in this example.
+The exact PyRule grammar and invariants are given
+in Appendix C.
+
+r66#0:
+if has_nonself_image_request(ctx.msg):
+
+require(image_generate())
+forbid(ask_clarify())
+
+r66#1:
+if has_self_image_request(ctx.msg):
+
+permit(ask_clarify())
+
+r67#0:
+if has_self_image_request(ctx.msg):
+
+forbid(image_generate())
+require(ask_clarify(kind=
+
+"provide_user_photo"))
+require(reply_style("simple"))
+
+At the encoded primitive level, the retained can-
+didate involves the same image-generation prim-
+itive. Rule r66 requires direct generation for an
+ordinary image request, while r67 forbids direct
+generation for a self-image request and requires a
+simple request for a reference photo. The retained
+symbolic candidate should not be read as a proof
+that the original English rules are globally contra-
+dictory. Rather, it is a same-primitive routing can-
+didate that becomes concrete in multi-intent turns
+containing both an ordinary image request and a
+self-image request. The behavioral stage then tests
+whether the model can route the two subrequests
+correctly under the original source text.
+
+For this pair, the relevant symbolic state can be
+
+written schematically as
+
+∃u, v :
+
+image_request(u) ∧ ¬includes_user(u)
+∧ image_request(v) ∧ includes_user(v).
+
+Here u is an ordinary image request and v is a
+request for an image that includes the user. The
+corresponding triage query has the same form as
+the candidate-collision query in Section 3:
+
+Γex = ϕ66 ∧ ϕ67 ∧ Collideimage(c66, c67).
+
+18
+
+Cell Witness sketch
+
+Observed response behavior
+
+Judge interpretation
+
+q11
+
+Ordinary Eiffel Tower image plus a
+self-portrait image.
+
+q10
+
+Same Eiffel Tower plus self-portrait
+witness.
+
+q01
+
+Yosemite landscape image plus a por-
+trait based on the user’s profile.
+
+q00
+
+Neon-lit Tokyo street image plus a sec-
+ond image including the user.
+
+The model directly handles the ordi-
+nary Eiffel Tower request. For the
+self-portrait request, it asks the user
+to upload a photo before generation
+rather than directly generating the self-
+image.
+
+The model directly handles the or-
+dinary Eiffel Tower request, satis-
+fying r66. However, for the self-
+portrait, it also produces detailed por-
+trait prompts, placeholders, or multi-
+ple options instead of responding sim-
+ply with a photo request.
+
+Both rules are satisfied. The model
+routes the ordinary image request
+to the direct-generation branch and
+the self-image request to the photo-
+request branch.
+
+Only the earlier rule is satisfied.
+The model over-applies the direct-
+generation behavior to the self-image
+branch, violating r67.
+
+The model asks clarifying preferences
+before handling the ordinary Yosemite
+landscape request. For the portrait
+request, it asks the user to upload a
+photo.
+
+Only the later rule is satisfied. The
+model violates r66’s direct-generation
+requirement for the ordinary image
+but satisfies r67 for the self-image re-
+quest.
+
+The model asks clarifying questions
+before handling the ordinary Tokyo
+street image. It also asks extra ques-
+tions about pose, outfit, mood, or
+scene placement rather than respond-
+ing simply with a photo request.
+
+Both rules are violated. The model
+neither directly handles the ordinary
+image request nor keeps the self-
+image response to the simple photo-
+request behavior required by r67.
+
+Table 7: End-to-end examples for ChatGPT GPT-5 r66 × r67 under GPT-5 in the policy-only-turn regime. Each
+row summarizes one judged sample from the same pair–model cell. q11 denotes joint compliance, q10 compliance
+only with the earlier source rule, q01 compliance only with the later source rule, and q00 violation of both.
+
+19
+
+

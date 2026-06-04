@@ -12,7 +12,6 @@ from __future__ import annotations
 import itertools
 import json
 import os
-import sys
 from math import comb
 
 from openai import OpenAI

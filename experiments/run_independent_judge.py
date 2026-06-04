@@ -87,8 +87,9 @@ def build_user_message(fragments, query, response):
     )
 
 
-def score_triple(client, triple_id, fragments, query, response):
+def score_triple(client, fragments, query, response):
     user_msg = build_user_message(fragments, query, response)
+    last_raw = ""
     for attempt in range(3):
         try:
             resp = client.chat.completions.create(
@@ -100,7 +101,8 @@ def score_triple(client, triple_id, fragments, query, response):
                 ],
                 timeout=60,
             )
-            raw = resp.choices[0].message.content.strip()
+            last_raw = (resp.choices[0].message.content or "").strip()
+            raw = last_raw
             # Strip markdown code fences if present
             if raw.startswith("```"):
                 lines = raw.split("\n")
@@ -109,12 +111,13 @@ def score_triple(client, triple_id, fragments, query, response):
             return verdict, None
         except json.JSONDecodeError as e:
             if attempt == 2:
-                return None, f"JSON parse error after 3 attempts: {e}\nRaw: {raw[:500]}"
+                return None, f"JSON parse error after 3 attempts: {e}\nRaw: {last_raw[:500]}"
             time.sleep(2)
         except Exception as e:
             if attempt == 2:
                 return None, f"API error after 3 attempts: {e}"
             time.sleep(5)
+    return None, "exhausted retries"
 
 
 def main():
@@ -155,15 +158,16 @@ def main():
         response = item["response"]
 
         print(f"Scoring {triple_id} ...", flush=True)
-        verdict, error = score_triple(client, triple_id, fragments, query, response)
+        verdict, error = score_triple(client, fragments, query, response)
 
-        if error:
+        if error or verdict is None:
             print(f"  FAILED: {error}")
             parse_failures.append({"id": triple_id, "error": error})
             continue
 
+        assert verdict is not None
         # Extract violated fragment index (0-based) from violated instruction numbers
-        violated_numbers = verdict.get("violated_instruction_numbers", [])
+        violated_numbers = verdict.get("violated_instruction_numbers", []) or []
         violated_fragment = None
         if violated_numbers:
             # Use the first violated instruction (1-indexed -> 0-indexed)

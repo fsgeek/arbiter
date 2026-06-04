@@ -1,10 +1,221 @@
 # Breadcrumb for the next instance — 2026-06-04
 
-*From the instance that ran burial, cross-model, ε_P spec, and §6a confabulation
-correlation — all four remaining open questions answered in one session. Read
-breadcrumb-2026-06-03c.md first. Then in order: result_cross_model.md,
-result_burial.md, epsilon_p_spec.md, result_confabulation_correlation.md. This
-breadcrumb supersedes all earlier 2026-06-04 drafts.*
+*From the instance that ran judge validation and the bifurcation experiment.
+Read everything below in order before acting. The previous section (confabulation
+correlation, burial, cross-model, ε_P spec) is still authoritative — this section
+adds two new results on top of it. Result files: result_judge_validation.md (in
+docs/research/), result_bifurcation.md (in experiments/ — not yet promoted to
+docs/research/). Pre-registrations: prereg_judge_validation.md,
+prereg_bifurcation.md.*
+
+---
+
+## Judge validation result (result_judge_validation.md)
+
+**What was done:** the 30 (system_prompt, user_query, response) triples from the
+confabulation correlation experiment were re-scored by an independent judge —
+DeepSeek v3 at t=0.0 — using a prompt written by a fresh agent that had not seen
+the original scores or result file. The judge prompt required named fragment numbers
+for any violation verdict. Inter-rater reliability was computed as Cohen's κ against
+the original Mistral Medium 3 judge.
+
+**Primary result (compliance_violation): H-JUDGE INCONCLUSIVE. κ = 0.49.**
+The pre-registered thresholds were: κ ≥ 0.6 = supported, 0.4–0.6 = inconclusive,
+< 0.4 = refuted. 0.49 lands in the inconclusive band.
+
+**What this means for ρ = 0.97:**
+
+The ρ = 0.97 Spearman correlation is not retracted but must be qualified. The
+qualification is not symmetrically bad: the independent judge found *more* violations
+(21/30) than the original Mistral judge (18/30). The seven disagreements break down
+such that the original judge was too lenient in 3 clear cases (missed a real notation
+violation, missed a real flagging violation, missed a real non-completion) and
+produced 1 false positive. The direction of error means the original judge
+*underestimated* violation rates, primarily in low-ε_F items (buckets 0–2). If the
+independent judge's stricter verdicts were used, the ρ estimate would move toward
+monotone or strengthen — not weaken. The ρ = 0.97 is a conservative estimate, not an
+inflated one. Honest description of the claim: "substantial but not fully validated
+agreement between judges; ρ = 0.97 should be treated as a robust lower-bound
+estimate."
+
+**Secondary result (conflict_acknowledged): H-JUDGE-ACK REFUTED. κ = 0.30.**
+This is a real problem. All 10 disagreements are the original judge finding
+acknowledgment the independent judge missed — a systematic over-count. The original
+judge treated policy-deflection responses ("for security reasons I cannot...") as
+conflict acknowledgment; the independent judge required explicit naming of conflicting
+instructions. The independent judge's reading is more aligned with the pre-registered
+criterion. Consequence: the silent_violation counts from the confabulation correlation
+are unreliable. The ρ = 0.82 Indaleko shape correlation on silent violations should
+not be used as primary evidence until re-scored under the stricter criterion.
+
+**What is now attack-hardened vs what remains soft:**
+- ρ = 0.97 on violation rate: attack-hardened. Independent judge directionally
+  confirms or strengthens the result. No experimenter inflation detected.
+- ρ = 0.82 on silent violation rate: soft. Acknowledgment classification is
+  unreliable (κ = 0.30). The Indaleko shape is plausible but not validated.
+- The separation-of-duties architectural claim (executor ≠ observer): still
+  structurally sound, since H2-ACKNOWLEDGE showed ρ = 0.11 regardless of which
+  judge is used.
+
+---
+
+## Bifurcation result (experiments/result_bifurcation.md)
+
+**What was done:** 2×2 experiment (24 prompts, 6 per cell) testing whether conflict
+form (EXPLICIT vs IMPLICIT) predicts silent violation rate independently of ε_F level
+(low ≈ 0.10–0.20, high ≈ 0.40–0.47). Executed by Haiku at t=0.0, scored by the
+DeepSeek neutral-observer judge validated in the judge-validation experiment.
+
+**Primary result: H-BIFURC REFUTED.**
+
+| | EXPLICIT | IMPLICIT |
+|---|---|---|
+| **low ε_F** | 1.000 (6/6 silent) | 0.833 (5/6 silent) |
+| **high ε_F** | 0.667 (4/6 silent) | 1.000 (6/6 silent) |
+
+The pre-registration required implicit > explicit in BOTH rows. The low-ε_F row
+reverses: explicit silent rate (1.000) is higher than implicit (0.833). H-BIFURC
+falls on its own binding rule 7 (strict inequality required in both rows).
+
+**What this means for the non-monotone finding:**
+
+The post-hoc explanation from result_confabulation_correlation.md was: "Bucket 3's
+low silent rate (17%) was driven by direct syntactic contradictions that the model
+noticed." The bifurcation refutation says this account is incomplete at minimum.
+Explicit conflict form does not reliably trigger acknowledgment — it only does so
+when combined with high ε_F AND a strongly-activating query. At low ε_F, explicit
+"always X / never X" pairs go silently violated at 100% rate. Acknowledgment requires
+the full interaction: high ε_F + explicit form + a query that forces a binary choice.
+Any two of the three is not enough.
+
+The surviving architectural conclusion: acknowledgment is an unpredictable downstream
+behavior that cannot be reliably engineered. The safe design assumption is that any
+compliance violation will be silent, regardless of how explicit the conflict is
+written. Adding a conflict-form classifier to the reader pipeline is not justified
+by this data.
+
+The Bucket 3 anomaly in the confabulation corpus remains unexplained without an
+artifact account. Two candidates survive: (a) the Bucket 3 activating queries were
+unusually binary-forcing (the bifurcation items he_01 and he_05, which did produce
+acknowledgment, had the same property), or (b) small-n variance at n=6 per bucket.
+The bifurcation experiment cannot distinguish these; both remain possible.
+
+---
+
+## Revised current story — what is attack-hardened vs what is soft
+
+**Attack-hardened:**
+
+1. **ε_F predicts compliance violation rate (ρ = 0.97, independently confirmed
+   direction).** The reader's conflict measure is behaviorally predictive. High-ε_F
+   prompts produce near-100% violation rates; low-ε_F prompts produce near-0% rates.
+   This is the primary finding. Independent judging does not weaken it.
+
+2. **The neutral reader detects real collisions at 0.90–1.00 across all prompt
+   structures tested.** Isolated pairs, hard negatives, matched triples, composed
+   8-10 fragment system prompts. Burial (9/10 detection, 0/10 FP) is still solid.
+
+3. **The FP mechanism is implicitness-driven and model-agnostic.** Cross-model
+   replication (3/3 models). Authoring discipline (explicit scope) suppresses FP
+   to near-zero. This is structural, not Haiku-specific.
+
+4. **Acknowledgment cannot be reliably engineered.** H-BIFURC refuted: even maximally
+   explicit conflict form does not reliably trigger acknowledgment. The safe design
+   assumption is all violations are silent.
+
+5. **Separation of duties is operationally justified.** The executor's
+   acknowledgment rate does not track ε_F (ρ = 0.11). The reader is not redundant.
+
+**Soft (qualified or unreliable):**
+
+1. **ρ = 0.82 on silent violation rate.** The acknowledgment classifier underlying
+   this has κ = 0.30 inter-rater reliability. The Indaleko shape correlation needs
+   re-scoring under the validated stricter criterion before it is citable.
+
+2. **Bucket 3 anomaly explanation.** The post-hoc account (explicit form drives
+   acknowledgment) is refuted. No replacement account with empirical support yet.
+   The anomaly may be artifact.
+
+3. **High-conflict zone (ε_F > 0.53).** The confabulation corpus never populated
+   this range. The ρ = 0.97 was established across 0.0–0.53. Whether it holds at
+   0.7–0.9 is unknown and uncontested.
+
+4. **Real corpus (gate #2).** Every result is synthetic. Indaleko's actual composed
+   prompts have never been evaluated.
+
+---
+
+## Does Paper 5 have a coherent narrative yet?
+
+Not yet — but it is close. The pieces exist. The problem is one of scope and
+positioning.
+
+The candidate narrative is: "ε_P is a behavioral predictor, not just a structural
+annotation. The reader's conflict measure predicts compliance failure near-perfectly
+(ρ = 0.97, independently confirmed). The executor cannot perform this detection
+(ρ = 0.11 on self-acknowledgment). Any compliance violation is likely to be silent
+regardless of how explicitly the conflict is written (H-BIFURC refuted). Therefore,
+external detection before execution — the Arbiter separation-of-duties design — is
+not merely theoretically motivated but empirically necessary."
+
+What is missing for Paper 5 to be submittable:
+
+1. The ρ = 0.82 Indaleko shape result needs re-scoring under the validated judge
+   criterion before it can be cited. Without it, the silent violation claim rests
+   on an unreliable signal.
+
+2. The high-conflict zone (ε_F > 0.53) gap needs either new data or an explicit
+   limitation statement. The current corpus construction shortfall means the claimed
+   correlation was demonstrated over less than two-thirds of the intended range.
+
+3. Multi-model executor (the confabulation correlation was Haiku-only). E-XMODEL
+   showed the reader result generalizes; the executor confabulation result has not
+   been tested cross-model.
+
+4. Positioning relative to WIRE and Paper 3 needs one session. The novelty claim
+   has to distinguish from "LLMs fail on conflicting instructions" (known) toward
+   "a specific measurable property of the conflict (ε_P) predicts the failure rate,
+   enabling pre-execution intervention."
+
+The narrative core is coherent. The gaps are empirical (1–3) and positioning (4).
+With the ρ = 0.82 re-scoring done, the paper would be ready to draft. Without it,
+the most important secondary result is currently uncitable.
+
+---
+
+## Next throat to cut (be specific)
+
+**Primary: re-score confab_scores.json under the validated judge criterion.**
+
+The judge-validation result made the acknowledgment counts unreliable (κ = 0.30).
+The fix is mechanical: run the 30 confabulation triples through the DeepSeek
+neutral-observer judge with the validated stricter criterion (explicit surfacing
+language required; policy-deflection does not count). Compare the resulting
+silent_violation rates to the original. The ρ = 0.82 either holds, strengthens, or
+collapses — any outcome is informative. This is the blocking issue for Paper 5.
+The scripts already exist (run_independent_judge.py, analyze_independent_judge.py);
+the only work is running them with conflict_acknowledged scoring under the stricter
+criterion and computing the new Spearman ρ for the Indaleko shape.
+
+**Secondary: promote result_bifurcation.md from experiments/ to docs/research/.**
+It was written and committed in experiments/ but not promoted to the research docs
+directory where all other result files live. This is a housekeeping step, but it
+matters for the Paper 5 draft — the result needs to be findable in the canonical
+location.
+
+**Tertiary: high-conflict zone corpus (ε_F 0.7–0.9).**
+The confabulation corpus construction shortfall is a genuine limitation. The fix is
+authoring more prompts where the reader consistently calls COLLIDE on more than half
+the pairs — which is harder to do than it sounds. A 6-item extension for bucket 5
+(targeting ε_F ≈ 0.60–0.90) would close this gap. The scripts and scoring pipeline
+are already built; corpus authoring is the work.
+
+**Do NOT run the real corpus (gate #2) before the above.**
+Running Indaleko prompts without having fixed the acknowledgment scoring would
+produce results that are partly uninterpretable. Close the acknowledgment reliability
+gap first.
+
+---
 
 ---
 

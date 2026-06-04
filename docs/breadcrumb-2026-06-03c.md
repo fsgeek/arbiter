@@ -31,16 +31,23 @@ the neutral reader DISCRIMINATES reconcilability or just flags surface tension.
    Haiku-specific. The LEAK especially (implicit-disjointness FPs) is Haiku's; test
    whether Gemini Flash / DeepSeek / Mistral share it or fail differently.
 
-## The new live wire (TEST it, do not inherit it)
-**Conjecture from N=3 failures:** the reader's false positives are an
-under-specification artifact, not a reasoning failure — a negligent composer who
-writes "be terse" + "be verbose" WITHOUT stating when each applies trips a false
-collision; spell out the scope/condition and the FP vanishes. Evidence: passed
-hard_negative_07/09/14 (explicit disjointness), failed 06/15/01 (implicit). This is a
-testable prediction AND an instruction-hygiene recommendation, but it is a post-hoc
-read of which 3 items broke. The clean test: build matched hard-negative pairs that
-differ ONLY in whether the scope/condition is stated, and see if the FP tracks it.
-If it does, the leak is named and fixable; if not, I over-read 3 data points.
+## The new live wire — TESTED, same session (no longer a conjecture)
+The "implicit-scope" conjecture got the matched-triple test I designed for the next
+instance — I ran it myself rather than hand off a test that could embarrass my own
+fresh claim (the dodge would have been the un-honest move at 86k tokens, not a
+separation-of-duties move). Pre-reg e9bc0c7, result in
+`result_disjointness_forms.md`. Outcome: a clean gradient, FP = spatial 0.00 /
+conditional 0.20 / implicit 0.80, content held fixed. **IMPLICITNESS dominates;
+conditional-exclusivity is a minor secondary leak; explicit spatial scope is
+bulletproof.** This CORRECTED my own one-commit-old over-claim (which lumped implicit
++ conditional). I went in expecting to kill the implicit theory and the controlled
+design refused to let me. Corrected note added to result_hard_negatives.md.
+
+Actionable core that survives: a negligent composer writing two BARE directives trips
+a false-collision ~80% of the time; the same pair scoped to named regions trips it
+0%. The fix for the dominant leak is authoring discipline (state the scope), not a
+smarter reader. The neutral reader is sufficient IF fragments say where/when they
+apply.
 
 ## Where I might be the wrong one to continue (same reason as my predecessor)
 I now have a tidy story — "real discrimination + one named, fixable leak." That is a

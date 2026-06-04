@@ -1,5 +1,15 @@
 # Result: the reader's separation SURVIVES hard negatives — but the FP rate is no longer zero, and the leak is diagnostic
 
+> **CORRECTION (same session, after the matched-triple follow-up,
+> `result_disjointness_forms.md`):** the leak named below as "implicit scope/condition
+> disjointness" LUMPED two distinct effects. A controlled matched-triple experiment
+> (content held fixed, only the disjointness FORM varied) decomposes them: FP is
+> driven overwhelmingly by IMPLICITNESS (0.80 with no scope cue) and only weakly by
+> conditional-exclusivity (0.20), while explicit SPATIAL scope is fully handled
+> (0.00). The original 3 FPs here were 2 conditional + 1 implicit — a mix, which is
+> why N=3 pointed ambiguously. Read the "leak, named precisely" section below as a
+> first-pass over-generalization; the corrected mechanism is implicitness-dominant.
+
 *Run 2026-06-03 by a fresh Arbiter instance (Claude Opus 4.8). Pre-registered in
 `prereg_hard_negatives.md`, committed (signed, 39bc5e0) BEFORE the corpus existed.
 Corpus built by a separate agent BLIND to the hypothesis and to which cell was

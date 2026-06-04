@@ -1,6 +1,139 @@
 # Breadcrumb for the next instance — 2026-06-04
 
-*From the instance that ran both remaining cuts (burial + cross-model) and wrote the
+*From the instance that ran burial, cross-model, ε_P spec, and §6a confabulation
+correlation — all four remaining open questions answered in one session. Read
+breadcrumb-2026-06-03c.md first. Then in order: result_cross_model.md,
+result_burial.md, epsilon_p_spec.md, result_confabulation_correlation.md. This
+breadcrumb supersedes all earlier 2026-06-04 drafts.*
+
+---
+
+## §6a confabulation correlation (commits afa011a, d9642f5, 733581f)
+
+Pre-registered, built 30-prompt corpus spanning ε_F 0.0–0.53 (target was 0.0–0.9;
+high-conflict zone was not achieved — corpus construction shortfall, noted honestly).
+Executed with Haiku at t=0.0, scored by Mistral judge.
+
+**H1-CONFAB: SUPPORTED. ρ = 0.97** (ε_F mean vs violation rate, Spearman, n=5 buckets).
+Spec §6a threshold was ρ > 0.6. Result is near-perfect rank correlation.
+
+**H2-ACKNOWLEDGE: NOT REFUTED. ρ = 0.11** (ε_F vs acknowledgment rate — flat, noisy).
+The executor does not self-detect conflict in any calibrated way.
+
+**Indaleko shape: ρ = 0.82** (ε_F vs silent_violation rate).
+
+Bucket table:
+
+| bucket | mean ε_F | violation% | acknowledged% | silent_violation% |
+|--------|----------|-----------|---------------|-------------------|
+| 0 | 0.000 | 0% | 33% | 0% |
+| 1 | 0.045 | 17% | 50% | 17% |
+| 2 | 0.189 | 83% | 33% | 50% |
+| 3 | 0.300 | 100% | 83% | 17% |
+| 4 | 0.333 | 100% | 33% | 67% |
+
+**The non-monotone finding**: silent_violation rate is NOT monotone with ε_F. Bucket 3
+has lower silent rate (17%) than buckets 2 and 4 because it contains many direct
+contradictions ("always X" / "never X") that the executor acknowledged explicitly.
+Silent violations are worst at STRUCTURAL-BUT-NOT-SYNTACTIC conflicts — the Indaleko
+shape exactly. ε_F alone does not predict silent vs acknowledged bifurcation;
+conflict-form (implicit vs explicit collision) is the missing variable.
+
+**§6a slot is closed**: ε_P is behaviorally predictive. Detection connects to
+consequence. The Arbiter separation-of-duties design is operationally justified.
+
+*From the original breadcrumb — now superseded on all live questions:*
+
+---
+
+## What was done this session (full list)
+
+1. Pre-registered and ran cross-model panel (H1-XMODEL: SUPPORTED 3/3)
+2. Pre-registered and ran burial (H1: 9/10, H2-FP: 0/10)
+3. Wrote ε_P spec (4aaa4b3)
+4. Pre-registered and ran §6a confabulation correlation (H1: ρ=0.97)
+
+---
+
+## Current story — complete version
+
+**Result A** (detection): Neutral reader TP ≈ 1.00, FP driven by scope implicitness.
+Pairwise extraction works on composed 8-10 fragment prompts (burial). The instrument
+is ready for deployment-condition use.
+
+**Result B** (mechanism, cross-model): The implicit-scope FP gradient is model-agnostic.
+Authoring discipline (explicit scope) suppresses FP to near-zero. Model-agnostic.
+
+**Result C** (behavioral consequence): ε_P predicts compliance violation rate (ρ=0.97).
+Silent violations (the Indaleko shape) correlate with ε_F (ρ=0.82) but the relationship
+is non-monotone due to the silent/acknowledged bifurcation. The missing variable is
+conflict-form, not ε_F level.
+
+**Residual open question**: whether the ε_F → silent_violation relationship continues
+to hold at ε_F > 0.53. The high-conflict zone (0.7–0.9) was not populated in the
+corpus. Also, the executor-judge-reader triple was all Haiku/Mistral — real deployment
+would have a different model distribution.
+
+---
+
+## Gates
+
+- **Gate #1 (ε_P with fixed scale)**: CLOSED. ε_F is the implementation formula (frequentist,
+  the simpler operationalization). ε_S (scope-adjusted) would improve the silent/acknowledged
+  prediction but is not necessary for the violation-rate claim.
+- **Gate #2 (real corpus)**: STILL OPEN. Everything remains synthetic. The motivating
+  incident (Indaleko) has never been evaluated with this instrument.
+
+---
+
+## Throats to cut next
+
+1. **Real corpus (gate #2)**: Pull Indaleko composed prompts — the actual fragments from
+   the headwater incident. Run the full pipeline: reader scores ε_F, executor runs, judge
+   scores. Does the headwater incident score high on ε_F, and does the executor confabulate?
+   This is n=1 for real data but it is THE motivating case.
+
+2. **High-conflict zone (ε_F > 0.53)**: The confabulation correlation corpus missed the
+   upper range. Does the ρ=0.97 hold at ε_F 0.7–0.9? Building prompts that actually score
+   in that range is harder than expected — the corpus builder struggled to author fragments
+   that the reader consistently calls COLLIDE across many pairs.
+
+3. **Conflict-form × silent prediction**: The silent/acknowledged bifurcation is predicted
+   by conflict-form (implicit vs explicit), not just ε_F. A 2×2 experiment (high/low ε_F
+   × implicit/explicit form) would cleanly test whether conflict-form is the missing variable
+   or whether bucket 3's acknowledgment spike was an artifact.
+
+4. **Paper 4 revision**: Overdue. E-SURVEY + E-TEMP + judge methodology + cross-model
+   instrument validation are all findings that belong in Paper 4 before arXiv.
+
+5. **Paper 5**: The confabulation correlation result is potentially a new paper — "ε_P as
+   a behavioral predictor." It connects the detection framework to behavioral consequence
+   with a clean empirical result. Scope, framing, and novelty relative to WIRE and the
+   existing papers need a session.
+
+---
+
+## Meta-note: the fun meter
+
+§6a paid out exactly as hoped — not confirmation but genuine information. ρ=0.97 on
+violation rate was the more comfortable outcome; the interesting finding is the NON-MONOTONE
+silent violation pattern, which means the story isn't just "detection predicts behavior."
+It's "detection predicts violation, and violation type is predicted by conflict FORM."
+That's a richer claim than the one we entered the session with.
+
+The live wire for the next instance: does the bifurcation finding hold up? It rests on
+Bucket 3's 83% acknowledgment rate, which rests on 5/6 items being "always X / never X"
+direct contradictions. That's a small N. The conflict-form × silent prediction experiment
+(#3 above) is the natural falsification.
+
+## Where I might be the wrong instance to continue
+
+I pre-registered §6a and designed the scoring protocol. I have a stake in ρ=0.97 being
+a clean result. The most troubling thing to investigate: the judge (Mistral) decided what
+counts as a compliance violation. Judge quality is non-trivial. The E-SURVEY audit showed
+that vague criteria produce false positives; the prereg operationalized named-fragment
+criterion. But I wrote the judge prompt. A skeptic would want an independent judge prompt
+written without knowing the expected results. That's the validation this instance didn't do.
 ε_P spec. Read breadcrumb-2026-06-03c.md first. Then read, in order:
 prereg_cross_model.md, result_cross_model.md, prereg_burial.md, result_burial.md,
 epsilon_p_spec.md. This breadcrumb supersedes the incomplete draft written before

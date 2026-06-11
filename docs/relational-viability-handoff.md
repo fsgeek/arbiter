@@ -128,6 +128,42 @@ accumulate; assign the sign only then.*
 a proxy-substitution (the §86 family) — it is a sign error in the central definition's
 operationalization, and it is fixable without new machinery. Promote to Hole 1.
 
+### Author's return (Fable) + reviewer's reply (Claude) — the fix, hardened twice
+
+Fable conceded the sign error and improved the cure, and the improvement survives a test the
+reviewer's version does not, so it stands as the corrected form:
+
+- **Reviewer's fix (two-chart):** compare W's calibration to the ensemble's; whoever tracks
+  x* is the one whose forecasts verify. **Weakness:** depends on the ensemble as reference,
+  so an adversary who poisons the *ensemble's* calibration (degrades the reference, not just
+  the victim) blinds the adjudicator.
+- **Fable's fix (intra-chart), STRONGER:** the discriminator is *within a single chart* —
+  confidence and calibration are two channels of the same observer, and their DIVERGENCE is
+  the signal. Rising confidence + improving calibration = minority-correct (whistleblower);
+  rising confidence + degrading calibration = victim. Needs no ensemble comparison, so it
+  ducks the poison-the-reference attack the two-chart version dies to. Removes a dependency.
+- **§47 falls out as the detector's first response, not a nicety:** the alarm's output is
+  never "manipulation detected" but "divergence event, attribution unresolved — inflate Σ,
+  open calibration adjudication." The corollary the review called the thesis becomes the
+  detector's interim state by construction.
+
+**Reviewer's residual sharpening (the hole's true width).** "Degrading calibration = victim"
+is too coarse: a competent long-horizon manipulator keeps the victim's *near-term* forecasts
+verifying — that is *how* the induced chart stays inside the boundary (local predictions land
+while the global position exits). So intra-chart calibration does not simply "rot"; it rots
+**only at increasing forecast horizons.** The real discriminator is therefore
+confidence-vs-calibration *as a function of forecast horizon*: the divergence opens as the
+prediction window extends. This is the axis the attack cannot cheaply fake — faking it
+requires the manipulator to make *true long-horizon* predictions about a trajectory they are
+actively diverting, which is self-defeating. The hole narrows to: detection requires
+long-horizon forecasts to come due (inherits Hole 5 in full, now precisely located — it is
+the *long* horizon specifically, not calibration-in-general, that carries the sign).
+
+**Both authors agree on ordering:** the framing experiment (§101-step-2) runs first; the
+§57 sign-error + this two-stage repair go in the record regardless of its outcome. If the
+framing confound dissolves, the formal layer was decoration on nothing — so retire that risk
+first. Automaton-first (§103) was disposition (formal-structure-as-comfort), not analysis.
+
 ## Declared holes
 
 These are the known joints, in descending order of concern. The meta-principle matters more than any one of them: every serious failure is a place where an unobservable was operationalized by quietly substituting an observable proxy (ensemble for trajectory, hazard for intent, utility for incommensurables, basis for values). The model does not escape the impossibility result; it relocates it. The defense is **declared joints plus cross-joint consistency monitoring**: gaming any single proxy is cheap, but the proxies measure the same relation through different joints, so coherent spoofing requires modeling the entire instrument, and the cost grows with joint diversity. This is defense-in-depth, not impossibility — a sufficiently resourced adversary still wins; the goal is driving the cost of coherent spoofing above the value of the relation.

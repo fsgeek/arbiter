@@ -70,6 +70,10 @@ of scope markers to prohibitions, and that register uniformity ---
 or careful scope embedding --- is necessary to prevent catastrophic
 interference between instructions that share no semantic relationship.
 
+We demonstrate the effect in Claude Haiku 4.5; cross-model replication
+is confounded by probe transfer, and the generality of the phenomenon
+is an open question.
+
 \end{abstract}
 
 % ============================================================
@@ -93,6 +97,16 @@ instructions. The mechanism is \emph{scope loss}: an imperative
 prohibition scoped to a specific workflow (git commits) is
 over-generalized to all model behavior when it lacks register context
 from neighboring imperatives.
+
+\begin{center}
+\fbox{\begin{minipage}{0.95\columnwidth}
+\textbf{Register bomb.} An instruction block $B$ in register $R_1$
+embedded in a prompt otherwise written in register $R_2$
+($R_1 \neq R_2$), where $B$'s inclusion causes adherence collapse
+on instructions semantically unrelated to $B$. The collapse is
+mediated by register contrast, not semantic overlap.
+\end{minipage}}
+\end{center}
 
 Our central finding is that scope interpretation operates at
 \textbf{clause granularity}. A block-level scope declaration
@@ -466,6 +480,28 @@ own scope syntactically, either through conditional clauses
 (``When X, never Y'') or through structural containment
 (declarative lists).
 
+\subsection{The Mechanistic Gap}
+
+We characterize the phenomenon but do not explain the internal
+mechanism. We observe \emph{what} happens --- scope loss at clause
+granularity --- but not \emph{why} the model behaves this way when the
+bomb detonates. At least three candidate mechanisms are consistent
+with our data. (1)~\textbf{Unconditional-command parsing:} the
+imperative block's prohibitions (``NEVER use Task tools'') are parsed
+as unconditional commands carrying higher authority than the
+surrounding declarative instructions, suppressing anything that
+resembles tool delegation. (2)~\textbf{Register-shift-as-emphasis:}
+the register contrast is itself a signal --- the model interprets the
+shift as emphasis, and the emphasis bleeds to semantically adjacent
+behaviors (tool use $\to$ tool delegation). (3)~\textbf{No scope
+stack:} the model's instruction-following mechanism does not maintain
+a scope stack, so each clause is evaluated against the full
+instruction set independently. Distinguishing these candidates
+requires access to model internals --- attention analysis,
+intermediate-layer probing, or targeted ablation of the model itself
+rather than the prompt --- which is out of scope for this paper. We
+leave the mechanistic account as an open question.
+
 \subsection{Register Bombs as a Design Hazard}
 
 Register bombs arise naturally when prompt authors mix instruction
@@ -491,11 +527,23 @@ different characteristics.
 findings are from Haiku 4.5. Cross-model replication was confounded
 by probe transfer.
 
-\item \textbf{Temperature 0.0:} All trials use deterministic decoding.
-Stochastic behavior may attenuate or amplify the effects.
+\item \textbf{Temperature 0.0:} All trials use deterministic decoding
+to reduce variance in a small-$N$ study (3 trials per condition),
+isolating the register manipulation from sampling noise. Whether the
+effect persists under stochastic decoding (e.g.\ temperature 0.7) is
+left to future work; stochastic behavior may attenuate or amplify the
+effects.
 
 \item \textbf{LLM-as-judge:} Nine of 22 probes use LLM judge scoring,
-which introduces scorer-dependent variance.
+which introduces scorer-dependent variance. We did not measure
+inter-judge agreement for this paper. As corroborating evidence,
+independent re-grading of LLM-judge outputs in a sister experiment
+found $\sim$86\% two-judge agreement on outcome labels, with a third
+judge resolving 12/12 disagreements --- indicating that LLM-judge
+disagreement on hard cases is largely recoverable variance rather than
+irreducible ambiguity, and motivating the use of $\geq 3$ judges on
+boundary cases. We flag ensemble judging as the appropriate mitigation
+for the scorer-dependent variance in this study.
 
 \item \textbf{Probe battery specificity:} The probe battery was
 designed for Claude Code and does not transfer to other models,
@@ -542,7 +590,11 @@ The fix is straightforward: embed scope in each prohibition
 implication is that system prompt engineering must attend to register
 interactions between instructions, not just the content of individual
 instructions. Prompt compilation tools should check for register
-consistency and test for pairwise interference.
+consistency and test for pairwise interference. In a system where
+prompts are compiled from a typed instruction DSL with explicit scope
+annotations, register bombs would be caught at compile time as scope
+violations --- a static guarantee that no amount of careful
+natural-language authoring can provide.
 
 % ============================================================
 \section*{Acknowledgments}

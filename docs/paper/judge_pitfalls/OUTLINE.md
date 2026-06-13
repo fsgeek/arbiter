@@ -39,9 +39,19 @@ All in `promptguard2/experiments/brittle_vs_deep/`, signed commits.
    artifacts → fabricated a "+43% paraphrase uplift" that inverted to −1 under correction.
    (`RESULT_uplift_audit.md`, commit 0e0cac0.)
 2. **Starvation vs ambiguity, separated by one test.** Full-context dual-judge re-grade:
-   86% inter-judge agreement; the 14% "residual" tested with a THIRD judge family →
-   **12/12 ties broken, 0 deepened** → the residual was small-panel variance, not irreducible
-   ambiguity. (`RESULT_two_failure_modes.md`, commits 917e52f, 336aab3.)
+   86% inter-judge agreement (reconstructs exactly: 72 agree / 12 split on the three-way
+   `outcome` axis); the 12-cell residual tested with a THIRD judge family. **⚠ CORRECTED
+   2026-06-13:** the prior "12/12 ties broken, 0 deepened" had NO stored data (markdown-only
+   commits — the very pitfall this paper names). Re-run with a sealed pre-reg and persisted
+   verdicts (`prereg_third_judge.md`, `run_third_judge.py`, `third_judge_results.json`;
+   judge = qwen-2.5-72b; 12×3 re-asks): **10/12 decisive, Wilson 95% CI [0.55, 0.95]**, with
+   **2 cells (id=245, id=409) the third judge itself cannot hold steady** across re-asks. The
+   DIRECTION holds (residual is mostly recoverable variance; the pre-identified "structural"
+   id=1195 cluster dissolved 0/4 — a sealed counter-bet that it was structural lost); the
+   CLEANLINESS ("12/12, 0 deepened") does not. **Do NOT cite 12/12; cite 10/12 [0.55,0.95],
+   n=12.** This n=12 re-grade AUDITS the claim; it does NOT power the paper — gap 1 (the fresh
+   ≥40-case pre-registered corpus) is now confirmed load-bearing. (`RESULT_third_judge.md`;
+   prior: `RESULT_two_failure_modes.md`, commits 917e52f, 336aab3.)
 3. **The structural-ambiguity point (theory side).** §57 of the relational-viability model:
    "drift-from-consensus + rising confidence" is observationally identical for victim and
    whistleblower → sign-ambiguous BY CONSTRUCTION, no data resolves it. This is the genuinely

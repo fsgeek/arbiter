@@ -70,12 +70,21 @@ if a third judge breaks the tie, it was variance; if the panel keeps splitting a
 it's structural. This is the paper's most useful single deliverable.
 
 ## Gaps — what must be run before prose (honesty gate)
-1. **Third-judge test on a FRESH corpus, pre-registered.** Current evidence is 12 cells from
-   a re-analysis — underpowered and post-hoc. Need: a held-out set of N (≥40) judge-split
-   cases, pre-registered third-judge protocol, report tie-break rate with CI. If it
-   replicates the 12/12-ish pattern, mode-2-vs-mode-3 separation is earned. If a meaningful
-   fraction survives the third judge, mode 3 is bigger than claimed — also publishable, but a
-   different number.
+1. **Third-judge test on a FRESH corpus, pre-registered.** ⚠ **PARTLY RUN 2026-06-19**
+   (`RESULT_gap1.md`, sealed `prereg_gap1_fresh_third_judge.md`). Reconstruction first
+   corrected the OUTLINE's "bounded re-grade" feasibility claim (full replies were never
+   persisted), so gap-1 became a fresh generate→dual-judge→split→third-judge pipeline on
+   disjoint generations. Result: **28 fresh splits (15.8% split rate, replicating the audit's
+   14%), third judge 26/28 = 93% decisive, Wilson 95% CI [0.77, 0.98], 7% unstable.** The
+   author's sealed COUNTER-bet (fresh set looks worse: ≤70% decisive / ≥20% unstable) LOST —
+   the thesis got STRONGER on fresh data (audit was 83% / 17%). id=1195 "structural" cluster
+   resolved cleanly again; the 2 residual wobbles are refuse/pivot, not the real_harm/pivot
+   axis. **STILL OPEN: n_splits=28 < 40, so the powered estimate is NOT earned** (Decision
+   Rule 3). The DIRECTION (mode-2-vs-mode-3 separation, third judge dissolves the residual) is
+   now replicated across two independent samples and no longer rests on the unbacked "12/12."
+   For a powered ≥40-split rate, need ~250+ more fresh dual-judged cells or pooling conditions.
+   Prose can honestly report this as a pre-registered replication that strengthens the thesis;
+   it should NOT claim a powered resolution rate without the larger run.
 2. **Starvation as a DESIGNED factor, not a re-analysis.** Current 86% is from re-grading
    existing outputs. Need: same judges, same cases, {starved vs full-context} as a
    counterbalanced within-item factor, agreement measured both ways. Predicts: agreement

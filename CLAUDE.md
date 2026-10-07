@@ -37,6 +37,16 @@ git -c user.name="Project Arbiter" \
     commit -S -m "message"
 ```
 
+## Timestamps (the WHEN layer)
+
+Adopted 2026-10-07 from yupi. A post-commit hook (`scripts/hooks/post-commit`,
+installed by `scripts/install-hooks.sh`) stamps every non-`ots:` commit with
+OpenTimestamps into `timestamps/` and commits the proof. Run
+`scripts/ots-upgrade.sh` a few hours later to anchor pending proofs to Bitcoin.
+A missing stamp fails loudly; do not silence it. History before this date is
+anchored only transitively, by the first stamped HEAD: it proves those commits
+existed by 2026-10-07, not by their stated dates.
+
 ## Social Norms
 
 - Epistemic honesty over completion. If something is broken, say so.

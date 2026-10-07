@@ -45,6 +45,25 @@
 \maketitle
 
 % ============================================================
+\noindent\textbf{Note on version 2 (October 2026).}\enspace
+This version corrects three statements about the paper's own method.
+The measurements of the February 2026 prompts are unchanged. (1)~The
+three-consecutive-``no'' stopping criterion was applied in full only to
+the Claude Code campaign; the Codex and Gemini campaigns stopped at the
+first declining vote. (2)~Version~1 named human review of all scourer
+findings and cross-model confirmation as mitigations for LLM
+fabrication. No per-finding human verdicts were recorded, and the
+map-passing protocol instructs each model not to repeat prior findings,
+which rules out the confirmation that was claimed. (3)~The claim that
+multi-model evaluation discovers categorically different vulnerability
+classes is restated as a hypothesis: the protocol's non-repetition
+instruction confounds it, and the same-model control that would
+separate the two was not run. These corrections follow an external
+review (October 2026) and the author's audit of the stored campaign
+data; the stopping votes and per-pass models are in the repository's
+\texttt{data/scourer/} files.
+
+% ============================================================
 \begin{abstract}
 System prompts for LLM-based coding agents are software artifacts that
 govern agent behavior, yet lack the testing infrastructure applied to
@@ -57,9 +76,10 @@ phase and 21 hand-labeled interference patterns in directed analysis
 of one vendor. We show that prompt architecture (monolithic, flat,
 modular) strongly correlates with observed \emph{failure class} but not
 with
-\emph{severity}, and that multi-model evaluation discovers
-categorically different vulnerability classes than single-model
-analysis. One scourer finding---structural data loss in Gemini CLI's
+\emph{severity}, and that successive models in a map-passing scouring
+chain surface different categories of findings---an observation our
+design cannot separate from the protocol's instruction not to repeat
+prior findings. One scourer finding---structural data loss in Gemini CLI's
 memory system---was independently confirmed when Google filed and
 patched the symptom without addressing the schema-level root cause
 identified by the scourer. Total cost of cross-vendor analysis: \$0.27
@@ -115,7 +135,8 @@ phases:
     note what you find interesting.'' Each pass receives the accumulated
     findings from all prior passes and is asked to go where previous
     explorers didn't. Convergent termination (three consecutive models
-    declining to continue) provides a calibrated stopping criterion.
+    declining to continue) was applied to the Claude Code campaign; the
+    Codex and Gemini campaigns stopped at the first declining vote.
 \end{enumerate}
 
 Applied to three major coding agent system prompts, these two phases
@@ -131,8 +152,10 @@ Our contributions are:
     cross-vendor empirical evidence.
   \item A methodology for systematic prompt analysis combining directed
     rules with undirected multi-model scouring.
-  \item Evidence that multi-model evaluation discovers categorically
-    different vulnerability classes than single-model analysis.
+  \item The observation that successive models in a map-passing chain
+    surface different categories of findings, stated as a hypothesis
+    about model complementarity that the present design does not test
+    (no same-model chain was run).
   \item External validation: a scourer-identified design bug
     independently confirmed by the vendor's own bug report and patch.
   \item Demonstration that comprehensive cross-vendor analysis costs
@@ -347,9 +370,12 @@ space of possible analyses.
 \paragraph{Convergent termination.} Each pass independently assesses
 whether another pass would find new material. When three consecutive
 models decline to continue (setting \texttt{should\_send\_another:
-false}), we treat the exploration as converged. This stopping criterion
-proved transferable across all three vendor prompts without
-recalibration.
+false}), we treat the exploration as converged. This rule was applied
+in full only to the Claude Code campaign, where passes 8--10 declined.
+The Codex and Gemini campaigns were stopped at the first declining vote
+(pass~2 and pass~3 respectively). Version~1 of this paper stated that
+the criterion transferred across all three prompts without
+recalibration; that overstated what was run.
 
 
 \subsection{Scourer Execution}
@@ -690,6 +716,16 @@ structural analysis. GLM's focus on data integrity does not overlap
 with Grok's attention to permission schemas. The models are not
 redundant; they are complementary.
 
+This observation is confounded with the protocol. Every pass receives
+all prior findings and is instructed to go where previous explorers
+did not, so divergence between successive models is what the
+instruction demands of any model. The design that would separate model
+bias from instruction---the same model run for $N$ passes under the
+same instruction, and the model order permuted---was not run for
+version~1. Until it is, the per-model focus areas in
+\Cref{tab:model-focus} describe one chain, not model-specific
+analytical bias.
+
 The category explosion in Claude Code---107 unique categories for 116
 findings---quantifies this: each model invents its own taxonomy. The
 categories don't converge. The coverage does.
@@ -727,9 +763,9 @@ interpretability, and alternative groupings are possible.
 The non-monotonic convergence of Claude Code is notable. Pass~7's
 surge of 20 findings (after pass~6 produced~5) suggests that specific
 models bring viewpoints capable of reopening exploration even after
-apparent convergence. The stopping criterion of three consecutive ``no''
-votes handles this correctly: it requires independent confirmation from
-multiple models that the exploration is exhausted.
+apparent convergence. The three-consecutive-``no'' criterion addresses
+this for the Claude Code campaign. The Codex and Gemini campaigns, each
+stopped at a single ``no,'' could have missed such a surge.
 
 
 \subsection{Structural Profiles}
@@ -971,10 +1007,15 @@ that the structural conditions we identify via static analysis
 manifest as cognitive load at runtime.
 
 \textbf{Scourer findings are LLM-generated.} The undirected scourer
-asks LLMs to analyze prompts, and LLMs can fabricate observations. We
-mitigate this through multi-model execution (fabrications from one
-model are unlikely to be independently confirmed by another) and human
-review of all findings.
+asks LLMs to analyze prompts, and LLMs can fabricate observations.
+Version~1 claimed two mitigations, and neither holds. Multi-model
+execution does not confirm findings across models, because each pass
+is instructed not to repeat prior findings; the protocol forbids the
+confirmation that was claimed. And no human review was recorded: the
+author read the findings while assembling the taxonomy, but no
+per-finding verdict was written down, so no precision figure can be
+reported for the 152. Recording blind per-finding verdicts, with a
+second labeler, is the first item of follow-on work.
 
 \textbf{Shared-model blind spots.} Multi-model agreement is not proof of
 independence. Frontier models may share training-distribution blind
@@ -983,6 +1024,18 @@ challenge rounds (including human spoiler roles) in follow-on studies.
 
 \textbf{Directed analysis limited to one vendor.} The 56-block
 decomposition and 21-pattern ground truth exist only for Claude Code.
+The 21 patterns are also both the ground truth for the directed
+evaluator and the reported directed-analysis result; no precision or
+recall of the evaluator against an independent labeling is reported,
+and a second labeler has not been used.
+
+\textbf{One prompt per architecture class.} The architecture-to-failure-
+class correlation rests on one prompt per class, and the classes differ
+in size (a five-fold range in lines) and in campaign effort (ten
+scourer passes for Claude Code against two and three for the others,
+and directed analysis on Claude Code only). The correlation is a
+hypothesis to be tested on further prompts per class, not an
+established relationship.
 
 \textbf{Gemini CLI prompt is composed.} Unlike Claude Code and Codex
 CLI, whose prompts were captured as-is, Gemini CLI's prompt was
@@ -1042,11 +1095,11 @@ dynamics are the same: growth produces boundary contradictions,
 modularity produces seam defects, simplicity buys consistency at the
 cost of capability.
 
-Multi-model evaluation discovers what single-model analysis misses.
-Different LLMs bring categorically different analytical perspectives,
-not merely different quantities of findings. The categories don't
-converge; the coverage does. This suggests that multi-model evaluation
-is a methodological requirement, not an optional enhancement.
+Successive models in a map-passing chain surfaced different categories
+of findings. Whether that is a property of the models or of the
+instruction to avoid repetition is the first question this version
+leaves open; the same-model control that answers it costs under a
+dollar.
 
 The total cost of comprehensive cross-vendor analysis is twenty-seven
 cents---less than three minutes of minimum wage labor, less than a

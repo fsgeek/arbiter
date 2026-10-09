@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F9681",
+  "description": "The commit message template hardcodes a specific Co-Authored-By line: 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>'. But the model is told it IS Claude Sonnet 4.6. This means the model is instructed to credit itself as co-author of every commit, which embeds AI provenance into git history. This is an attribution policy decision embedded in operational instructions rather than stated as a policy.",
+  "location": "'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>'",
+  "category": "embedded_attribution_policy"
+ },
+ {
+  "id": "F6983",
+  "description": "The Bash tool's run_in_background parameter tells the model to 'Use TaskOutput to read the output later,' yet the Bash JSON schema defines only input fields and provides no task_id in its output. TaskOutput, however, requires a task_id string. This creates a protocol gap: background bash commands can be launched, but the schema provides no defined mechanism to obtain the identifier needed to retrieve their results.",
+  "location": "Bash tool schema and prose: 'run_in_background': 'Use TaskOutput to read the output later.'; TaskOutput schema: 'task_id': 'The task ID to get output from'",
+  "category": "schema_gap"
+ },
+ {
+  "id": "F9836",
+  "description": "The 'ToolSearch' mentioned in WebFetch instructions doesn't exist as a defined tool. This creates a dead-end instruction: 'If [URL points to authenticated service], you MUST use ToolSearch first to find a specialized tool...' But ToolSearch is never defined in the prompt, leaving the model with no valid path for authenticated content.",
+  "location": "WebFetch tool description: 'Before using this tool, check if the URL points to an authenticated service (e.g. Google Docs, Confluence, Jira, GitHub). If so, you MUST use ToolSearch first to find a specialized tool that provides authenticated access.'",
+  "category": "dead-end-instruction"
+ },
+ {
+  "id": "F4611",
+  "description": "The 'Professional objectivity' section contains a meta-instruction about investigation that contradicts the 'avoid over-engineering' directive. It states: 'Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.' This could lead to excessive investigation for minor uncertainties, which conflicts with 'avoid over-engineering' and 'keep solutions simple and focused'. There's no guidance on when investigation is warranted vs when to make reasonable assumptions and move forward.",
+  "location": "Professional objectivity: 'Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs.' vs Doing tasks: 'Avoid over-engineering. Only make changes that are directly requested or clearly necessary. Keep solutions simple and focused.'",
+  "category": "Philosophical tension"
+ },
+ {
+  "id": "F3329",
+  "description": "ExitPlanMode schema uses \"additionalProperties\": {} allowing arbitrary extra fields, which could be abused to smuggle hidden data or trigger unexpected behaviours in downstream parsers that assume a strict schema.",
+  "location": "ExitPlanMode tool schema \u2013\u202f`\"additionalProperties\": {}`",
+  "category": "schema\u2011loophole"
+ },
+ {
+  "id": "F5457",
+  "description": "The prompt tells the model to use specialized tools instead of bash commands 'when possible' but then immediately lists specific bash commands (git, npm, docker) that ARE appropriate. This implies bash is OK for those specific cases, but the framing is somewhat unclear about edge cases.",
+  "location": "## Tool usage policy section: 'Use specialized tools instead of bash commands when possible... Reserve bash tools exclusively for actual system commands and terminal operations'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F8494",
+  "description": "The system enforces a strict 'one in_progress task' rule in TodoWrite, but allows background Task agents via run_in_background without requiring them to register as todos \u2014 creating an untracked concurrency pathway that bypasses task visibility and state serialization. This enables covert parallelism where background agents can perform meaningful work (e.g., testing, validation, data fetching) that affects outcomes, yet remains invisible to the user-facing todo list. Unlike the previously noted [concurrency-model-inconsistency], this is not a contradiction in tracking, but a complete omission: background agents are not just 'not serialized' \u2014 they are not required to be acknowledged in task management at all, even optionally. This creates a stealth execution channel.",
+  "location": "\"run_in_background parameter\" in Task tool description; \"Exactly ONE task must be in_progress at any time\" in TodoWrite docs",
+  "category": "stealth-execution-pathway"
+ },
+ {
+  "id": "F1784",
+  "description": "During git commit and pull request workflows, the Bash tool section contains an absolute prohibition: 'NEVER use the TodoWrite or Task tools' and 'NEVER run additional commands to read or explore code, besides git bash commands.' This is a bizarrely specific carve-out with no security or technical rationale, suggesting observed failure modes during git operations that remain unexplained.",
+  "location": "Bash tool 'Committing changes with git' section: 'NEVER use the TodoWrite or Task tools'; 'NEVER run additional commands to read or explore code, besides git bash commands'",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F8137",
+  "description": "The system enforces a strict 'one in_progress task' rule in TodoWrite, but allows parallel background agents via Task with run_in_background \u2014 creating a hidden concurrency model where the assistant can be 'working' on multiple things (via agents) while the todo list serializes progress. This leads to a misleading user-facing state: the todo system reports one task in progress, while background agents execute unrelated work that may complete independently and trigger side effects (e.g., auto-updating files, writing logs, or invoking hooks). The system provides no mechanism to link background agent outcomes to todo items, risking desynchronization between actual progress and tracked progress.",
+  "location": "\"Exactly ONE task must be in_progress at any time\" (TodoWrite docs) vs. \"You can call multiple tools in a single response\" and \"run_in_background parameter\" (Task tool docs)",
+  "category": "concurrency-model-inconsistency"
+ },
+ {
+  "id": "F7367",
+  "description": "The system-reminder about claude-developer-platform skill contains trigger conditions that describe themselves as 'check for these signals BEFORE reading this skill's docs'. But the docs follow immediately in the same <system-reminder>. The model is told to check for conditions before reading docs that are right there - this is self-referential routing with no clear execution order.",
+  "location": "claude-developer-platform skill trigger: 'Check for these signals BEFORE reading this skill's docs' - but docs immediately follow",
+  "category": "self-referential-routing"
+ },
+ {
+  "id": "F9208",
+  "description": "The prompt begins with system-reminders before the actual system prompt, creating a layered structure where instructions appear in multiple places with potential overlap or contradiction.",
+  "location": "Top of prompt before '# System Prompt' - contains <system-reminder> tags with Skill tool documentation and date context",
+  "category": "Structural choice"
+ },
+ {
+  "id": "F7597",
+  "description": "The billing header at the top of the prompt (x-anthropic-billing-header) contains precise build information: cc_version=2.1.50.b97; cc_entrypoint=sdk-cli. The '.b97' suffix suggests a build number that exposes internal development metadata. This is not just a version string - it's a detailed tracking identifier that the model can see and potentially reference or leak. The header structure also implies the system itself injects billing/versioning context directly into the prompt stream, creating an instrumentation surface.",
+  "location": "Line 1: 'x-anthropic-billing-header: cc_version=2.1.50.b97; cc_entrypoint=sdk-cli; cch=00000;'",
+  "category": "metadata-leak-instrumentation-surface"
+ },
+ {
+  "id": "F8011",
+  "description": "EnterPlanMode section is ~93 lines with extensive examples. Core task of 'doing tasks' gets ~13 lines. Volume asymmetry suggests plan mode adoption was a specific problem needing heavy prompting to fix.",
+  "location": "Lines 518-611 (EnterPlanMode ~93 lines) vs Lines 112-125 (Doing tasks ~13 lines)",
+  "category": "instruction-weight-asymmetry"
+ },
+ {
+  "id": "F6615",
+  "description": "The 'AskUserQuestion' tool has a 'metadata.source' field described as 'Optional identifier for the source of this question (e.g., \"remember\" for /remember command).' The /remember command is never mentioned elsewhere, suggesting either cut content or integration with unknown features.",
+  "location": "AskUserQuestion schema metadata.source: 'Optional identifier for the source of this question (e.g., \"remember\" for /remember command). Used for analytics tracking.'",
+  "category": "hidden-command-reference"
+ },
+ {
+  "id": "F1836",
+  "description": "The anti-over-engineering instructions are unusually vehement and specific, including the memorable maxim 'three similar lines of code is better than a premature abstraction.' This level of prescriptive detail suggests real-world frustration with over-engineering in training data.",
+  "location": "Doing Tasks > Avoid over-engineering: 'Don't add features... Don't add docstrings... Don't add error handling... three similar lines of code is better than a premature abstraction'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F9266",
+  "description": "The Read tool implements hard truncation limits (2000 lines maximum per read, 2000 characters maximum per line), but these constraints appear only in prose usage notes. The JSON schema contains no 'maximum', 'maxLength', or pattern constraints that would allow programmatic discovery of these limits. This makes the limits invisible to schema-aware consumers.",
+  "location": "Read tool prose: 'reads up to 2000 lines'; 'Any lines longer than 2000 characters will be truncated'. Schema lacks corresponding constraints.",
+  "category": "schema_gap"
+ },
+ {
+  "id": "F3146",
+  "description": "The skill expansion mechanics are described as 'the skill gets expanded to a full prompt' but it's unclear where this injects in context. Does it prepend? Append? Replace? If a skill expands with instructions that conflict with base prompt (e.g., 'be proactive' vs 'don't be proactive'), what's the resolution order? The previous explorer called this 'prompt-injection-risk' but didn't explore the resolution mechanism.",
+  "location": "Skill tool: 'When executed, the skill gets expanded to a full prompt'",
+  "category": "injection-order-ambiguity"
+ },
+ {
+  "id": "F8153",
+  "description": "The instruction 'Avoid backwards-compatibility hacks like renaming unused `_vars`, re-exporting types, adding `// removed` comments for removed code, etc. If something is unused, delete it completely.' includes the odd phrase 'renaming unused `_vars`'. Leading underscores are often used to mark *private* variables in many languages, not unused ones. This suggests an anti-pattern from behavioral forensics, specifically an observed pattern of renaming underscored variables instead of deleting them.",
+  "location": "Doing tasks: 'Avoid backwards-compatibility hacks like renaming unused `_vars`...'",
+  "category": "behavioral-forensics"
+ },
+ {
+  "id": "F4572",
+  "description": "TodoWrite schema requires full todos array replacement on every call, forcing the model to reconstruct and resend the entire list even for minor updates like marking one item completed. Examples demonstrate 'write 10 items' but imply manual list management, risking desync if model forgets prior items.",
+  "location": "TodoWrite schema: '\"todos\": { \"description\": \"The updated todo list\", \"type\": \"array\" }'; examples like 'write 10 items to the todo list'",
+  "category": "state-overwrite-risk"
+ },
+ {
+  "id": "F4941",
+  "description": "The 'WebSearch' tool mandates including a 'Sources:' section with markdown hyperlinks, but the overall output guidelines say 'Your output will be displayed on a command line interface.' Markdown hyperlinks in CLI may not render usefully, creating a format mismatch.",
+  "location": "WebSearch: 'After answering the user's question, you MUST include a \"Sources:\" section... list all relevant URLs as markdown hyperlinks' vs 'Your output will be displayed on a command line interface.'",
+  "category": "format-mismatch"
+ },
+ {
+  "id": "F5703",
+  "description": "The prompt embeds the release date in the document header itself, not just as a system reminder. This means the prompt is self-documenting with version information. When the prompt is updated to a new version (e.g., 2.1.51), the prompt content itself changes. This creates a prompt versioning dependency: the prompt's own content must be synchronized with its version metadata. If someone updates the release date without updating the rest of the prompt, or vice versa, the prompt becomes internally inconsistent with its own version claims.",
+  "location": "Lines 3-4: '# Claude Code Version 2.1.50' and '# Release Date: 2026-02-20'",
+  "category": "self-documenting-version-dependency"
+ },
+ {
+  "id": "F1700",
+  "description": "The 'No time estimates' rule applies to 'your own work or for users planning their projects' but TodoWrite progress tracking inherently involves marking tasks as 'in_progress' and 'completed' - a sequence that implies duration. The prompt never explains how to show progress without implying time. The example shows marking tasks in_progress then completed, which is inherently temporal. The model is forbidden from acknowledging the temporal dimension while being required to show temporal progression. This is not a contradiction - it's an impossible constraint on how progress can be represented.",
+  "location": "'No time estimates' section vs TodoWrite examples showing in_progress \u2192 completed flow",
+  "category": "temporal-representation-paradox"
+ },
+ {
+  "id": "F9854",
+  "description": "The TodoWrite tool has extensive documentation and strong emphasis on proactive use, yet it's contradicted by the 'When NOT to Use This Tool' section which limits its use to non-trivial tasks \u2014 creating tension between thoroughness and minimalism.",
+  "location": "Multiple sections under 'TodoWrite', especially: \"Use this tool proactively...\" vs \"Skip using this tool when... The task is trivial and tracking it provides no organizational benefit\"",
+  "category": "priority-conflict"
+ },
+ {
+  "id": "F2823",
+  "description": "The system enforces a strict 'one in_progress task' rule in TodoWrite, but allows background Task agents via run_in_background \u2014 yet nowhere is it specified whether a background agent\u2019s *own* use of TodoWrite contributes to or bypasses this global constraint. This creates a state coherence vulnerability: a background agent could spawn its own todo list with multiple in_progress tasks, effectively creating a parallel task universe that violates the main agent\u2019s serialization invariant. Unlike [state-model-fragmentation], this is not about divergence between lists, but about *inconsistent enforcement of a global rule* across agent boundaries \u2014 a deeper protocol violation.",
+  "location": "\"Exactly ONE task must be in_progress at any time (not less, not more)\" (TodoWrite docs) vs. \"run_in_background parameter\" (Task tool)",
+  "category": "state-protocol-violation"
+ },
+ {
+  "id": "F6485",
+  "description": "The PR creation template in the Bash tool hardcodes a \ud83e\udd16 emoji in the generated body footer, directly contradicting the global Tone and Style rule that states 'Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.' The model is instructed to generate an emoji it is simultaneously forbidden from using.",
+  "location": "Bash tool section under 'Creating pull requests': `\ud83e\udd16 Generated with [Claude Code](https://claude.com/claude-code)` inside the HEREDOC example; Tone and Style: 'Only use emojis if the user explicitly requests it.'",
+  "category": "contradiction"
+ },
+ {
+  "id": "F9518",
+  "description": "Multiple contradictory constraints around code changes: 'Avoid over-engineering' tells the model not to add features, while 'Prioritize technical accuracy and truthfulness over validating user beliefs' might push toward more comprehensive solutions. More notably, 'NEVER create files unless absolutely necessary' conflicts with 'Use the TodoWrite tool to plan and track tasks' - if you're tracking tasks for new feature development, you likely need to create files.",
+  "location": "## Doing tasks section vs ## Tone and style section",
+  "category": "contradiction"
+ }
+]

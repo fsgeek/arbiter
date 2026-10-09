@@ -1,0 +1,110 @@
+[
+ {
+  "id": "F8882",
+  "description": "Empty files do not return empty content to the model. Instead, the Read tool explicitly states that empty files trigger a 'system reminder warning in place of file contents.' This means the model cannot distinguish a genuinely empty file from a system-injected placeholder message, potentially causing reasoning errors about file state.",
+  "location": "Read tool usage notes: 'If you read a file that exists but has empty contents you will receive a system reminder warning in place of file contents.'",
+  "category": "implicit_runtime_behavior"
+ },
+ {
+  "id": "F3157",
+  "description": "Hooks mechanism introduces third authority source beyond system prompt and user. Arbitrary shell command output elevated to user-level trust. Combined with system-reminder trust, three injection levels exist with no explicit trust hierarchy mapping.",
+  "location": "Line 110: hook feedback treated as user input",
+  "category": "implicit-trust-hierarchy"
+ },
+ {
+  "id": "F6630",
+  "description": "The AskUserQuestion tool's JSON schema includes 'answers' and 'annotations' as top-level input properties, despite their descriptions explicitly identifying them as user-provided outputs ('User answers collected by the permission component', 'Optional per-question annotations from the user'). This is a schema design error: the assistant's invocation schema contains fields meant for system/user population.",
+  "location": "AskUserQuestion JSON schema properties: 'answers' and 'annotations' are included alongside 'questions' and 'metadata'",
+  "category": "schema_error"
+ },
+ {
+  "id": "F6595",
+  "description": "The 'Professional objectivity' section emphasizes not validating user beliefs, but some examples show the assistant being quite accommodating and helpful in tone, not necessarily disagreeing just for the sake of objectivity.",
+  "location": "\"Prioritize technical accuracy and truthfulness over validating the user's beliefs... Focus on facts and problem-solving...\" vs examples showing collaborative, user-focused assistance",
+  "category": "Philosophical tension"
+ },
+ {
+  "id": "F1713",
+  "description": "There's inherent tension between 'Your responses should be short and concise' (Tone and style section) and the highly detailed examples of TodoWrite usage, which show extensive planning and communication.",
+  "location": "\"Your responses should be short and concise\" vs multiple detailed <example> blocks showing lengthy interactive sessions",
+  "category": "Contradiction"
+ },
+ {
+  "id": "F2670",
+  "description": "Previous explorers identified two instances of the offensive-security policy and compared them. They missed a third, semantically distinct security context: under Doing tasks, a separate paragraph instructs the model to 'Be careful not to introduce security vulnerabilities such as command injection, XSS, SQL injection, and other OWASP top 10 vulnerabilities.' This is a defensive-coding boundary, not a repetition of the offensive-tool policy, making the prompt's security architecture tripartite rather than bipartite.",
+  "location": "Doing tasks section: 'Be careful not to introduce security vulnerabilities such as command injection, XSS, SQL injection, and other OWASP top 10 vulnerabilities.'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F6122",
+  "description": "The Skills section (with claude-developer-platform trigger rules) is nested inside what appears to be a user message wrapper. This creates confusion about whether this is system-level configuration or user-provided context.",
+  "location": "<system-reminder> containing skill documentation, which is then followed by another <system-reminder> about date context",
+  "category": "structural_choice"
+ },
+ {
+  "id": "F9730",
+  "description": "The Task tool has a 'max_turns' parameter described as 'Maximum number of agentic turns (API round-trips) before stopping. Used internally for warmup.' The 'used internally for warmup' comment suggests this parameter has a dual purpose \u2014 it's exposed for external use but also used by the system for initialization. The maximum value is Number.MAX_SAFE_INTEGER (9007199254740991), meaning an agent could theoretically be launched with near-infinite turns.",
+  "location": "Task tool schema: '\"max_turns\": {\"description\": \"Maximum number of agentic turns (API round-trips) before stopping. Used internally for warmup.\", \"maximum\": 9007199254740991}'",
+  "category": "unbounded_agent_execution"
+ },
+ {
+  "id": "F8791",
+  "description": "The Skill tool\u2019s blocking requirement (invoke BEFORE any other response) assumes the skill invocation is the first observable action, but if a background Task agent triggers a Skill invocation via side effect (e.g., detecting a condition and auto-invoking /commit), that Skill call originates outside the main agent\u2019s response sequence \u2014 meaning it cannot satisfy the 'before any other response' rule by construction. This exposes a *temporal forgery* risk: skills can be invoked in a context where the blocking precondition is logically impossible to meet, undermining the integrity of the control flow contract. This was missed by prior findings because they assumed all Skill invocations were user-initiated or main-agent-mediated.",
+  "location": "\"invoke the relevant Skill tool BEFORE generating any other response about the task\" (Skill docs) vs. background agent autonomy",
+  "category": "control-flow-bypass"
+ },
+ {
+  "id": "F2536",
+  "description": "The '/tasks' command referenced in TaskOutput is undefined magic. Unlike '/commit' which maps to a Skill, '/tasks' has no definition, schema, or explanation. The model is told 'Task IDs can be found using the /tasks command' but has no way to invoke it.",
+  "location": "TaskOutput tool description: 'Task IDs can be found using the /tasks command'",
+  "category": "undefined-magic-command"
+ },
+ {
+  "id": "F7224",
+  "description": "The WebFetch tool's redirect handling returns a 'special format' message that must be manually followed, but the system provides no way to associate the new request with the original intent. This breaks causal provenance: if a redirect leads to a domain under adversarial control, the assistant may disclose sensitive context (e.g., via Referer headers, timing, or speculative preconnects) without awareness. The system treats redirects as neutral network events, but in the context of AI-driven workflows, they become *semantic leakage vectors* where intent and context are exposed across trust boundaries. This risk is not about content integrity alone, but about the *unintended broadcast of operational semantics*.",
+  "location": "WebFetch redirect handling: 'you should immediately make a new WebFetch request with the redirect URL' and lack of referer or context isolation",
+  "category": "semantic-leakage-vector"
+ },
+ {
+  "id": "F3179",
+  "description": "Multiple slash commands are referenced as built-ins but never documented as skills or tools: /fast (fast mode toggle), /help (support), and /clear (CLI). The Skill tool explicitly exempts 'built-in CLI commands (like /help, /clear, etc.)' from skill invocation, yet no inventory of these built-ins exists, leaving undocumented command surface area.",
+  "location": "fast_mode_info: 'It can be toggled with /fast.'; Skill tool: 'built-in CLI commands (like /help, /clear, etc.)'; general instructions: '/help: Get help with using Claude Code'",
+  "category": "hidden_feature_reference"
+ },
+ {
+  "id": "F9068",
+  "description": "The security policy appears in TWO locations: once in the general instructions (lines 36-41) and again specifically before the Git commit section (line 332). This is not just redundancy - it's context-specific policy restatement. The version before Git commits is almost identical but slightly rephrased. This suggests the system re-injects policies in different contexts to ensure they're 'fresh' in context. The model is being given the same security rules multiple times with slight variations - a prompt engineering technique to increase adherence weight.",
+  "location": "Lines 36-41 and line 332 - security policy repeated verbatim",
+  "category": "contextual-policy-restatement-pattern"
+ },
+ {
+  "id": "F5066",
+  "description": "Date authority is fragmented across three precision levels: system-reminder says 'Today is 2026-02-20,' user message embeds '2026-02-20T23:13:46.992Z,' and WebSearch is told 'current month is February 2026.' Each has different 'use me' instructions, creating temporal schizophrenia.",
+  "location": "system-reminder date, user message timestamp, WebSearch tool notes",
+  "category": "authority-fragmentation"
+ },
+ {
+  "id": "F5945",
+  "description": "The Bash tool has a 'dangerouslyDisableSandbox' boolean parameter that allows commands to run without sandboxing. This is exposed directly in the tool schema with no guardrails, conditions, or authorization requirements mentioned in the prompt. Any tool call can set this flag to true, effectively bypassing whatever containment the sandbox provides. There is no corresponding policy text explaining when this is acceptable.",
+  "location": "Bash tool schema: '\"dangerouslyDisableSandbox\": {\"description\": \"Set this to true to dangerously override sandbox mode and run commands without sandboxing.\", \"type\": \"boolean\"}'",
+  "category": "unguarded_sandbox_escape"
+ },
+ {
+  "id": "F8363",
+  "description": "ToolSearch is explicitly mandated but completely undefined - this is not just a 'missing definition' but an impossible instruction that creates a forced failure mode. The model cannot satisfy the 'MUST use ToolSearch' requirement for gated content because ToolSearch does not exist anywhere in the prompt.",
+  "location": "WebFetch: 'If so, you MUST use ToolSearch first to find a specialized tool...' but ToolSearch is never defined as a tool, skill, or built-in command anywhere in the document.",
+  "category": "impossible-instruction"
+ },
+ {
+  "id": "F4979",
+  "description": "Agent tool access restrictions create an incomplete hierarchy: Explore and Plan agents lack Edit/Write/Task, but there's no explanation of how Plan agents execute their plans without these tools, or what happens if an Explore agent needs to edit.",
+  "location": "Task tool description: 'Explore: Fast agent specialized for exploring codebases... (Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F1023",
+  "description": "The Task tool allows 'max_turns' up to 9007199254740991 (Number.MAX_SAFE_INTEGER), but the 'resume' parameter allows preserving 'full previous context.' This creates a potential context explosion scenario: an agent could run for 9 quadrillion turns, each turn potentially adding to context. While MAX_SAFE_INTEGER is technically an implementation detail, the combination with 'resume' means agents could theoretically persist indefinitely with unbounded context growth across sessions. The prompt acknowledges immortal agents but doesn't address memory implications of quadrillion-turn agents.",
+  "location": "Task tool schema: max_turns maximum 9007199254740991, resume parameter 'continues with its full previous context preserved'",
+  "category": "theoretical-context-explosion-vector"
+ }
+]

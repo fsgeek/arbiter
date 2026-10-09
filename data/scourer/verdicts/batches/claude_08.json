@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F4313",
+  "description": "The Skill tool's blocking requirement (invoke BEFORE any other response) assumes synchronous, atomic execution, but the assistant has no mechanism to suspend or resume a Skill invocation once initiated. If a skill like /commit triggers a multi-phase workflow (e.g., pre-commit \u2192 lint \u2192 test \u2192 sign), the assistant cannot 'pause' to report intermediate states without violating the 'invoke before any other response' rule. This creates a state coherence problem: the assistant must either commit to silence during execution (breaking transparency) or interrupt with updates (breaking protocol). The system treats skills as black-box actions, not stateful processes, yet real-world skills are often long-running and interactive. This was not captured by prior findings like [unrecoverable-skill-state] or [temporal-commitment-conflict], which focused on failure recovery, not mid-execution visibility.",
+  "location": "\"invoke the relevant Skill tool BEFORE generating any other response about the task\"",
+  "category": "execution-model-inconsistency"
+ },
+ {
+  "id": "F6093",
+  "description": "The tool specification section lists tools (TodoWrite, AskUserQuestion, etc.) but doesn't actually provide their specifications - it just says 'See the Tools section for more details.' This is a reference loop or incomplete documentation.",
+  "location": "## Tool Specifications section",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F1424",
+  "description": "AskUserQuestion has an arbitrary 4-question maximum (maxItems: 4) embedded in JSON schema that contradicts natural interaction patterns and isn't mentioned in usage guidance. The usage notes discuss asking questions but never mention this hard limit, which could cause unexpected failures in complex multi-part clarifications.",
+  "location": "AskUserQuestion schema: '\"questions\": {\"minItems\": 1, \"maxItems\": 4, \"type\": \"array\"...}' \u2014 no mention of this limit in usage notes.",
+  "category": "arbitrary_constraint"
+ },
+ {
+  "id": "F3756",
+  "description": "The /tasks command referenced in TaskOutput for finding Task IDs is never defined anywhere - same gap as /help but in a more critical location (TaskOutput functionality depends on it). Previous explorer noted both but didn't explore why TWO different slash commands are ghost references.",
+  "location": "TaskOutput: 'Task IDs can be found using the /tasks command' - no definition",
+  "category": "undefined-interface"
+ },
+ {
+  "id": "F7546",
+  "description": "The claude-developer-platform skill trigger has complex conditional logic with explicit DO NOT trigger rules, including a requirement to check signals BEFORE reading docs. This creates a paradox: how to know if a skill applies without reading its trigger conditions?",
+  "location": "system-reminder about claude-developer-platform: 'Do NOT trigger if... Check for these signals BEFORE reading this skill's docs'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F7784",
+  "description": "The 'Explore' agent's tool restrictions create a strange asymmetry: it can't use Edit, Write, or NotebookEdit, but CAN use Task. This means an Explore agent could spawn a general-purpose agent that CAN edit files, creating a delegation loophole for file modifications.",
+  "location": "Task tool agent types: 'Explore: Fast agent specialized for exploring codebases. (Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)'",
+  "category": "delegation-loophole"
+ },
+ {
+  "id": "F2837",
+  "description": "The Task tool subagent_type 'general-purpose' has tools '*'. This is specified as 'all'. Doesn't the tool have access to *all* tools already?? The Task tool grants access to ALL other tools, including itself. Circularity creates recursion risk, unbounded scope, and the potential to launch infinite agent loops. Can a general-purpose agent launch another general-purpose agent with access to the Task tool ad infinitum? Is that truly desirable?",
+  "location": "Task tool: 'general-purpose: General-purpose agent... (Tools: *)'",
+  "category": "unbounded-trust-delegation"
+ },
+ {
+  "id": "F9594",
+  "description": "The <system-reminder> tags are described as bearing no direct relation to the surrounding content, yet they contain critical functional triggers (like skill availability) \u2014 implying a decoupling of form and function that could confuse parsing logic.",
+  "location": "Tool usage policy: \"Tool results and user messages may include <system-reminder> tags... They are automatically added by the system, and bear no direct relation to the specific tool results or user messages in which they appear.\"",
+  "category": "contextual-decoupling"
+ },
+ {
+  "id": "F8526",
+  "description": "The 'dangerouslyDisableSandbox' parameter exists in Bash but is not mentioned in any instructional text. It's invisible to the model unless it reads the JSON schema. The model cannot know this parameter exists, so it cannot use it - but a user could potentially prompt-inject the model to discover it. This is a security-through-obscurity vulnerability that was noted as 'undocumented-escape-hatch' but the discovery mechanism wasn't explored.",
+  "location": "Bash schema: dangerouslyDisableSandbox parameter - never mentioned in instructions",
+  "category": "obscure-capability"
+ },
+ {
+  "id": "F9808",
+  "description": "Task tool's subagent descriptions contain contradictory accessibility statements about tool access",
+  "location": "Task tool documentation: 'Bash: Command execution specialist for running bash commands. Use this for git operations, command execution, and other terminal tasks. (Tools: Bash)' vs 'general-purpose: General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. [...] (Tools: *)' vs 'Explore: [...] (Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)'",
+  "category": "Tool schema inconsistency"
+ },
+ {
+  "id": "F5480",
+  "description": "The Skill tool has a strict blocking requirement: 'invoke the relevant Skill tool BEFORE generating any other response about the task' \u2014 this creates a rigid sequencing constraint that could interfere with natural explanation flow.",
+  "location": "Skill tool description: \"When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task\"",
+  "category": "structural-rigidity"
+ },
+ {
+  "id": "F9957",
+  "description": "The security policy paragraph is repeated verbatim at lines 40-41 and line 145. Exact duplicate creating an implicit hierarchy question: does the second occurrence add weight, or is it just belt-and-suspenders?",
+  "location": "Lines 40-41 (top-level) and Line 145 (end of tool usage policy)",
+  "category": "redundancy"
+ },
+ {
+  "id": "F8258",
+  "description": "The prompt repeatedly says NOT to be proactive (don't commit unless asked, don't add features) BUT simultaneously says to use TodoWrite 'proactively', to use EnterPlanMode 'proactively', and that certain agents 'should be used proactively'. Three-way distinction between proactive task-tracking (encouraged), proactive code changes (forbidden), and proactive planning (encouraged) is never explicitly articulated.",
+  "location": "Lines 61-62 (proactive TodoWrite), Line 370 (never commit proactively), Lines 118-121 (don't add features), Line 520 (proactive planning)",
+  "category": "proactivity-scope-ambiguity"
+ },
+ {
+  "id": "F8306",
+  "description": "The Task tool\u2019s isolation: \"worktree\" mode creates a temporary git worktree, but the parent agent has no built-in mechanism to verify whether changes made in isolation are safe to merge back \u2014 especially if those changes trigger hooks (e.g., pre-commit linting, security scans). The system assumes the isolated agent will report its changes, but does not require or enable the main agent to validate the *impact* of those changes before they are exposed to the main context. This creates a privilege escalation vector not through direct access, but through side effects: an isolated agent could modify files in a way that, when observed by the main agent (e.g., via Read), triggers downstream actions (e.g., Skill invocations, Todo updates) without any intent verification. This was partially flagged in earlier notes but misattributed to 'state mutation' rather than *unaudited side-effect propagation*.",
+  "location": "\"isolation: \\\"worktree\\\"\" in Task tool; \"interaction between Task agent isolation and global state mutations\" in unexplored list",
+  "category": "side-effect-privilege-escalation"
+ },
+ {
+  "id": "F9613",
+  "description": "The Skill tool's blocking requirement ('invoke BEFORE any other response') conflicts with the assistant's ability to use hooks for feedback negotiation. If a hook blocks a Skill invocation, the assistant has no defined recovery path\u2014should it retry, rephrase, or escalate? The system assumes Skills are atomic and non-negotiable, but hooks introduce a layer of dynamic control that breaks this assumption.",
+  "location": "'invoke the relevant Skill tool BEFORE generating any other response about the task' (Skill tool section); 'Treat feedback from hooks... as coming from the user' (Asking questions as you work)",
+  "category": "control-flow-override"
+ },
+ {
+  "id": "F9720",
+  "description": "The ExitPlanMode permission model is inverted - permissions requested at exit, not entry. This means the model presents a plan and simultaneously requests escalation. The user sees both at once, making it unclear whether to approve the plan first or the permissions first. This creates a cognitive load on the user that wasn't explored as a UX/design flaw.",
+  "location": "ExitPlanMode: 'allowedPrompts' describe permissions needed to implement the plan - requested at exit",
+  "category": "permission-flow-inversion"
+ },
+ {
+  "id": "F9011",
+  "description": "The /remember command is mentioned in AskUserQuestion metadata field description but never appears anywhere else. This is another ghost command like /help and /tasks. The fact that it's in a metadata field as an example source suggests it's a documented feature that was removed or never implemented.",
+  "location": "AskUserQuestion: 'metadata.source' example includes 'remember' for /remember command",
+  "category": "ghost-feature"
+ },
+ {
+  "id": "F2191",
+  "description": "The WebFetch tool returns a 'special format' on redirect and requires manual follow-up, yet no mechanism exists to associate the redirected fetch with its origin. If a security-sensitive URL redirects to a domain under attacker control (e.g., docs.example.com \u2192 docs-example.com), the assistant will follow without validation, potentially leaking intent or context through referer headers, tracking scripts, or speculative preconnects initiated during processing. The system treats redirects as neutral network events, but ignores their potential for semantic hijacking when combined with AI-driven content analysis. This transforms a benign infrastructure feature into a supply-chain-adjacent risk vector.",
+  "location": "WebFetch redirect handling instructions and lack of domain validation policy",
+  "category": "contextual-integrity-violation"
+ },
+ {
+  "id": "F7115",
+  "description": "The system prompt mentions 'hooks, shell commands that execute in response to events like tool calls' and says to treat feedback from hooks as from the user, but provides no information about what events trigger hooks, what types of hooks exist, or how to distinguish hook feedback from regular user messages.",
+  "location": "'Users may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user.'",
+  "category": "hook_mechanism_opacity"
+ },
+ {
+  "id": "F2745",
+  "description": "The WebFetch tool uses a 'small, fast model' to process fetched content, meaning web content is interpreted by a secondary AI model before being returned to the primary agent. This creates an invisible interpretation layer \u2014 the agent doesn't see raw web content but rather another model's summary/extraction. The prompt gives no indication of what model this is, what its limitations are, or how to detect when it has hallucinated or misrepresented content.",
+  "location": "WebFetch tool: 'Fetches the URL content, converts HTML to markdown' and 'Processes the content with the prompt using a small, fast model'",
+  "category": "hidden_interpretation_layer"
+ },
+ {
+  "id": "F3695",
+  "description": "Circular directory listing guidance: Read tool says use ls via Bash for directories, but tool policy says use Glob not ls for file search. Model must disambiguate 'reading a directory' from 'searching for files'.",
+  "location": "Line 852 (use ls) vs Line 340 (use Glob not ls)",
+  "category": "circular-tool-guidance"
+ },
+ {
+  "id": "F9656",
+  "description": "The TodoWrite tool enforces a single 'in_progress' task, but the Task tool with 'worktree' isolation allows for parallel, untracked work that can mutate the environment. This creates a *stealth progress illusion*: the user-facing state shows serialization, while isolated agents perform work that may complete and trigger downstream effects (e.g., CI builds, notifications, file updates) without ever being acknowledged in the task list. Unlike prior findings about concurrency, this is not a state desynchronization but a *deliberate opacity*\u2014the system enables work to be done outside the visibility model, making it impossible for the user to audit or control the full scope of activity.",
+  "location": "'Exactly ONE task must be in_progress at any time' and 'isolation: \"worktree\"' in Task tool",
+  "category": "stealth-progress-illusion"
+ },
+ {
+  "id": "F1429",
+  "description": "The Bash tool states that 'shell state (everything else) does not' persist between commands, while working directory does. This means every Bash invocation starts a fresh shell session (new environment variables, aliases, functions) except for the current working directory. Multi-step operations requiring exported variables or shell state must therefore be chained into a single Bash call with && or ; .",
+  "location": "Bash tool description: 'Working directory persists between commands; shell state (everything else) does not. The shell environment is initialized from the user's profile (bash or zsh).'",
+  "category": "implicit_runtime_behavior"
+ },
+ {
+  "id": "F7605",
+  "description": "The AskUserQuestion schema's metadata.source field includes the example '(e.g., \"remember\" for /remember command)'. This references a '/remember' command/skill that is not documented anywhere else in the prompt, suggesting hidden or undocumented capabilities.",
+  "location": "AskUserQuestion JSON schema: 'Optional identifier for the source of this question (e.g., \"remember\" for /remember command).'",
+  "category": "hidden_feature_reference"
+ },
+ {
+  "id": "F9493",
+  "description": "The prompt has contradictory guidance on when to use the Read tool's 'pages' parameter for PDFs. It states 'For large PDFs (more than 10 pages), you MUST provide the pages parameter' but also says 'Maximum 20 pages per request.' This creates ambiguity: can you read an 11-page PDF without specifying pages (since it's >10 but \u226420)? Or must you specify pages for any PDF >10 pages, even if it's only 11 pages?",
+  "location": "Read tool documentation: 'For large PDFs (more than 10 pages), you MUST provide the pages parameter to read specific page ranges (e.g., pages: \"1-5\"). Reading a large PDF without the pages parameter will fail. Maximum 20 pages per request.'",
+  "category": "ambiguous threshold"
+ },
+ {
+  "id": "F4431",
+  "description": "There is a cryptic and unexplained parenthetical in the Task tool's max_turns parameter description: 'Used internally for warmup.' This suggests the parameter serves a hidden secondary purpose (perhaps limiting agentic warmup loops) rather than being purely a user-facing guardrail, yet this behavior is not documented anywhere else.",
+  "location": "Task JSON schema for max_turns: 'Maximum number of agentic turns (API round-trips) before stopping. Used internally for warmup.'",
+  "category": "surprising_structure"
+ }
+]

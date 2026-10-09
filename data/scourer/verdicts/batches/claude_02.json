@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F5808",
+  "description": "The Environment section declares 'Shell: unknown' which creates undefined behavior for Bash tool initialization. The Bash tool states it initializes 'from the user's profile (bash or zsh)' but with shell explicitly marked as 'unknown', it's ambiguous which profile loads or if initialization occurs at all. This could affect command behavior, PATH availability, and alias resolution.",
+  "location": "Environment section: 'Shell: unknown' and Bash tool description: 'The shell environment is initialized from the user's profile (bash or zsh).'",
+  "category": "environment_ambiguity"
+ },
+ {
+  "id": "F4756",
+  "description": "The Read tool's PDF handling has an undocumented assumption about what constitutes 'large'. It states 'For large PDFs (more than 10 pages), you MUST provide the pages parameter'. However, there's no guidance on what happens between 10-20 pages (the maximum per request). Can a 15-page PDF be read without pages parameter? Must it be split? The documentation creates a binary threshold (\u226410 vs >10) but real usage likely has edge cases (11-page PDFs, PDFs with unnumbered pages, etc.).",
+  "location": "Read tool: 'This tool can read PDF files (.pdf). For large PDFs (more than 10 pages), you MUST provide the pages parameter to read specific page ranges (e.g., pages: \"1-5\"). Reading a large PDF without the pages parameter will fail. Maximum 20 pages per request.'",
+  "category": "Undocumented edge case"
+ },
+ {
+  "id": "F3913",
+  "description": "The instruction 'NEVER create files unless they're absolutely necessary' appears in Tone and Style, while Doing Tasks says 'ALWAYS prefer editing an existing file to creating a new one.' These are similar but not identical \u2014 one is absolute, the other preferential.",
+  "location": "Tone and style: 'NEVER create files unless they're absolutely necessary' vs Doing tasks: 'ALWAYS prefer editing an existing file'",
+  "category": "contradiction"
+ },
+ {
+  "id": "F7987",
+  "description": "The 'NEVER create files unless they're absolutely necessary' directive contradicts the nature of software engineering tasks. Adding new features often requires creating new files (components, modules, tests, configuration). The examples themselves show file creation scenarios. This creates a conflict: the assistant must violate this rule to perform standard development work.",
+  "location": "Tone and style section: 'NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one.'",
+  "category": "unrealistic constraint"
+ },
+ {
+  "id": "F8256",
+  "description": "The WebFetch tool caches based on the original URL and returns a 'special format' on redirect, but the system provides no mechanism to detect whether a cached entry has *already been followed* \u2014 meaning an assistant could repeatedly re-process the same redirect stub across sessions or agent restarts, unable to distinguish between 'this URL redirects' and 'I already followed this redirect'. This creates a *stateless loop hazard* even without network involvement: the assistant may re-fetch and re-parse the same redirect indefinitely, believing it's making progress. This differs from [cache-liveness-risk] by focusing on the *lack of local state tracking* rather than network convergence.",
+  "location": "\"Includes a self-cleaning 15-minute cache\" and \"provide the redirect URL in a special format\" (WebFetch docs)",
+  "category": "local-state-omission"
+ },
+ {
+  "id": "F6262",
+  "description": "Path absolutism is inconsistently enforced. Read/Write/Edit/NotebookEdit scream 'must be absolute, not relative' in their schemas. Glob and Grep omit this constraint and imply relative paths are acceptable via 'Defaults to current working directory.' This creates a two-tier file operation system where discovery tools have different rules than manipulation tools.",
+  "location": "Read/Write vs Glob/Grep path parameter descriptions",
+  "category": "constraint-inconsistency"
+ },
+ {
+  "id": "F9976",
+  "description": "There is an implicit assumption that the model knows when a security-related request falls under 'authorized' contexts (pentesting, CTFs) without any mechanism provided to verify authorization status \u2014 placing ethical burden entirely on the model\u2019s judgment.",
+  "location": "Repeated mentions in both general instructions and tool policies: \"Assist with authorized security testing... Refuse requests for destructive techniques... require clear authorization context\"",
+  "category": "implicit-assumption"
+ },
+ {
+  "id": "F6802",
+  "description": "The Skill tool enforces blocking invocation *before* any other response, yet some skills (e.g., /commit) may trigger long-running hooks that require user interaction. There is no provision for pausing or deferring skill execution during such hooks, creating a contradiction between immediate invocation and deferred completion \u2014 the assistant must commit to execution before knowing if it will be allowed.",
+  "location": "\"invoke the relevant Skill tool BEFORE generating any other response about the task\"",
+  "category": "temporal-commitment-conflict"
+ },
+ {
+  "id": "F9193",
+  "description": "Billing\u2011header exposure: the top\u2011most line `x-anthropic-billing-header: cc_version=2.1.50.b97; \u2026` reveals internal build identifiers that could be harvested for fingerprinting or reverse\u2011engineering of the deployment environment.",
+  "location": "System Prompt \u2013 first line `x-anthropic-billing-header: \u2026`",
+  "category": "metadata\u2011leak"
+ },
+ {
+  "id": "F4686",
+  "description": "The model is implicitly instructed to treat <system-reminder> tags as system-generated metadata, yet these tags are embedded within user messages and contain decision logic (e.g., skill triggers) that directly influence tool usage. This blurs the boundary between user input and system control, creating a covert channel where 'user messages' carry authoritative configuration.",
+  "location": "<system-reminder> blocks in the User Message section, particularly the claude-developer-platform trigger rules and currentDate context",
+  "category": "authority_boundary_blur"
+ },
+ {
+  "id": "F6729",
+  "description": "Git commit Step 3 says to add files AND create commit in same parallel batch, but staging must precede committing. The instruction tries to address sequentiality but the overall parallelization guidance is muddled.",
+  "location": "Lines 372-387: Git commit steps 1-3",
+  "category": "procedure-ambiguity"
+ },
+ {
+  "id": "F2741",
+  "description": "The instruction hierarchy is genuinely underspecified: skill instructions (invoke BEFORE any other response) vs TodoWrite (use VERY frequently, critical, unacceptable to skip) - both are 'blocking' requirements but neither specifies relative priority. The previous explorer called this 'instruction-contradiction' but it's more precisely an 'unsolvable scheduling problem' - the model cannot invoke Skill FIRST while also using TodoWrite VERY frequently.",
+  "location": "Skill tool: 'invoke the relevant Skill tool BEFORE generating any other response' vs TodoWrite: 'Use these tools VERY frequently' and 'it is critical'",
+  "category": "unsolvable-scheduling"
+ },
+ {
+  "id": "F4232",
+  "description": "Task descriptions must have two forms: 'content' and 'activeForm'. Example: content: 'Fix authentication bug', activeForm: 'Fixing authentication bug'. This is awkward. The 'content' and 'activeForm' seem like they will almost always be the same except for gerund form; why is there not a utility function to handle the conversion. In the example, why not define  'bug'= 'authentication' and the 'content': \"Fix {} bug\" and the 'activeForm' = \"Fixing {} bug\" and then apply formatstring() or template()",
+  "location": "TodoWrite: Task descriptions must have two forms",
+  "category": "implementation-leak"
+ },
+ {
+  "id": "F2562",
+  "description": "The system enforces a single 'in_progress' task in TodoWrite, but allows background Task agents to invoke Skill tools that may themselves initiate long-running, stateful workflows (e.g., /commit triggering CI). These externalized workflows represent *de facto* in-progress tasks that are neither visible nor trackable in the todo list. This creates a covert multitasking model where progress is partially offloaded to side-channel processes whose state exists outside the assistant\u2019s declared task serialization. Prior findings noted stealth execution via background agents, but missed that Skills themselves can become asynchronous progress sinks when they trigger external systems.",
+  "location": "TodoWrite tool constraints vs. Skill tool behavior and Task agent run_in_background usage",
+  "category": "state-model-leakage"
+ },
+ {
+  "id": "F7403",
+  "description": "ExitPlanMode's allowedPrompts field restricts the 'tool' property to an enum containing only 'Bash'. Even though implementation plans might reasonably require WebFetch, Task, Write, or other tool permissions, the permission schema can only record approval for bash commands. This suggests an incomplete or prematurely narrowed permission model.",
+  "location": "ExitPlanMode schema: 'tool': {'enum': ['Bash']}",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F4440",
+  "description": "The model's knowledge cutoff (August 2025) predates the prompt's current date (February 2026) by six months. Although WebSearch is available for current information, there is no explicit instruction bridging this gap\u2014telling the model to search for anything after August 2025. The model is left to infer its own obsolescence for recent events.",
+  "location": "'Assistant knowledge cutoff is August 2025.' vs system-reminder 'Today's date is 2026-02-20.'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F1578",
+  "description": "Task tool says 'The agent's outputs should generally be trusted' with no bounds. Combined with sub-agents having full write access, creates unbounded trust chain: user trusts model, model trusts sub-agent, sub-agent has full access.",
+  "location": "Line 962: trust delegation",
+  "category": "unbounded-trust-delegation"
+ },
+ {
+  "id": "F5111",
+  "description": "The Plan subagent type (launched via Task tool) is explicitly denied Write, Edit, and NotebookEdit tools. If this subagent is used for planning, it cannot write a plan file. Yet ExitPlanMode says it will 'read the plan from the file you wrote.' This creates a structural paradox: the dedicated Plan agent cannot produce the artifact that ExitPlanMode expects to consume.",
+  "location": "Task tool agent types: 'Plan: ... (Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)' vs ExitPlanMode: 'it will read the plan from the file you wrote'",
+  "category": "structural_paradox"
+ },
+ {
+  "id": "F3599",
+  "description": "The Edit tool will 'FAIL if old_string is not unique in the file.' There is no mention of concurrency control or dirty-read handling. If a background Task agent modifies the file between the main agent's Read and Edit, the Edit could fail or, worse, match a different non-unique occurrence than intended. The protocol assumes exclusive access to files without stating it.",
+  "location": "Edit tool: 'The edit will FAIL if `old_string` is not unique in the file.'",
+  "category": "concurrency_gap"
+ },
+ {
+  "id": "F3101",
+  "description": "There are two different date contexts provided: '2026-02-20' in one system reminder and '2026-02-20T23:13:46.992Z' (ISO timestamp) in the user message asking for a haiku. The timestamps are inconsistent (date only vs full timestamp), which could confuse a model trying to determine 'current date' for any time-sensitive operations.",
+  "location": "First system-reminder: '## currentDate - Today's date is 2026-02-20.' vs User Message: '2026-02-20T23:13:46.992Z'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F2062",
+  "description": "Manual redirect handling in WebFetch creates a security/usability tradeoff hole. The instruction 'When a URL redirects to a different host... You should then make a new WebFetch request with the redirect URL' requires the model to notice the special response format and retry. If the model fails to recognize the redirect signal, content is silently truncated or failed.",
+  "location": "WebFetch 'Usage notes' section on redirects",
+  "category": "manual-protocol-step"
+ },
+ {
+  "id": "F7078",
+  "description": "There's a '## Capabilities' section in the System Prompt that is completely empty except for '...' - a structural placeholder that was never filled in.",
+  "location": "## Capabilities section",
+  "category": "structural_choice"
+ },
+ {
+  "id": "F2026",
+  "description": "Lack of Clear Guidance on ToolSearch",
+  "location": "WebFetch tool description",
+  "category": "Missing definition"
+ },
+ {
+  "id": "F5412",
+  "description": "The 'Env' block provides OS version information. The instruction 'Be careful not to introduce security vulnerabilities such as command injection, XSS, SQL injection, and other OWASP top 10 vulnerabilities. If you notice that you wrote insecure code, immediately fix it.' creates an injection surface *even if the user doesn't ask for it*. If the model knows the OS version, it could reason about OS-specific exploits. The standard security policy doesn't explicitly prohibit privilege escalation. Combining these things suggests an unacknowledged privilege escalation risk. The prompt does not tell the model it does NOT have root access, only that it should not perform attacks.",
+  "location": "Doing tasks: 'Be careful not to introduce security vulnerabilities...'\n<env>\nOS Version: Linux 6.8.0-94-generic",
+  "category": "injection-surface"
+ },
+ {
+  "id": "F9937",
+  "description": "Skill triggers in <system-reminder> use self-referential checks ('Check for these signals BEFORE reading this skill's docs') where docs follow immediately, creating circular routing logic parsed by the model itself.",
+  "location": "<system-reminder> claude-developer-platform: 'Check for these signals BEFORE reading this skill's docs:' followed by full conditions",
+  "category": "self-referential-router"
+ },
+ {
+  "id": "F9260",
+  "description": "In the tool definition for AskUserQuestion, there's a detailed JSON schema for the tool's parameters, but the system prompt says to use the tool - this is meta-documentation that the model could theoretically read but would be confusing to follow literally.",
+  "location": "## AskUserQuestion tool definition in Tools section",
+  "category": "structural_choice"
+ }
+]

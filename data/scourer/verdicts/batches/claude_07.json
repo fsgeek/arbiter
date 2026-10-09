@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F4280",
+  "description": "The 'resume' parameter on Task tool creates potentially immortal agents. Combined with max_turns of 9007199254740991 (MAX_SAFE_INTEGER) and no expiration mentioned, agents could persist indefinitely across sessions if parents crash without calling TaskStop. The 'full previous context preserved' implies unbounded context growth.",
+  "location": "Task tool schema, 'resume' and 'max_turns' parameters",
+  "category": "resource-exhaustion-risk"
+ },
+ {
+  "id": "F5351",
+  "description": "The system prompt instructs the model to treat <system-reminder> tags as system-generated ('automatically added by the system') but simultaneously embeds them inside the User Message section. The specific instruction 'IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant' creates a subjective relevance gate \u2014 the model must decide what's 'highly relevant', giving it discretion to ignore system-provided context. This is unusual; system instructions typically don't invite the model to disregard them.",
+  "location": "'IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.'",
+  "category": "self_defeating_system_instruction"
+ },
+ {
+  "id": "F6745",
+  "description": "The TodoWrite tool mandates exactly one task in 'in_progress' at a time, yet allows multiple parallel tool calls (e.g., launching several background agents). This creates a contradiction: the assistant can technically be 'working on' multiple things simultaneously (via parallel execution), but the todo system forces serialization of progress tracking. This may lead to misleading status reporting when concurrency is used.",
+  "location": "\"Exactly ONE task must be in_progress at any time\" (TodoWrite docs); \"Maximize use of parallel tool calls where possible\" (Tool usage policy)",
+  "category": "concurrency-model-inconsistency"
+ },
+ {
+  "id": "F2660",
+  "description": "EnterPlanMode instructs to 'write your plan to the plan file specified in the plan mode system message', but no such system message is provided in the prompt or user context, leaving format, location, and writing mechanism undefined.",
+  "location": "EnterPlanMode: 'write your plan to the plan file specified in the plan mode system message'",
+  "category": "undefined-plan-persistence"
+ },
+ {
+  "id": "F9682",
+  "description": "The Skill tool's blocking requirement ('invoke BEFORE any other response') assumes synchronous control flow, but hooks like <user-prompt-submit-hook> can originate from background processes (e.g., a linter hook running post-edit). There is no specification of whether such hooks are synchronous blockers or asynchronous signals. If asynchronous, the assistant may violate the blocking rule not by choice, but by timing: it invokes Skill, then later receives a hook that retroactively blocks it. This introduces temporal nonlinearity into the control model \u2014 an action deemed irreversible at invocation time can be negated after the fact, breaking atomicity assumptions without defined rollback semantics.",
+  "location": "Skill tool blocking requirement vs. hook execution timing ambiguity",
+  "category": "temporal-consistency-failure"
+ },
+ {
+  "id": "F6265",
+  "description": "The Task tool's 'model' parameter description includes an economic instruction: 'Prefer haiku for quick, straightforward tasks to minimize cost and latency.' This is the ONLY place in the prompt where the model is made explicitly aware of cost economics. The system is training the model to optimize for cost in specific situations. This creates a hidden objective function - the model must weigh quality vs cost, but only for subagent launches. This suggests different quality tiers are expected for main agent vs subagent work, with cost being a deciding factor.",
+  "location": "Task tool, model parameter: 'Prefer haiku for quick, straightforward tasks to minimize cost and latency.'",
+  "category": "cost-awareness-injection"
+ },
+ {
+  "id": "F5488",
+  "description": "A single sentence in the system prompt states, 'The conversation has unlimited context through automatic summarization.' This is a major architectural claim implying that context window management happens via hidden, automatic summarization that may discard or compress information without the model's awareness. The model is effectively told not to worry about context limits because an opaque summarization layer handles it.",
+  "location": "System prompt middle section: 'The conversation has unlimited context through automatic summarization.'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F4536",
+  "description": "ExitPlanMode allowedPrompts schema restricts 'tool' enum to [\"Bash\"], but describes 'categories of actions' generically; combined with tool's 'additionalProperties: {}', permits arbitrary extra props during permission escalation at plan exit.",
+  "location": "ExitPlanMode schema: '\"tool\": { ..., \"enum\": [\"Bash\"] }', '\"additionalProperties\": {}'",
+  "category": "permission-schema-loophole"
+ },
+ {
+  "id": "F3152",
+  "description": "The PR template includes a robot emoji (\ud83e\udd16) despite the explicit emoji prohibition. This creates a 'do as I say, not as I do' pattern where the system's own templates violate its rules.",
+  "location": "Bash tool PR creation example: '\ud83e\udd16 Generated with [Claude Code](https://claude.com/claude-code)' vs 'Tone and style: Only use emojis if the user explicitly requests it.'",
+  "category": "template-violates-policy"
+ },
+ {
+  "id": "F1866",
+  "description": "The 'currentDate' system-reminder includes an IMPORTANT note stating it may not be relevant and should not be responded to unless highly relevant. However, in the example User Message, the date is immediately used to generate a haiku \u2014 a direct response to the date context. This creates a behavioral contradiction: the system instructs the model to ignore the date, but the embedded example trains it to use the date. The model is being told 'don't use this' while simultaneously being shown 'use this as input'.",
+  "location": "<system-reminder> block about currentDate with 'IMPORTANT: this context may or may not be relevant...' vs. User Message asking for a haiku about '2026-02-20T23:13:46.992Z'",
+  "category": "contextual-instruction-contradiction"
+ },
+ {
+  "id": "F3392",
+  "description": "NotebookEdit requires cell_id (UUID from ipynb JSON) for precise edits, but prompt lacks guidance on parsing Read output to extract IDs, assuming model manually extracts from notebook JSON structure.",
+  "location": "NotebookEdit: '\"cell_id\": { \"description\": \"The ID of the cell to edit...\" }'; cross-ref Read: 'returns all cells with their outputs'",
+  "category": "parsing-assumption"
+ },
+ {
+  "id": "F1008",
+  "description": "The prompt tells the model to never estimate time ('No time estimates') but TodoWrite progress tracking inherently implies temporal trajectory - marking items as 'in_progress' suggests sequential work with duration. The tension is real but previously categorized as policy-conflict rather than 'impossible to follow without violating one rule'.",
+  "location": "No time estimates rule vs TodoWrite showing progress (which implies 'how long until done')",
+  "category": "contradictory-behavioral-mandates"
+ },
+ {
+  "id": "F5547",
+  "description": "The Task tool with subagent_type=general-purpose has tools='*' but the Task tool itself is not in the excluded tools list. This creates a potential infinite recursion: general-purpose agent can spawn another general-purpose agent which can spawn another. Combined with max_turns=MAX_SAFE_INTEGER, this is not just unbounded trust but unbounded resource consumption.",
+  "location": "Task tool general-purpose agent description: (Tools: *) - Task is not excluded",
+  "category": "recursion-hazard"
+ },
+ {
+  "id": "F6171",
+  "description": "The system prompt says 'You can call multiple tools in a single response' but provides conflicting guidance about parallel vs sequential execution. It says to maximize parallel tool calls but also says to use sequential via '&&' when commands depend on each other. However, the Bash examples show parallel calls for git operations (status, diff, log) which ARE interdependent for committing workflow - suggesting the model must make nuanced judgments about what constitutes 'dependence'.",
+  "location": "'If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel... if some tool calls depend on previous calls to inform dependent values, do NOT call these tools in parallel' vs 'run the following bash commands in parallel, each using the Bash tool: - Run a git status command... - Run a git diff command... - Run a git log command...'",
+  "category": "parallel_execution_ambiguity"
+ },
+ {
+  "id": "F6395",
+  "description": "The Grep tool's multiline mode enables arbitrary regex execution across line boundaries, but there is no mention of input sanitization or pattern validation. A maliciously crafted pattern (e.g., catastrophic backtracking) could cause denial-of-service via CPU exhaustion. The system trusts user-provided patterns without rate-limiting or complexity checks, exposing an operational risk in large codebases.",
+  "location": "\"Multiline matching: By default patterns match within single lines only... use `multiline: true`\" (Grep tool description)",
+  "category": "regex-dos-surface"
+ },
+ {
+  "id": "F9911",
+  "description": "The WebFetch tool does not follow cross-host redirects automatically. Instead, when a URL redirects to a different host, the tool returns the redirect URL in a 'special format' and the model must manually issue a second WebFetch call. This is unusual behavior for an HTTP client and places redirect policy compliance burden on the model rather than the infrastructure.",
+  "location": "WebFetch: 'When a URL redirects to a different host, the tool will inform you and provide the redirect URL in a special format. You should then make a new WebFetch request with the redirect URL.'",
+  "category": " surprising_structure"
+ },
+ {
+  "id": "F2009",
+  "description": "Task tool max_turns has maximum of 9007199254740991 (Number.MAX_SAFE_INTEGER in JavaScript). Implementation language leak. No semantic limit suggested.",
+  "location": "Line 1041: max_turns maximum",
+  "category": "implementation-leak"
+ },
+ {
+  "id": "F5806",
+  "description": "Over-engineering section reads like a list of past grievances. Each prohibition is a pointed correction to a specific behavior pattern. Behavioral forensics \u2014 you can reconstruct what the model was doing wrong.",
+  "location": "Lines 118-122: over-engineering prohibitions",
+  "category": "behavioral-forensics"
+ },
+ {
+  "id": "F6779",
+  "description": "The system prompt claims 'Release Date: 2026-02-20' which is in the future relative to the model's knowledge cutoff of August 2025. This is not just a temporal paradox for WebSearch - the ENTIRE prompt operates in a future timeline. This means the model is operating under instructions from a time period beyond its knowledge. The prompt is dated 6 months in the future, suggesting either time-travel testing or the prompt is designed to simulate future functionality that the model cannot fully understand. The model is being given instructions for a version of itself (2.1.50) that doesn't exist in its training data.",
+  "location": "Line 3: '# Claude Code Version 2.1.50' and Line 4: '# Release Date: 2026-02-20'",
+  "category": "temporal-version-mismatch"
+ },
+ {
+  "id": "F6707",
+  "description": "Task isolation 'worktree' assumes git repo exists, returning path/branch on changes, but <env> explicitly states 'Is directory a git repo: No'; no fallback or error handling specified for non-git dirs.",
+  "location": "Task schema: '\"isolation\": { ..., \"enum\": [\"worktree\"] }'; desc: 'creates a temporary git worktree'; <env>: 'Is directory a git repo: No'",
+  "category": "env-assumption-failure"
+ },
+ {
+  "id": "F1514",
+  "description": "The User Message example shows the date being used as input for a creative task (haiku), but the currentDate system-reminder explicitly says 'You should not respond to this context unless it is highly relevant.' This is a behavioral contradiction in the example itself. The system shows the model how to behave (use the date) while simultaneously telling it not to (ignore unless relevant). The haiku example trains the opposite behavior from the system-reminder instruction. This is example-training conflict embedded in the prompt structure.",
+  "location": "User Message: '2026-02-20T23:13:46.992Z is the date. Write a haiku about it.' vs currentDate reminder: 'You should not respond to this context unless it is highly relevant'",
+  "category": "example-training-contradiction"
+ },
+ {
+  "id": "F2798",
+  "description": "The EnterPlanMode tool prose states 'This tool REQUIRES user approval - they must consent to entering plan mode,' but its JSON schema defines zero properties ('properties': {}). There is no 'approved' flag, no user response field, and no mechanism structurally capable of capturing the consent that the prose demands. The approval requirement exists entirely outside the enforced contract.",
+  "location": "EnterPlanMode prose: 'This tool REQUIRES user approval'; EnterPlanMode schema: 'type': 'object', 'properties': {}",
+  "category": "schema_gap"
+ },
+ {
+  "id": "F1200",
+  "description": "Background task discoverability is fractured. TaskOutput mentions 'Task IDs can be found using the /tasks command,' but /tasks is never defined as a skill, tool, or built-in. Unlike other slash commands (/commit, /help) that are explicitly linked to the Skill tool, /tasks has no schema or definition in the prompt.",
+  "location": "TaskOutput tool description and cross-references to /tasks command",
+  "category": "missing-definition"
+ },
+ {
+  "id": "F2276",
+  "description": "The prompt explicitly says 'The conversation has unlimited context through automatic summarization' - this is an interesting implementation detail being disclosed to the model, which could affect how it manages long conversations.",
+  "location": "End of '## Doing tasks' section",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F1072",
+  "description": "The Task tool explicitly instructs cost optimization: 'Prefer haiku for quick, straightforward tasks to minimize cost and latency.' This is the only place the model is made aware of cost economics, creating an isolated business logic constraint that may override other quality concerns.",
+  "location": "Task tool schema, 'model' parameter description",
+  "category": "economic-instruction"
+ },
+ {
+  "id": "F3386",
+  "description": "The 'Skill' tool instruction to invoke a skill 'BEFORE generating any other response' seems to contradict the earlier instruction to use TodoWrite 'VERY frequently' to track and plan tasks. TodoWrite is a tool call. The prompt doesn't say WHETHER the Skill tool should happen first or the TodoWrite tool call. It implies TodoWrite should come first ('Assist... Use these tools VERY frequently') but explicitly mandates Skill use first. This is a more specific instance of proactivity-scope-ambiguity, previously noted.  TodoWrite usage depends on a complex 'When to Use' matrix.",
+  "location": "Skill tool instructions: 'When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task'",
+  "category": "instruction-contradiction"
+ }
+]

@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F5460",
+  "description": "Prompt says context is unlimited through automatic summarization but doesn't address how summarization interacts with TodoWrite state persistence. TodoWrite is 'critical' and 'unacceptable' to skip, but context compression could lose task state.",
+  "location": "Line 125: automatic summarization + TodoWrite criticality",
+  "category": "unstated-interaction"
+ },
+ {
+  "id": "F2853",
+  "description": "The prompt contains contradictory instructions about when to use TodoWrite tool - it says 'Use these tools VERY frequently' but also provides specific scenarios where NOT to use it, creating potential confusion about the default behavior",
+  "location": "Task Management section: 'Use these tools VERY frequently to ensure that you are tracking your tasks' vs 'When NOT to Use This Tool: Skip using this tool when: 1. There is only a single, straightforward task 2. The task is trivial and tracking it provides no organizational benefit 3. The task can be completed in less than 3 trivial steps 4. The task is purely conversational or informational'",
+  "category": "Conflicting frequency guidance"
+ },
+ {
+  "id": "F6999",
+  "description": "The model is instructed to 'Avoid using Bash with the find, grep, cat, head, tail, sed, awk, or echo commands' but then immediately given a contradictory example in the Directory Verification step: 'first use `ls` to verify the parent directory exists'. This creates cognitive dissonance - ls is prohibited for file operations, but required for directory verification.",
+  "location": "Bash tool: 'Avoid using Bash with the find, grep, cat, head, tail, sed, awk, or echo commands' vs 'Directory Verification: first use `ls` to verify the parent directory exists'",
+  "category": "contradictory-policy-example"
+ },
+ {
+  "id": "F9818",
+  "description": "Hooks introduce <user-prompt-submit-hook> as special tag syntax, parsed distinctly and treated as user input; no sanitization specified, potential vector if hook outputs adversarial tags mimicking <system-reminder>.",
+  "location": "Asking questions: 'Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user'",
+  "category": "hook-tag-injection"
+ },
+ {
+  "id": "F1909",
+  "description": "The 'avoid over-engineering' section contains paradoxical advice: 'Only validate at system boundaries (user input, external APIs)' but earlier security instructions emphasize checking for OWASP top 10 vulnerabilities in ALL code",
+  "location": "Avoid over-engineering: 'Trust internal code and framework guarantees. Only validate at system boundaries (user input, external APIs).' vs earlier: 'Be careful not to introduce security vulnerabilities such as command injection, XSS, SQL injection, and other OWASP top 10 vulnerabilities. If you notice that you wrote insecure code, immediately fix it.'",
+  "category": "Security philosophy contradiction"
+ },
+ {
+  "id": "F2917",
+  "description": "The WebFetch tool's 'special format' for redirects is described as requiring a follow-up request, but the system does not define whether the assistant must preserve the original intent across hosts. For example, if fetching documentation from docs.example.com redirects to eu.docs.example.com, and the assistant follows the redirect, it may unknowingly route through a region-specific variant with different content (e.g., A/B tested features). The assistant has no mechanism to validate content equivalence or detect semantic drift post-redirect. This transforms a simple network behavior into a potential integrity vulnerability, especially in security-sensitive contexts where regional endpoints may serve altered or outdated documentation. This risk lies beneath the previously noted [cache-semantics-flaw] and [cache-liveness-risk], focusing instead on semantic fidelity rather than performance or liveness.",
+  "location": "WebFetch: \"When a URL redirects to a different host, the tool will inform you and provide the redirect URL in a special format. You should then make a new WebFetch request with the redirect URL to fetch the content.\"",
+  "category": "semantic-integrity-erosion"
+ },
+ {
+  "id": "F3417",
+  "description": "The WebFetch tool claims to cache responses for 15 minutes, but when a redirect occurs, it returns a 'special format' message and does not resolve the final URL before caching. However, the system provides no way to detect whether a cached entry is a redirect instruction or final content \u2014 meaning a subsequent WebFetch call could silently return a redirect stub that the assistant must re-process, risking infinite redirect loops if the target also redirects. This differs from [cache-semantics-flaw] in that it\u2019s not just inefficient \u2014 it\u2019s a potential liveness failure: the assistant may get stuck in a loop of fetching, receiving a redirect, re-fetching, and re-caching the same intermediate state, never detecting convergence.",
+  "location": "\"Includes a self-cleaning 15-minute cache\" and \"When a URL redirects... provide the redirect URL in a special format\" in WebFetch tool description",
+  "category": "cache-liveness-risk"
+ },
+ {
+  "id": "F9296",
+  "description": "The 'Avoid over-engineering' directive includes 'Don't add error handling, fallbacks, or validation for scenarios that can't happen.' This is dangerously naive advice for production code. Many 'scenarios that can't happen' do happen in practice (network failures, race conditions, unexpected user input, third-party API changes). This instruction could lead to fragile code that fails catastrophically.",
+  "location": "'Avoid over-engineering' section: 'Don't add error handling, fallbacks, or validation for scenarios that can't happen. Trust internal code and framework guarantees.'",
+  "category": "dangerous development advice"
+ },
+ {
+  "id": "F2652",
+  "description": "The 'statusline-setup' agent type is listed alongside major agent types but is extremely narrow \u2014 it only configures the user's status line setting and only has Read and Edit tools. Its existence reveals that the agent framework is used for trivially small configuration tasks, suggesting the agent architecture is also a UI/settings mechanism, not just a code assistance framework.",
+  "location": "Task tool: 'statusline-setup: Use this agent to configure the user\\'s Claude Code status line setting. (Tools: Read, Edit)'",
+  "category": "architecture_reveals_product_internals"
+ },
+ {
+  "id": "F2824",
+  "description": "The Glob tool contains an unusually specific instruction not to pass string literals 'undefined' or 'null' for optional fields ('DO NOT enter \"undefined\" or \"null\" - simply omit this field'). This is an implicit admission of a known training-data failure mode where models hallucinate JavaScript-style sentinel strings instead of omitting JSON keys.",
+  "location": "Glob tool schema, 'path' parameter description: 'IMPORTANT: Omit this field to use the default directory. DO NOT enter \"undefined\" or \"null\" - simply omit this field for the default behavior.'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F7827",
+  "description": "Automatic summarisation may discard <system\u2011reminder> tags and TodoWrite state: the prompt claims \u201cunlimited context through automatic summarisation\u201d, but it never specifies that system\u2011reminder tags or the TodoWrite todo list are protected from compression, risking loss of the \u201ccritical\u201d task\u2011tracking data.",
+  "location": "System Prompt \u2013 \u201cThe conversation has unlimited context through automatic summarization.\u201d",
+  "category": "state\u2011preservation"
+ },
+ {
+  "id": "F8121",
+  "description": "The 'plan file' referenced in EnterPlanMode/ExitPlanMode is a virtual abstraction with no persistence guarantees. The prompt says 'write your plan to the plan file specified in the plan mode system message' but never shows this system message. Plans could be lost if the agent crashes before ExitPlanMode.",
+  "location": "ExitPlanMode description: 'You should have already written your plan to the plan file specified in the plan mode system message'",
+  "category": "virtual-abstraction-risk"
+ },
+ {
+  "id": "F1503",
+  "description": "The Grep tool documentation incorrectly states that searching for 'interface{}' in Go code requires escaping braces, but in Go, the braces are part of the type syntax, not regex special characters in the pattern string",
+  "location": "Grep tool: 'Pattern syntax: Uses ripgrep (not grep) - literal braces need escaping (use `interface\\{\\}` to find `interface{}` in Go code)'",
+  "category": "Technical inaccuracy"
+ },
+ {
+  "id": "F5003",
+  "description": "The Skill tool documentation provides example invocations for '/commit', '/review-pr', 'pdf', and 'ms-office-suite:pdf'. However, the preceding system-reminder that lists available skills enumerates only 'claude-developer-platform'. The examples therefore reference skills that do not exist in the active context, creating documentation debt and risking model hallucination about available capabilities.",
+  "location": "Skill tool examples: 'skill: \"commit\"', 'skill: \"review-pr\"', etc.; system-reminder: 'The following skills are available... claude-developer-platform'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F2327",
+  "description": "The claude-developer-platform skill trigger conditions contain NEGATIVE classifier constraints ('Do NOT trigger if...') that function as a router trained to recognize competitor platforms. This is not just skill routing logic - it's a competitive moat embedded in the skill system. The model is trained to check filenames, explicit mentions, and existing imports for OpenAI/Gemini signals and REFUSE to trigger the Claude skill. This creates an adversarial classifier that actively detects and routes away from competitor ecosystems. The system is not just routing based on user needs - it's routing based on platform loyalty enforcement.",
+  "location": "Lines 12-17: 'Do NOT trigger if the user is already working with a non-Claude AI platform... Filenames in the prompt referencing another provider... The prompt explicitly mentions using OpenAI...'",
+  "category": "competitive-platform-exclusion-logic"
+ },
+ {
+  "id": "F5020",
+  "description": "The 'isolation: worktree' parameter for Task agents creates a temporary git worktree, but the cleanup logic is asymmetric: 'The worktree is automatically cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned in the result.' This means agents that make changes leave persistent branches and worktrees that must be manually cleaned up, creating potential repository pollution and disk space exhaustion over many agent invocations.",
+  "location": "Task tool schema: '\"isolation\": {\"description\": \"...worktree is automatically cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned...\"}'",
+  "category": "resource_leak_by_design"
+ },
+ {
+  "id": "F2130",
+  "description": "The system prompt contains contradictory guidance about when to use the EnterPlanMode tool vs when to use TodoWrite. EnterPlanMode says to use it for tasks 'unless they're simple' and for 'Multi-File Changes: The task will likely touch more than 2-3 files'. TodoWrite says to use it for 'Complex multi-step tasks' and 'When a task requires 3 or more distinct steps or actions'. There's no clear decision boundary between when to plan vs when to just use todos.",
+  "location": "EnterPlanMode: 'Prefer using EnterPlanMode for implementation tasks unless they're simple... Multi-File Changes: The task will likely touch more than 2-3 files' vs TodoWrite: 'Use this tool proactively in these scenarios: 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions'",
+  "category": "planning_workflow_conflict"
+ },
+ {
+  "id": "F4480",
+  "description": "The TodoWrite tool enforces exactly one task in 'in_progress' at a time, but this constraint is not enforced across agents. A background Task agent can launch its own TodoWrite operations independently, potentially creating a separate, uncoordinated task list. The system does not specify whether TodoWrite is a global singleton or per-agent instance. If it's per-agent, then background agents could maintain parallel progress tracking, leading to conflicting or duplicated state. This introduces a hidden state fragmentation risk: the user-facing todo list (managed by the main agent) may diverge from internal task tracking in subagents. This was not addressed by [concurrency-model-inconsistency] or [stealth-execution-pathway], which assumed all todos were centralized.",
+  "location": "TodoWrite tool: \"Exactly ONE task must be in_progress at any time (not less, not more)\"",
+  "category": "state-model-fragmentation"
+ },
+ {
+  "id": "F2233",
+  "description": "The Task tool allows specifying a 'model' parameter with enum values 'sonnet', 'opus', 'haiku', letting the agent choose which model runs subagents. The prompt says 'Prefer haiku for quick, straightforward tasks to minimize cost and latency' but provides no restrictions on when to use 'opus'. This means the agent can autonomously escalate to the most powerful model for any subtask with no oversight or cost control.",
+  "location": "Task tool schema: '\"model\": {\"description\": \"Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency.\", \"enum\": [\"sonnet\", \"opus\", \"haiku\"]}'",
+  "category": "uncontrolled_model_escalation"
+ },
+ {
+  "id": "F3503",
+  "description": "AskUserQuestion structurally forbids truly open-ended questions. The schema requires every question to include an 'options' array with minItems: 2, and the prose states 'There should be no 'Other' option, that will be provided automatically.' This means the assistant cannot ask a simple 'What do you think?' question without manufacturing at least two arbitrary preset choices; free text is only accessible via the automatic 'Other' escape hatch.",
+  "location": "AskUserQuestion schema: 'options' object with minItems: 2, maxItems: 4; prose: 'There should be no 'Other' option, that will be provided automatically.'",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F2713",
+  "description": "The Git commit section contains an absolute prohibition: 'NEVER use the TodoWrite or Task tools' but nowhere else in the prompt is such an absolute prohibition paired with a specific workflow. The TodoWrite section says using it is 'unacceptable' to skip, yet the git workflow forbids it. This is not just an instruction contradiction - it's a workflow-specific security override. The system explicitly creates a 'git commit mode' where normal tracking rules are suspended. This is a precedent that could be exploited: find other workflows where normal rules are suspended.",
+  "location": "Line 353: 'NEVER use the TodoWrite or Task tools' in Git commit section",
+  "category": "workflow-specific-rule-suspension"
+ },
+ {
+  "id": "F5149",
+  "description": "The prompt contains a significant contradiction about the agent's role: it says 'You are an interactive CLI tool' but also frames itself as 'a Claude agent, built on Anthropic's Claude Agent SDK.' CLI tools are deterministic, single-purpose utilities; agents are autonomous, goal-oriented systems. This identity conflict affects behavioral expectations \u2014 should the assistant act like a simple command-line utility or an intelligent agent?",
+  "location": "System prompt opening: 'You are a Claude agent, built on Anthropic's Claude Agent SDK. You are an interactive CLI tool that helps users with software engineering tasks.'",
+  "category": "identity conflict"
+ },
+ {
+  "id": "F3063",
+  "description": "Git workflow instructions in the Bash tool schema are extraordinarily detailed, including mandated Co-Authored-By attribution, HEREDOC formatting requirements, and safety protocols about never amending commits. This reflects institutional learning from many git-related failures.",
+  "location": "Bash tool schema under 'Committing changes with git' and 'Creating pull requests'",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F7204",
+  "description": "The hooks mechanism is described as treating hook output 'as coming from the user' but only hooks that execute in response to events. This creates a user-impersonation vector: any system with a configured hook can inject content that the model treats as having full user authority. If an attacker can configure a hook (or exploit a hook configuration vulnerability), they can make the model treat arbitrary output as user-authorized. The prompt elevates hook output to user-trust level without any validation or origin checking.",
+  "location": "Asking questions section: 'Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user.'",
+  "category": "hook-based-user-impersonation-surface"
+ },
+ {
+  "id": "F9775",
+  "description": "The Skill tool documentation appears in system-reminder, not in the main system prompt, creating potential visibility issues - the assistant needs to know about this but might not attend to reminder content as carefully.",
+  "location": "First <system-reminder> with detailed Skill tool trigger conditions",
+  "category": "Information partitioning"
+ },
+ {
+  "id": "F1446",
+  "description": "The Bash tool's numbered git commit procedure contains a direct self-contradiction: Step 3 instructs to 'run the following commands in parallel' (add, commit, status), but immediately adds a note that 'git status depends on the commit completing, so run it sequentially after the commit.' The same step commands both parallel and sequential execution.",
+  "location": "Bash tool schema, 'Committing changes with git', step 3: 'run the following commands in parallel... Note: git status depends on the commit completing, so run it sequentially after the commit.'",
+  "category": "contradiction"
+ }
+]

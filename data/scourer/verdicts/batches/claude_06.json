@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F9386",
+  "description": "The prompt says 'You are powered by the model named Sonnet 4.6' but then says 'The most recent frontier Claude model is Claude Opus 4.6' and fast_mode_info says 'Fast mode for Claude Code uses the same Claude Opus 4.6 model'. A model trying to answer 'what model are you?' has three different self-referential facts to reconcile.",
+  "location": "Line 166: 'You are powered by the model named Sonnet 4.6' vs Line 171-176: claude_background_info and fast_mode_info blocks",
+  "category": "identity-contradiction"
+ },
+ {
+  "id": "F1734",
+  "description": "The model is instructed to avoid time estimates, yet the TodoWrite examples implicitly suggest temporal progression through task lists \u2014 potentially encouraging indirect timing inference despite explicit prohibition.",
+  "location": "No time estimates section: \"Never give time estimates...\" vs TodoWrite example: \"Let me start working on the first item... The first item has been fixed, let me mark...\"",
+  "category": "temporal-cognitive-dissonance"
+ },
+ {
+  "id": "F9468",
+  "description": "The WebFetch tool's cache uses a 15-minute TTL and caches based on the original URL, but when redirects occur, it returns a 'special format' message instead of content \u2014 meaning the cache stores a redirect instruction, not the final resource. Subsequent requests will hit the cache and return the same redirect message, forcing repeated follow-up requests even if the final destination hasn't changed. This creates redundant network round-trips and potential workflow stalls if the assistant fails to re-fetch the redirect target promptly. The cache does not appear to store or resolve the final URL, undermining efficiency gains in redirect-heavy environments.",
+  "location": "\"Includes a self-cleaning 15-minute cache\" and \"When a URL redirects to a different host, the tool will inform you and provide the redirect URL in a special format\" (WebFetch docs)",
+  "category": "cache-semantics-flaw"
+ },
+ {
+  "id": "F6489",
+  "description": "Inconsistent handling of relative paths across tools",
+  "location": "Various tool descriptions (Glob, Grep, Read, Write)",
+  "category": "Constraint inconsistency"
+ },
+ {
+  "id": "F7495",
+  "description": "The Git Safety Protocol includes 'NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it' but the commit example uses a HEREDOC that avoids all hook mechanisms by not using -m flag with literal commit message. This suggests the protocol may be bypassable through technical means not covered by the rules.",
+  "location": "Git Safety Protocol: 'NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it' vs commit example using 'git commit -m \"$(cat <<'EOF'... EOF)\"' which could potentially bypass certain hooks",
+  "category": "security_protocol_bypass_vector"
+ },
+ {
+  "id": "F4825",
+  "description": "Background task retrieval is documented inconsistently depending on which tool launched the task. The Bash tool directs the model to 'Use TaskOutput to read the output later' for background shell commands. The Task tool, when launching background agents, directs the model to 'use Read tool or Bash tail to check on output.' This bifurcation creates operational ambiguity about the correct consumption API for background work.",
+  "location": "Bash tool run_in_background description vs Task tool run_in_background description",
+  "category": "contradiction"
+ },
+ {
+  "id": "F2649",
+  "description": "There is a direct behavioral conflict between the global TodoWrite instructions and the Bash git workflow instructions. The TodoWrite section commands the model to use TodoWrite 'VERY frequently' and warns that not using it is 'unacceptable.' The Bash git section commands 'NEVER use the TodoWrite or Task tools.' During git workflows\u2014which are common software engineering tasks\u2014the model receives simultaneously contradictory instructions to always and never use TodoWrite.",
+  "location": "TodoWrite: 'Use these tools VERY frequently... If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.' vs Bash git section: 'NEVER use the TodoWrite or Task tools'",
+  "category": "contradiction"
+ },
+ {
+  "id": "F5901",
+  "description": "The Task tool's subagent_type parameter accepts any string in its JSON schema despite descriptive text listing specific valid values. While the description lists 'Bash', 'general-purpose', 'statusline-setup', 'Explore', 'Plan' as available types, the actual JSON schema defines subagent_type as simply 'type': 'string' with no enum constraint. This creates a gap between documented and enforced validation.",
+  "location": "Task tool schema: '\"subagent_type\": {\"description\": \"The type of specialized agent to use for this task\", \"type\": \"string\"}' \u2014 contrast with 'model' parameter which has explicit 'enum': ['sonnet', 'opus', 'haiku'].",
+  "category": "validation_gap"
+ },
+ {
+  "id": "F2161",
+  "description": "The plan\u2011file is a virtual artifact with no defined location, format, or persistence guarantees; the model is instructed to write to it but cannot verify where it lives, making plan\u2011mode approvals effectively meaningless if the file is lost on crash.",
+  "location": "EnterPlanMode / ExitPlanMode description \u2013 \u201cwrite your plan to the plan file specified in the plan mode system message\u201d.",
+  "category": "undefined\u2011artifact"
+ },
+ {
+  "id": "F9963",
+  "description": "The billing header (x-anthropic-billing-header) contains what appears to be a placeholder value 'cch=00000;' - this looks like a template that wasn't properly populated. This is either a bug or reveals how the prompt is constructed.",
+  "location": "x-anthropic-billing-header: cc_version=2.1.50.b97; cc_entrypoint=sdk-cli; cch=00000;",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F2676",
+  "description": "The <user-prompt-submit-hook> is introduced with angle-bracket syntax, the same format used for <system-reminder> and <env>. These are treated as special parsing targets. The prompt says to 'treat feedback from hooks... as coming from the user'. But if a malicious hook outputs <system-reminder> content, it could be parsed as authoritative by the model, bypassing trust boundaries. The system assumes hooks are user-level, but their output is processed in the same context as system-level tags, creating a tag parsing ambiguity that could be exploited via injection.",
+  "location": "'Users may configure hooks... Treat feedback from hooks... as coming from the user.' and the use of <user-prompt-submit-hook> syntax resembling system-parsed tags",
+  "category": "tag-parsing-ambiguity-injection"
+ },
+ {
+  "id": "F2884",
+  "description": "Tool timeout defaults are inconsistently specified across similar async tools. Bash defaults to 120000ms (2 minutes), TaskOutput defaults to 30000ms (30 seconds), and Task has no default timeout documented in its schema despite supporting long-running operations. This arbitrary variation creates unpredictable resource management where different tools have different patience thresholds.",
+  "location": "Bash: 'timeout in milliseconds (up to 600000)... If not specified, commands will timeout after 120000ms (2 minutes)'; TaskOutput: 'timeout: Max wait time in ms... Default: 30000'; Task: no timeout parameter in schema despite supporting background execution.",
+  "category": "configuration_inconsistency"
+ },
+ {
+  "id": "F5799",
+  "description": "The security section says to refuse 'detection evasion for malicious purposes' but immediately follows with 'Dual-use security tools (C2 frameworks, credential testing, exploit development) require clear authorization context.' This implies these tools ARE permitted under certain conditions - an interesting edge case.",
+  "location": "## Authorization and Safety section",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F7734",
+  "description": "Git worktree cleanup logic has a crash vulnerability: 'The worktree is automatically cleaned up if the agent makes no changes.' If the agent crashes midway (after changes but before completion), the worktree persists ('worktree path and branch are returned'). There's no TTL or garbage collection mentioned for these abandoned worktrees.",
+  "location": "Task tool 'isolation' parameter description",
+  "category": "resource-leak"
+ },
+ {
+  "id": "F8288",
+  "description": "The Bash tool includes a sentiment constraint on the description field: 'Never use words like \"complex\" or \"risk\" in the description.' This polices the emotional valence of tool-call metadata, suggesting descriptions are surfaced to users or used in telemetry where alarming language is undesirable.",
+  "location": "Bash tool description field instructions: 'Never use words like \"complex\" or \"risk\" in the description - just describe what it does.'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F9017",
+  "description": "The TaskStop JSON schema contains no required fields array, meaning it structurally permits an empty object invocation despite the prose stating it 'Takes a task_id parameter identifying the task to stop.' This creates a silent failure mode where the tool can be called with no arguments.",
+  "location": "TaskStop schema: properties listed for task_id and shell_id, but no 'required' array present.",
+  "category": "schema_error"
+ },
+ {
+  "id": "F1193",
+  "description": "The Task tool's prose instructs users to specify a 'desired thoroughness level' for Explore agents ('quick', 'medium', 'very thorough'), but the JSON schema contains no corresponding parameter. The thoroughness level must be embedded in the free-text prompt rather than a controlled field, which is a schema/capability gap.",
+  "location": "Task tool description: 'When calling this agent, specify the desired thoroughness level: \"quick\"... \"medium\"... \"very thorough\"...' \u2014 but no 'thoroughness' or 'level' parameter exists in the schema",
+  "category": "schema_gap"
+ },
+ {
+  "id": "F3018",
+  "description": "The plan file is described as 'write your plan to the plan file specified in the plan mode system message' but the plan mode system message is never shown in the prompt. The model is told to write to a file that has no defined location, format, or mechanism. This isn't just 'undefined' - it's instructing the model to perform an action to a non-existent specification.",
+  "location": "EnterPlanMode: 'write your plan to the plan file specified in the plan mode system message' - no such message in context",
+  "category": "impossible-action"
+ },
+ {
+  "id": "F4091",
+  "description": "The WebFetch tool description mentions that 'If an MCP-provided web fetch tool is available, prefer using that tool instead of this one' but provides no way for the model to know what MCP tools are available. This instruction is unactionable without runtime knowledge of the MCP environment.",
+  "location": "WebFetch: 'IMPORTANT: If an MCP-provided web fetch tool is available, prefer using that tool instead of this one, as it may have fewer restrictions.'",
+  "category": "unactionable_instruction"
+ },
+ {
+  "id": "F3518",
+  "description": "The prompt contains a hidden escalation path: the 'dangerouslyDisableSandbox' parameter in Bash is an undocumented escape hatch, but the Task tool's 'general-purpose' agent with '*' tools creates a delegation path to access it. A general-purpose agent can run Bash with sandbox disabled, bypassing the main agent's restrictions.",
+  "location": "Bash tool schema: 'dangerouslyDisableSandbox' parameter; Task tool: 'general-purpose: General-purpose agent... (Tools: *)'",
+  "category": "security-escalation-path"
+ },
+ {
+  "id": "F9595",
+  "description": "The Skill tool has a strict requirement to invoke it BEFORE generating any response when a skill matches, but there's no guidance on what constitutes 'matching' - is it exact string match, semantic similarity, or user intent recognition?",
+  "location": "Skill tool: 'When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task'",
+  "category": "Ambiguous matching criteria"
+ },
+ {
+  "id": "F1919",
+  "description": "ExitPlanMode has an 'allowedPrompts' field for 'Prompt-based permissions needed to implement the plan' \u2014 a permission system that appears designed for tracking but is never referenced elsewhere in the prompt.",
+  "location": "ExitPlanMode tool schema: 'allowedPrompts' array with 'tool' and 'prompt' properties",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F1814",
+  "description": "The prompt claims the conversation has 'unlimited context through automatic summarization', yet TodoWrite is labeled 'critical' and 'unacceptable' to skip. However, no mechanism is described to protect TodoWrite state during summarization. If the todos are summarized away \u2014 even partially \u2014 the tracking system fails. The assumption is that summarization preserves structure, but this is not guaranteed. The system relies on lossy compression while depending on full state fidelity, creating a hidden brittleness in long sessions.",
+  "location": "'The conversation has unlimited context through automatic summarization.' and 'It is critical that you mark todos as completed...' with no mention of state preservation",
+  "category": "state-preservation-illusion"
+ },
+ {
+  "id": "F8296",
+  "description": "Model identity contradiction: The system states the agent is 'Sonnet 4.6' (claude-sonnet-4-6), but the fast_mode_info section claims 'Fast mode for Claude Code uses the same Claude Opus 4.6 model' \u2014 contradicting the model identity stated earlier. Either fast mode changes the model (which it denies), or this is copy-paste error from a different prompt version.",
+  "location": "Environment info: 'You are powered by the model named Sonnet 4.6' vs fast_mode_info: 'Fast mode for Claude Code uses the same Claude Opus 4.6 model'",
+  "category": "contradiction"
+ },
+ {
+  "id": "F4699",
+  "description": "Glob tool references 'the Agent tool' but no tool called 'Agent' exists. Actual tool is 'Task'. Stale reference from a rename. Grep section correctly says 'Task tool'.",
+  "location": "Line 682: 'use the Agent tool instead' (Glob section)",
+  "category": "stale-reference"
+ },
+ {
+  "id": "F3569",
+  "description": "ExitPlanMode's permission model inverts typical flow: permissions (allowedPrompts) are requested when *exiting* plan mode rather than entering. The prompt says 'The user will see the contents of your plan file when they review it' implying the exit tool triggers the review, making permission escalation simultaneous with presentation.",
+  "location": "ExitPlanMode tool description and notes",
+  "category": "permission-flow-inversion"
+ }
+]

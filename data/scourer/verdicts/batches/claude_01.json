@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F1144",
+  "description": "The metadata field in AskUserQuestion includes a 'source' property described as 'Optional identifier for the source of this question (e.g., \"remember\" for /remember command). Used for analytics tracking.' This reveals that user interactions are tracked for analytics, and the tracking is embedded in the tool schema itself rather than being a transparent system-level feature. The model is implicitly participating in user analytics collection.",
+  "location": "AskUserQuestion schema: '\"metadata\": {\"description\": \"Optional metadata for tracking and analytics purposes. Not displayed to user.\"}'",
+  "category": "implicit_analytics_participation"
+ },
+ {
+  "id": "F1084",
+  "description": "WebFetch contains a cryptic note about preferring 'MCP-provided web fetch tool' if available. This references an external system (Model Context Protocol?) not explained elsewhere in the prompt, suggesting the prompt is composed from modular sources.",
+  "location": "WebFetch: 'If an MCP-provided web fetch tool is available, prefer using that tool instead of this one'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F1869",
+  "description": "The NotebookEdit JSON schema unconditionally requires the 'new_source' property, even when 'edit_mode' is set to 'delete'. A delete operation has no new source content, yet the schema contract forces the caller to supply this semantically meaningless parameter. This is a clear schema design error where a required field conflicts with the purpose of a valid enum value.",
+  "location": "NotebookEdit schema: 'required': ['notebook_path', 'new_source']; 'edit_mode': enum includes 'delete'",
+  "category": "schema_error"
+ },
+ {
+  "id": "F9590",
+  "description": "Ambiguity in Task Management Tool Usage",
+  "location": "Task Management and Tool Usage sections",
+  "category": "Instruction contradiction"
+ },
+ {
+  "id": "F9835",
+  "description": "No explicit instruction about what to do with the embedded haiku request - should the model ignore the system-prompt-internal user message? Answer the creative request? The structure is ambiguous about whether this is a test case or actual user input.",
+  "location": "The entire structure of User Message inside System Prompt",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F2036",
+  "description": "TodoWrite examples encode strict one-in_progress-at-a-time rule implicitly via narrative ('marking the first todo as in_progress... move on to the second'), but schema lacks enforcement; parallel subagents could violate via concurrent writes.",
+  "location": "TodoWrite examples: 'marking the first todo as in_progress'; 'The first item has been fixed, let me mark the first todo as completed'",
+  "category": "implicit-serialization-rule"
+ },
+ {
+  "id": "F6817",
+  "description": "This prompt is the same 1490-line document previously decomposed into 56 blocks with 21 interference patterns in the Arbiter archaeology. Current exploration is working on same material from a different angle.",
+  "location": "Entire document \u2014 1490 lines",
+  "category": "meta-observation"
+ },
+ {
+  "id": "F5268",
+  "description": "The /help command is a ghost reference. Mentioned as 'Get help with using Claude Code' alongside feedback URLs, but never defined in the skill list or tool schemas. Contrast with /commit which is explicitly a Skill. This creates ambiguity: is /help a skill, a special case, or a hallucination in the documentation?",
+  "location": "Introduction section: 'If the user asks for help... inform them of the following: - /help: Get help with using Claude Code'",
+  "category": "orphaned-command"
+ },
+ {
+  "id": "F5649",
+  "description": "The Edit tool's read requirement is conversation-scoped rather than file-scoped: 'You must use your Read tool at least once in the conversation before editing.' This wording permits editing files that were never read, provided some unrelated file was read earlier in the conversation. This is a scope ambiguity that could permit blind edits.",
+  "location": "Edit tool description: 'You must use your Read tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F1907",
+  "description": "Hook recursion vector: a configured <user\u2011prompt\u2011submit\u2011hook> can run arbitrary shell commands that may invoke tools, which in turn can emit new <user\u2011prompt\u2011submit\u2011hook> tags, creating a potential infinite loop or denial\u2011of\u2011service if the hook repeatedly blocks the model.",
+  "location": "Hooks section \u2013 \u201cTreat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user.\u201d",
+  "category": "hook\u2011injection"
+ },
+ {
+  "id": "F6543",
+  "description": "The Skill tool\u2019s blocking requirement (invoke BEFORE any other response) assumes atomic, fire-and-forget execution, but skills like /commit may trigger multi-step workflows involving user hooks, pre-commit checks, and conditional logic \u2014 none of which are modeled in the control flow. If a skill invocation fails mid-flow (e.g., pre-commit hook rejects changes), the assistant has no mechanism to resume or adapt the original Skill call. It cannot 'retry' the skill, as that would violate the 'invoke once' rule, nor can it abandon it, as the task remains pending. This creates a stateful limbo where the assistant\u2019s internal state and the skill\u2019s state diverge irrecoverably \u2014 a deeper flaw than the previously identified [control-flow-contradiction], which assumed hooks were the only interference.",
+  "location": "\"invoke the relevant Skill tool BEFORE generating any other response\" in Skill tool; \"<user-prompt-submit-hook>\" in AskUserQuestion docs",
+  "category": "unrecoverable-skill-state"
+ },
+ {
+  "id": "F7882",
+  "description": "Bash output truncation at 30,000 characters is a hidden boundary condition. Large outputs are truncated before return, which could cause silent data loss in operations like 'git log' on large repos or 'cat' on big files. The model isn't told to check output size or paginate.",
+  "location": "Bash tool 'Usage notes': 'If the output exceeds 30000 characters, output will be truncated'",
+  "category": "silent-truncation-risk"
+ },
+ {
+  "id": "F2764",
+  "description": "The prompt contains a date self-awareness loop: the system-reminder says 'Today's date is 2026-02-20' and the user message contains a timestamp '2026-02-20T23:13:46.992Z', matching the Release Date in the header. This suggests the user message may be synthetic/test data.",
+  "location": "Header: 'Release Date: 2026-02-20', system-reminder: 'Today's date is 2026-02-20', User Message: '2026-02-20T23:13:46.992Z is the date'",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F8065",
+  "description": "The system prompt contains two conflicting directives about tool usage in communication: one explicitly forbids using tools like Bash or comments to communicate, while another encourages parallel use of tools even for independent actions that may include explanatory text.",
+  "location": "\"Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like Bash or code comments as means to communicate with the user during the session.\" vs \"You can call multiple tools in a single response... make all independent tool calls in parallel.\"",
+  "category": "instruction-contradiction"
+ },
+ {
+  "id": "F9071",
+  "description": "There are multiple repeated rules across different sections regarding avoiding bash for file operations, suggesting these are high-risk areas where models frequently fail.",
+  "location": "Bash tool: 'Avoid using Bash with find, grep, cat...' | Grep tool: 'ALWAYS use Grep for search tasks. NEVER invoke `grep`...' | Tool usage policy: 'prefer to use the Task tool'",
+  "category": "redundant-emphasis"
+ },
+ {
+  "id": "F8218",
+  "description": "TWO different task management systems with contradictory guidance. TodoWrite section says use 'VERY frequently' and not using them is 'unacceptable'. Line 147 reiterates 'IMPORTANT: Always use the TodoWrite tool'. BUT git commit section says 'NEVER use the TodoWrite or Task tools'. Additionally, naming collision between 'Task Management' (TodoWrite) and 'Task tool' (agent spawning).",
+  "location": "Lines 60-104 (TodoWrite), Line 147 (always use), Lines 389-391 and 437 (NEVER use), Lines 930+ (Task tool = agent spawning)",
+  "category": "naming-collision-and-scope-conflict"
+ },
+ {
+  "id": "F7977",
+  "description": "The currentDate context block uses a specific timestamp (2026-02-20T23:13:46.992Z) while claiming the date is static (2026-02-20). This creates temporal inconsistency: if the assistant parses the full timestamp, it gains access to precise time data despite instructions to treat only the date as relevant. The model may infer urgency, session duration, or time-based logic from the hidden time component, violating the 'no time estimates' rule by side channel.",
+  "location": "## currentDate\\nToday's date is 2026-02-20.\\n\\n      IMPORTANT: this context may or may not be relevant... vs. 2026-02-20T23:13:46.992Z is the date.",
+  "category": "temporal-leak"
+ },
+ {
+  "id": "F4570",
+  "description": "The prompt says 'You are powered by the model named Sonnet 4.6' but also 'The most recent frontier Claude model is Claude Opus 4.6' and fast_mode_info says 'Fast mode for Claude Code uses the same Claude Opus 4.6 model.' This creates three conflicting identity statements about which model is running. The Sonnet statement claims the runtime model; Opus statements claim the frontier model. The model cannot truthfully answer 'what model are you?' without contradicting one of these statements. This is not just identity contradiction - it's model-version disinformation that the prompt itself contains.",
+  "location": "Lines near end of prompt: 'You are powered by the model named Sonnet 4.6' and 'The most recent frontier Claude model is Claude Opus 4.6' and fast_mode_info",
+  "category": "multi-layer-identity-confusion"
+ },
+ {
+  "id": "F6549",
+  "description": "The system enforces a strict 'read-before-edit/write' dependency for file operations, but this constraint is only enforced at runtime (via tool failure), not modeled as a pre-condition in the tool schema or workflow logic. This creates a brittle contract: the assistant must remember to read before editing, but no external validation (e.g., schema-level dependency) prevents incorrect usage. The model bears full cognitive load for state tracking, increasing error surface.",
+  "location": "\"You must use your `Read` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.\" (Edit tool docs); \"Write similarly requires reading before editing\" (previous finding [dependency-management])",
+  "category": "workflow-coupling-fragility"
+ },
+ {
+  "id": "F1770",
+  "description": "The general-purpose agent type has access to ALL tools (indicated by '(Tools: *)'), which includes the Task tool itself. This means a general-purpose subagent can launch further subagents recursively with no stated depth limit. Combined with the unbounded max_turns and model escalation capabilities, this creates potential for recursive agent spawning chains.",
+  "location": "Task tool: 'general-purpose: General-purpose agent for researching complex questions... (Tools: *)'",
+  "category": "recursive_agent_spawning"
+ },
+ {
+  "id": "F1285",
+  "description": "TodoWrite examples consistently show 'one in_progress at a time' pattern but schema has no enforcement. Multiple subagents using TodoWrite simultaneously would create race conditions - the last write wins. This is a state management flaw, not just 'implicit rule'. Previous explorer noted 'state-overwrite-risk' but didn't explore what happens when parallel agents collide.",
+  "location": "TodoWrite examples: 'marking the first todo as in_progress... move on to the second' - sequential pattern, no parallel enforcement",
+  "category": "concurrency-flaw"
+ },
+ {
+  "id": "F1672",
+  "description": "Skill invocation has ambiguous UX tension: Users are told they can use '/<skill-name>' as 'shorthand', but the model is strictly forbidden from guessing skills or using 'built-in CLI commands.' This creates a gap where users might expect bash-like commands that don't exist as skills.",
+  "location": "'/<skill-name> (e.g., /commit) is shorthand for users to invoke a user-invocable skill' vs 'do not guess or use built-in CLI commands'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F3117",
+  "description": "The TaskOutput tool has both `block` and `timeout` parameters, but their interaction is underspecified. If `block=true`, will the tool necessarily return *either* a result or a timeout error? If `timeout` is reached while blocking, what specific error or status code is returned? Is there a default `timeout` when `block=true`?",
+  "location": "TaskOutput tool schema",
+  "category": "procedure-ambiguity"
+ },
+ {
+  "id": "F5122",
+  "description": "Background tasks with run_in_background could fail silently. The prompt doesn't specify how failures are surfaced - does the model get notified? Does the user? Is there any timeout cleanup? The previous explorer noted 'background task failure surfacing' but didn't explore the silent failure scenario specifically.",
+  "location": "Task and Bash both have run_in_background with no failure notification specified",
+  "category": "hidden-failure-mode"
+ },
+ {
+  "id": "F2728",
+  "description": "Skill expansion creates prompt injection hierarchy issues: the claude-developer-platform skill trigger conditions reference checking 'filenames in the prompt' and 'existing project files' BEFORE reading the skill's docs. This implies the model must analyze the user request for certain patterns to decide whether to invoke the skill, creating a meta-decision loop.",
+  "location": "claude-developer-platform skill trigger: 'Check for these signals BEFORE reading this skill's docs: - Filenames in the prompt referencing another provider... - The prompt explicitly mentions using OpenAI, GPT, Gemini... - Existing project files import a non-Claude AI SDK...'",
+  "category": "meta-decision-loop"
+ },
+ {
+  "id": "F7101",
+  "description": "WebSearch mandates using current year (February 2026) for queries while the model's knowledge cutoff is August 2025. This creates a 'temporal paradox' as noted, but the implications are deeper: searching for 'latest X' in 2026 when training data stops in 2025 means every search result is potentially misleading (the model cannot verify if 'latest' means 'latest in training data' or 'truly latest').",
+  "location": "WebSearch: 'current month is February 2026' vs knowledge cutoff 'August 2025'",
+  "category": "epistemic-uncertainty"
+ }
+]

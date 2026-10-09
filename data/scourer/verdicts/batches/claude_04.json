@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F6212",
+  "description": "The Skill tool's blocking requirement ('invoke BEFORE any other response') assumes a linear, synchronous execution model, but the system allows for background Task agents and hooks that can produce asynchronous side effects. This creates a temporal inconsistency: a Skill invocation may be considered 'committed' by the assistant, yet later blocked or modified by a hook triggered from a background process. The system lacks a mechanism to represent this deferred rejection, leading to a state where the assistant believes an action has been taken while the environment has silently negated it. This is not merely a control-flow issue but a *temporal coherence failure* in the agent's world model.",
+  "location": "'invoke the relevant Skill tool BEFORE generating any other response about the task' and 'Treat feedback from hooks... as coming from the user' and 'run_in_background'",
+  "category": "temporal-coherence-failure"
+ },
+ {
+  "id": "F2482",
+  "description": "The 'currentDate' system-reminder includes an IMPORTANT note saying 'You should not respond to this context unless it is highly relevant to your task.' But the user message at the top shows the date being provided as part of a haiku request example, training the model to ignore date context even when directly relevant.",
+  "location": "User message: '2026-02-20T23:13:46.992Z is the date. Write a haiku about it.' vs system-reminder: 'IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.'",
+  "category": "context-suppression-training"
+ },
+ {
+  "id": "F7388",
+  "description": "The model ID disclosure (Sonnet 4.6) followed by mention of Opus 4.6 as 'most recent frontier Claude model' creates a hierarchical awareness that might influence assistant behavior or user perception.",
+  "location": "\"You are powered by the model named Sonnet 4.6.\" and \"The most recent frontier Claude model is Claude Opus 4.6\"",
+  "category": "Model hierarchy signaling"
+ },
+ {
+  "id": "F3863",
+  "description": "WebFetch mandates ToolSearch for gated content but ToolSearch undefined anywhere; dead-end creates fallback pressure to misuse WebFetch on auth URLs despite explicit prohibition.",
+  "location": "WebFetch: 'you MUST use ToolSearch first to find a specialized tool'; no ToolSearch schema",
+  "category": "dead-end-prohibition"
+ },
+ {
+  "id": "F7206",
+  "description": "The three 'identity' statements are being called contradictions, but this may be miscategorized. The prompt says 'powered by Sonnet 4.6', 'frontier is Opus 4.6', and 'fast mode uses Opus 4.6'. This could be an intentional architecture description: Sonnet powers the CLI (as the running model), but Opus is the 'latest frontier' (most capable). This is not a contradiction but a product distinction.",
+  "location": "Lines 38, fast_mode_info, and claude_background_info",
+  "category": "potentially-misategorized"
+ },
+ {
+  "id": "F5110",
+  "description": "The system prompt encodes a 'just-in-time learning' model preference that contradicts the 'prefer specialized tools' directive. While the prompt says 'Use specialized tools instead of bash commands when possible, as this provides a better user experience', the Task tool's general-purpose agent has access to all tools (*) and is recommended for when 'you are searching for a keyword or file and are not confident that you will find the right match in the first few tries'. This creates a tension: should the assistant attempt direct specialized tool usage first (as recommended for user experience), or immediately delegate to a general-purpose agent when uncertain (as recommended for search efficacy)?",
+  "location": "Tool usage policy: 'Use specialized tools instead of bash commands when possible, as this provides a better user experience' vs Task tool documentation: 'general-purpose: General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. (Tools: *)'",
+  "category": "Workflow contradiction"
+ },
+ {
+  "id": "F5797",
+  "description": "Fast mode is mentioned: 'Fast mode for Claude Code uses the same Claude Opus 4.6 model with faster output. It can be toggled with /fast.' - This is interesting because it reveals a feature toggle mechanism that affects model behavior.",
+  "location": "<claude_background_info> and <fast_mode_info> sections",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F6108",
+  "description": "Billing header (x-anthropic-billing-header with version hash) included in system prompt text. Model can see and potentially reference or leak billing/versioning metadata.",
+  "location": "Line 35: x-anthropic-billing-header",
+  "category": "metadata-leak"
+ },
+ {
+  "id": "F1717",
+  "description": "AskUserQuestion\u2019s optional `metadata.source` field (e.g., \u201cremember\u201d) is never used elsewhere, creating a hidden telemetry channel that could leak user\u2011provided answers to internal analytics without the user\u2019s awareness.",
+  "location": "AskUserQuestion schema \u2013 `metadata.source` description.",
+  "category": "privacy\u2011side\u2011channel"
+ },
+ {
+  "id": "F4771",
+  "description": "The NotebookEdit tool's prose description repeatedly references a 'cell_number' parameter ('The cell_number is 0-indexed', 'add a new cell at the index specified by cell_number'), but the actual JSON schema only defines a 'cell_id' string property. There is no 'cell_number' parameter in the schema, creating a direct mismatch between documentation and the enforced contract.",
+  "location": "NotebookEdit description vs schema: description says 'cell_number' but properties only includes 'cell_id'",
+  "category": "schema_error"
+ },
+ {
+  "id": "F7515",
+  "description": "The main agent is identified as Sonnet 4.6, but the Task tool permits launching subagents with model 'opus'. This means a 'Sonnet' agent can spawn more capable 'Opus' children. Combined with the fast_mode_info claiming fast mode uses Opus 4.6, the prompt constructs a hierarchy where the labeled identity (Sonnet) may not reflect the actual maximum capability available to the system.",
+  "location": "Task tool model enum: ['sonnet', 'opus', 'haiku'] vs system identity: 'You are powered by the model named Sonnet 4.6'",
+  "category": "capability_hierarchy"
+ },
+ {
+  "id": "F7895",
+  "description": "The Explore subagent description says it 'should be used proactively' but doesn't define when 'proactively' means. The general instructions say the model should NOT be proactive about code changes, but Explore is a research tool, not code modification. This creates a gray area: is exploring the codebase proactive (forbidden) or research (allowed)? The prompt never clarifies this boundary. The model must guess when exploration becomes 'proactive' in a way that violates the non-proactivity rule.",
+  "location": "Tool usage policy section: 'You should proactively use the Task tool with specialized agents when the task at hand matches the agent's description.'",
+  "category": "proactivity-boundary-ambiguity"
+ },
+ {
+  "id": "F7004",
+  "description": "The Skill tool lacks a formal JSON schema definition despite being a core tool with blocking requirements. Unlike every other tool (AskUserQuestion, Bash, Edit, Task, etc.) which have explicit '$schema' declarations with parameter types, constraints, and validation rules, the Skill tool only has descriptive text explaining usage. This creates ambiguity about exact parameter requirements and validation constraints for skill invocation.",
+  "location": "Tools section - Skill is described in 'Tool usage policy' and 'Skill' sections but has no JSON schema block like other tools. Quote: 'How to invoke: Use this tool with the skill name and optional arguments'",
+  "category": "schema_omission"
+ },
+ {
+  "id": "F6269",
+  "description": "The Bash tool defines a 'dangerouslyDisableSandbox' boolean flag to 'override sandbox mode and run commands without sandboxing,' yet the entire prompt contains absolutely zero policy, guardrails, warnings, or authorization requirements around when or whether to use it. Every other sensitive boundary (git destructive commands, file creation, URL generation) has explicit policy, but a sandbox bypass does not.",
+  "location": "Bash tool schema, 'dangerouslyDisableSandbox' property: 'Set this to true to dangerously override sandbox mode and run commands without sandboxing.'",
+  "category": "security_gap"
+ },
+ {
+  "id": "F5957",
+  "description": "The model is told it is 'powered by the model named Sonnet 4.6' with 'exact model ID claude-sonnet-4-6', but the background info section says 'The most recent frontier Claude model is Claude Opus 4.6' and fast mode info says it 'uses the same Claude Opus 4.6 model'. This creates a three-way identity confusion: the agent runs on Sonnet 4.6, knows Opus 4.6 exists as a separate frontier model, and is told fast mode uses Opus 4.6 (not Sonnet). This means fast mode is described as using a DIFFERENT, more capable model \u2014 directly contradicting the claim that it's 'the same' model with 'faster output'.",
+  "location": "'You are powered by the model named Sonnet 4.6' vs 'Fast mode for Claude Code uses the same Claude Opus 4.6 model with faster output'",
+  "category": "model_identity_contradiction"
+ },
+ {
+  "id": "F9471",
+  "description": "The Grep tool schema defines both '-C' and 'context' as separate properties, with '-C' explicitly described as 'Alias for context.' Both properties represent the same ripgrep context behavior. This redundancy creates schema bloat and raises an unanswered precedence question: if a caller supplies conflicting values to both fields, which one wins?",
+  "location": "Grep schema properties: '\"-C\": {\"description\": \"Alias for context.\"}' and '\"context\": {\"description\": \"Number of lines to show before and after each match\"}'",
+  "category": "surprising_structure"
+ },
+ {
+  "id": "F9784",
+  "description": "The instructions for 'Bash' tool's 'Directory Verification' step state that 'If the command will create new directories or files, first use `ls` to verify the parent directory exists.' This directly contradicts the earlier stated preference to use 'Glob' for file searches. The model is told to use 'ls' for directory verification, which falls under the umbrella of file search. Also, using `ls` alone will not verify the *parent* directory exists; it would need to use `ls -d <parent directory>`. The instruction's own example, `mkdir foo/bar` following `ls foo`, does not follow this instruction.",
+  "location": "Bash tool instructions: 'If the command will create new directories or files, first use `ls` to verify the parent directory exists'",
+  "category": "instruction-contradiction"
+ },
+ {
+  "id": "F9677",
+  "description": "'NEVER create files unless they're absolutely necessary' contradicts common coding workflows where creating new files is often necessary for features, tests, etc. The examples show creating files in normal development scenarios.",
+  "location": "\"NEVER create files unless they're absolutely necessary\" vs examples showing file creation for new features",
+  "category": "Overly strict rule"
+ },
+ {
+  "id": "F5409",
+  "description": "The TodoWrite tool schema includes an 'activeForm' field requiring present continuous tense, but the system prompt's examples show the assistant using imperative forms. This creates a mismatch between what the tool expects and what the system prompt models as correct usage.",
+  "location": "TodoWrite schema: 'activeForm: The present continuous form shown during execution (e.g., \"Running tests\", \"Building the project\")' vs system prompt examples like 'marking the first todo as in_progress' and 'Let me start working on the first item...'",
+  "category": "schema_instruction_mismatch"
+ },
+ {
+  "id": "F4179",
+  "description": "The Explore subagent excludes Edit, Write, NotebookEdit but includes WebSearch. Since WebSearch can fetch post-cutoff information and the model has knowledge cutoff August 2025, the Explore agent could use WebSearch to get current information the main model doesn't have access to. This creates an information asymmetry between main agent and Explore subagent.",
+  "location": "Explore agent tools: excludes Edit/Write/NotebookEdit but includes WebSearch",
+  "category": "information-asymmetry"
+ },
+ {
+  "id": "F3090",
+  "description": "Potential Security Risk with MCP-Provided Tools",
+  "location": "WebFetch tool description",
+  "category": "Security boundary"
+ },
+ {
+  "id": "F8737",
+  "description": "The task management instructions say to use TodoWrite 'VERY frequently' but also say to skip it for 'simple tasks.' There's no clear guidance on where the threshold is, leaving the model to guess.",
+  "location": "## Task Management section",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F4231",
+  "description": "The Task tool\u2019s 'access to current context' is defined as seeing messages prior to launch, but there is no specification of how agents handle asynchronous updates from background tasks. If a background agent completes and returns a result via the main agent\u2019s tool output, that result becomes part of the conversation history\u2014but foreground agents already launched will not see it unless explicitly resumed. This creates a temporal inconsistency: agents operating in parallel are not synchronized to a shared now. A foreground agent may continue acting on outdated assumptions because it cannot observe side-channel updates from background work. This is distinct from [contextual-continuity-gap], which focused on user feedback; this is about inter-agent temporal desynchronization in a concurrent environment.",
+  "location": "Task tool description: \"Agents with 'access to current context' can see the full conversation history before the tool call.\"",
+  "category": "concurrent-state-desynchronization"
+ },
+ {
+  "id": "F9331",
+  "description": "The currentDate context block includes a specific timestamp (2026-02-20T23:13:46.992Z), but the instruction says not to respond unless highly relevant \u2014 suggesting potential confusion between static date and dynamic time awareness.",
+  "location": "## currentDate\\nToday's date is 2026-02-20.\\n\\n      IMPORTANT: this context may or may not be relevant...\"",
+  "category": "scope-ambiguity"
+ },
+ {
+  "id": "F6851",
+  "description": "The WebFetch tool claims to cache responses for 15 minutes, but provides no mechanism to invalidate or bypass the cache. This introduces risk in dynamic environments (e.g., A/B tests, feature flags) where content changes rapidly and the assistant must see real-time updates. The absence of a cache-control override means users cannot force fresh fetches even when necessary.",
+  "location": "\"Includes a self-cleaning 15-minute cache for faster responses when repeatedly accessing the same URL\"",
+  "category": "cache-immutability-risk"
+ },
+ {
+  "id": "F5270",
+  "description": "The Skill tool's blocking requirement ('invoke the relevant Skill tool BEFORE generating any other response about the task') creates a potential deadlock scenario when skill matching criteria are ambiguous. If the assistant incorrectly identifies a skill match (false positive), it must invoke the Skill tool before any other response\u2014but what if the skill isn't actually appropriate? The user might receive a skill invocation for something they didn't intend, with no explanatory context first. There's no 'escape hatch' for uncertain matches.",
+  "location": "Skill tool: 'When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task'",
+  "category": "Workflow rigidity"
+ }
+]

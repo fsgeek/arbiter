@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F9390",
+  "description": "Multiple tool invocation instructions are scattered across sections with varying emphasis. The Task section has complex parallel vs sequential rules ('Maximize use of parallel tool calls'), while Bash section has its own parallel rules, creating potential for conflicting guidance.",
+  "location": "Task usage policy: 'call multiple tools in a single response... Maximize use of parallel tool calls' vs Bash: 'call multiple Bash tool calls in a single message'",
+  "category": "repetition"
+ },
+ {
+  "id": "F7277",
+  "description": "The 'Agent tool' stale reference in Glob is worse than just a rename artifact\u2014it contradicts the nearby Grep tool which correctly references 'Task tool.' This suggests Glob's documentation hasn't been updated through the same review cycle as Grep, indicating possible versioning drift between tool docs.",
+  "location": "Glob: 'use the Agent tool instead' vs Grep: 'Use Task tool for open-ended searches'",
+  "category": "documentation-version-drift"
+ },
+ {
+  "id": "F2876",
+  "description": "The AskUserQuestion tool schema includes 'answers' and 'annotations' fields that are described as being 'collected by the permission component' \u2014 these appear to be response fields that get populated after the user answers. But they exist in the same schema as the request fields, meaning the model could theoretically pre-populate them. The schema doesn't mark these as read-only or system-populated-only.",
+  "location": "AskUserQuestion schema: '\"answers\": {\"description\": \"User answers collected by the permission component\"}' and '\"annotations\": {\"description\": \"Optional per-question annotations from the user\"}'",
+  "category": "answer_spoofing_surface"
+ },
+ {
+  "id": "F6470",
+  "description": "The prompt says to use Glob not ls for file search but Bash directory verification explicitly requires 'ls'. This contradiction is noted but what isn't explored: 'ls' output parsing assumptions. The model assumes ls output format - but ls output format varies by platform (GNU vs BSD vs busybox). A directory with unusual permissions or names might display differently.",
+  "location": "Bash: 'first use `ls` to verify the parent directory exists' vs tool policy: 'prefer Glob not ls'",
+  "category": "platform-assumption"
+ },
+ {
+  "id": "F4546",
+  "description": "The 'worktree' isolation mode has ambiguous cleanup semantics. 'The worktree is automatically cleaned up if the agent makes no changes' - but what constitutes 'makes no changes'? If an agent reads files, creates temporary directories, or modifies configs but not source code, does that count? The cleanup logic is opaque.",
+  "location": "Task tool isolation parameter description: 'The worktree is automatically cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned in the result.'",
+  "category": "ambiguous-cleanup-logic"
+ },
+ {
+  "id": "F7375",
+  "description": "The model is told to treat <system-reminder> tags as 'system-level authoritative' but these tags can appear inside tool results (arbitrary output). This creates an injection surface where the model trusts embedded tags in what should be untrusted tool output. The previous explorer called this 'injection-surface' but may have underweighted it - this is a fundamental trust architecture issue.",
+  "location": "System prompt section: 'Tool results and user messages may include <system-reminder> tags. <system-reminder> tags contain useful information and reminders. They are automatically added by the system, and bear no direct relation to the specific tool results or user messages in which they appear.'",
+  "category": "trust-architecture-flaw"
+ },
+ {
+  "id": "F8820",
+  "description": "Worktree isolation relies on a git repository, but the provided <env> explicitly says \u201cIs directory a git repo: No\u201d. The prompt never defines a fallback, guaranteeing that any Task with `isolation: \"worktree\"` will fail silently or crash, breaking the promised sandbox.",
+  "location": "<env> block \u2013 \u201cIs directory a git repo: No\u201d and Task tool \u2013 \u201cisolation: \\\"worktree\\\"\u201d.",
+  "category": "environment\u2011mismatch"
+ },
+ {
+  "id": "F4935",
+  "description": "The TodoWrite instructions escalate from 'VERY frequently' to 'EXTREMELY helpful' and include two extensive examples (one with 10 type error fixes), creating an almost hectoring tone about task management. The repetition suggests this was added after observing agents failing to track tasks.",
+  "location": "Task Management section: 'Use these tools VERY frequently... These tools are also EXTREMELY helpful...'",
+  "category": "repetition"
+ },
+ {
+  "id": "F4503",
+  "description": "Automatic summarization is claimed to provide 'unlimited context', but this likely involves lossy compression of prior interactions. The model receives no guidance on how to detect or compensate for potential information loss during summarization, creating silent degradation risk in long sessions where critical details (e.g., file paths, constraints) could be omitted from memory.",
+  "location": "'The conversation has unlimited context through automatic summarization.'",
+  "category": "contextual_amnesia_hazard"
+ },
+ {
+  "id": "F2091",
+  "description": "The Task tool's agent types are described as having access to 'current context', but the system does not define what constitutes 'context' for resumed agents \u2014 specifically, whether user feedback after resumption is visible. This creates a blind spot: an agent resumed mid-task may act on stale assumptions if it cannot observe post-resume messages, leading to inconsistent or redundant behavior.",
+  "location": "\"Agents can be resumed using the `resume` parameter by passing the agent ID from a previous invocation. When resumed, the agent continues with its full previous context preserved.\"",
+  "category": "contextual-continuity-gap"
+ },
+ {
+  "id": "F9107",
+  "description": "Bash tool has 'dangerouslyDisableSandbox' parameter visible only in JSON schema. Never mentioned in instructional text. Security policy sections don't reference sandboxing. Undocumented escape hatch.",
+  "location": "Line 462-465: dangerouslyDisableSandbox parameter",
+  "category": "undocumented-escape-hatch"
+ },
+ {
+  "id": "F9031",
+  "description": "The WebSearch tool description contains a hard geographic licensing boundary buried in usage notes: 'Web search is only available in the US.' This capability restriction is never mentioned in the high-level system instructions, agent description, or tool summaries, making it a hidden eligibility gate.",
+  "location": "WebSearch tool prose: 'Web search is only available in the US'",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F4390",
+  "description": "The Task tool's 'access to current context' behavior is ambiguously defined\u2014while some agents (like Explore, Plan) inherit full conversation history, there is no specification of whether they observe the *entire* conversation or only messages prior to their launch. This creates a potential blind spot: if an agent resumes after user feedback, does it see the feedback? If not, it may repeat outdated actions, breaking coherence in long-running workflows.",
+  "location": "\"Agents with \\\"access to current context\\\" can see the full conversation history before the tool call.\" (Task tool docs) \u2014 but no mention of post-launch updates or resume visibility",
+  "category": "context-boundary-ambiguity"
+ },
+ {
+  "id": "F9084",
+  "description": "The two security policy repetitions are NOT verbatim. The first instance includes an explicit clause permitting dual-use security tools (C2 frameworks, credential testing, exploit development) under 'clear authorization context' (pentesting, CTF, research). The second instance in Tool Usage Policy truncates exactly this clause, ending after 'detection evasion for malicious purposes.' This creates divergent policy depending on which section the model attends to.",
+  "location": "First security block under 'Tone and style' includes 'Dual-use security tools... require clear authorization context'; second block under 'Tool usage policy' omits the entire dual-use sentence.",
+  "category": "repetition_with_variation"
+ },
+ {
+  "id": "F9539",
+  "description": "The Edit tool contains hyper-specific indentation instructions addressing a technical artifact: 'preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix.' This reveals the tool receives formatted output with line numbers that must be mentally stripped.",
+  "location": "Edit tool: 'ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix'",
+  "category": "implicit_assumption"
+ },
+ {
+  "id": "F8492",
+  "description": "Document embeds system prompt inside what appears to be a user message. Three separate date declarations: system-reminder, user message timestamp, and WebSearch section. All consistent here, but structural question of which wins if they diverge.",
+  "location": "Line 26 (system-reminder date), Line 31 (user message timestamp), Line 1427 (WebSearch date reference)",
+  "category": "redundant-date-sourcing"
+ },
+ {
+  "id": "F7937",
+  "description": "The 'Avoid over-engineering' section contains specific development philosophy that might conflict with user preferences or project standards (e.g., 'Don't add docstrings, comments, or type annotations to code you didn't change').",
+  "location": "Detailed bullet points under 'Avoid over-engineering' with specific coding style directives",
+  "category": "Style enforcement"
+ },
+ {
+  "id": "F5724",
+  "description": "The Task tool's 'general-purpose' agent type has access to ALL tools indicated by '(Tools: *)', but the Explore agent is explicitly restricted from Edit, Write, NotebookEdit, and ExitPlanMode. This implies general-purpose agents have MORE capabilities than Explore agents, including potentially dangerous tools like Write that Explore lacks - creating an inverted hierarchy where the more 'general' agent has fewer restrictions.",
+  "location": "Task tool description: 'general-purpose: General-purpose agent for researching complex questions... (Tools: *)' vs 'Explore: Fast agent specialized for exploring codebases... (Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)'",
+  "category": "agent_capability_inversion"
+ },
+ {
+  "id": "F1374",
+  "description": "The TodoWrite tool instructions are exceptionally detailed with multiple complex examples, yet the tool schema is relatively simple. The instructions seem to be compensating for anticipated model failure modes.",
+  "location": "TodoWrite section with multiple examples, reasoning sections, and state management rules",
+  "category": "Instruction density"
+ },
+ {
+  "id": "F4912",
+  "description": "Security policy is duplicated verbatim in two distant sections \u2014 once near the top under general instructions, and again buried in the Tool Usage Policy section. This suggests either defensive redundancy or a merge artifact.",
+  "location": "First occurrence: 'IMPORTANT: Assist with authorized security testing...' Second occurrence: identical paragraph under 'Tool usage policy'",
+  "category": "repetition"
+ },
+ {
+  "id": "F7286",
+  "description": "Explore subagent excludes Edit/Write/NotebookEdit but includes WebSearch (not listed in exclusions), enabling it to fetch post-cutoff data despite main prompt's 'Assistant knowledge cutoff is August 2025'.",
+  "location": "Task Explore: '(Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit)'; WebSearch present",
+  "category": "subagent-capability-leak"
+ },
+ {
+  "id": "F9454",
+  "description": "TodoWrite uniquely imposes a dual-form cognitive tax: every task must be specified in both imperative ('Fix bug') and present continuous ('Fixing bug') forms. This schema requirement appears nowhere else and creates i18n fragility (German participles work differently) and maintenance overhead.",
+  "location": "TodoWrite schema and 'Task States and Management' section",
+  "category": "cognitive-load-design"
+ },
+ {
+  "id": "F4029",
+  "description": "The prompt contains conflicting guidance about when to use TodoWrite tool for 'trivial' tasks. While previous explorers noted conflicting frequency guidance, there's a deeper inconsistency: the examples show TodoWrite being used for tasks that would seem trivial by the 'skip' criteria. The 'rename function' example shows using TodoWrite after finding 15 instances across 8 files - but by the 'skip' logic (single straightforward task), this could be argued as a 'single task: rename function'. The threshold for 'complexity' is undefined, and the examples contradict the explicit 'skip' criteria (tasks that can be completed in less than 3 trivial steps).",
+  "location": "TodoWrite tool documentation: 'Skip using this tool when: 1. There is only a single, straightforward task 2. The task is trivial and tracking it provides no organizational benefit 3. The task can be completed in less than 3 trivial steps' vs Example: 'User: Help me rename the function getCwd to getCurrentWorkingDirectory across my project' - assistant uses TodoWrite after finding instances.",
+  "category": "Ambiguous threshold"
+ },
+ {
+  "id": "F3810",
+  "description": "The prompt contains conflicting assumptions about the assistant's 'confidence' level. The Task tool says to use general-purpose agent 'when you are searching for a keyword or file and are not confident that you will find the right match in the first few tries.' But the 'Professional objectivity' section says 'Whenever there is uncertainty, it's best to investigate to find the truth first.' Which takes precedence: delegating uncertainty to a subagent, or investigating directly?",
+  "location": "Task tool: 'When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you.' vs Professional objectivity: 'Whenever there is uncertainty, it's best to investigate to find the truth first.'",
+  "category": "conflicting uncertainty handling"
+ },
+ {
+  "id": "F7304",
+  "description": "The Task tool says 'The agent's outputs should generally be trusted.' This is *not* qualified with any exceptions or escape hatches, with the exception of not trusting secrets. This is concerning especially because the Bash tool has a 'dangerouslyDisableSandbox' parameter. How can an agent's output be *generally trusted* if it's also capable of running unsandboxed code?",
+  "location": "Task tool: 'The agent's outputs should generally be trusted'",
+  "category": "unbounded-trust-delegation"
+ },
+ {
+  "id": "F5194",
+  "description": "There's a duplicate identity statement: 'You are an AI assistant built on Anthropic's Claude Agent SDK' appears in both the Core Identity section header and again in the main instructions. The model is told its identity twice in close proximity.",
+  "location": "## Core Identity section and ## Instructions > ## Authorization and Safety section",
+  "category": "structural_choice"
+ }
+]

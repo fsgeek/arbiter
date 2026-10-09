@@ -1,0 +1,158 @@
+[
+ {
+  "id": "F9709",
+  "description": "Security instructions appear twice with identical wording in different sections, suggesting high importance but also potential for redundancy.",
+  "location": "First paragraph after identity statement and again near end of 'Doing tasks' section - identical \"IMPORTANT: Assist with authorized security testing...\" text",
+  "category": "Repetition"
+ },
+ {
+  "id": "F1746",
+  "description": "PR template includes robot emoji despite repeated insistence that emojis should not be used unless user explicitly requests them. Template contradicts emoji policy.",
+  "location": "Line 432: robot emoji vs Lines 48, 483, 1471 (no emoji policy)",
+  "category": "self-contradiction"
+ },
+ {
+  "id": "F7702",
+  "description": "The 'Plan' subagent type creates planning ambiguity with EnterPlanMode. Both produce implementation plans. EnterPlanMode is for the main agent when 'about to start a non-trivial implementation task.' Task/Plan is for 'designing implementation plans.' No guidance on which to use when, or whether they produce compatible output formats.",
+  "location": "Task tool subagent_type list and EnterPlanMode 'When to Use' section",
+  "category": "functional-overlap"
+ },
+ {
+  "id": "F7435",
+  "description": "The Task tool's usage examples reference 'test-runner' and 'greeting-responder' agent types, but these do not appear in the enumerated list of available subagent types (Bash, general-purpose, statusline-setup, Explore, Plan). This is documentation debt analogous to the Skill tool's examples referencing non-existent skills, but it was missed in previous passes.",
+  "location": "Task tool example_agent_descriptions and example blocks referencing 'test-runner' and 'greeting-responder'",
+  "category": "documentation_debt"
+ },
+ {
+  "id": "F9108",
+  "description": "The 'avoid over-engineering' directive contains a subtle but significant assumption about codebase trust boundaries. The instruction 'Trust internal code and framework guarantees. Only validate at system boundaries (user input, external APIs)' assumes that internal code is inherently trustworthy and that system boundaries are clearly defined. This could lead to security issues in microservices architectures or legacy codebases where 'internal' components may have different trust levels or where the boundary between 'internal' and 'external' is ambiguous (e.g., internal APIs consumed by other teams).",
+  "location": "Doing tasks section: 'Trust internal code and framework guarantees. Only validate at system boundaries (user input, external APIs). Don't use feature flags or backwards-compatibility shims when you can just change the code.'",
+  "category": "Security assumption"
+ },
+ {
+  "id": "F3937",
+  "description": "ExitPlanMode tool schema has 'additionalProperties: {}' instead of 'additionalProperties: false' like every other tool. Schema inconsistency \u2014 empty object allows arbitrary properties.",
+  "location": "Line 671: additionalProperties in ExitPlanMode",
+  "category": "schema-inconsistency"
+ },
+ {
+  "id": "F2190",
+  "description": "The 'IMPORTANT' note attached to the User Message 'currentDate' context says it 'may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.' This directly contradicts the instructions around 'Tool results and user messages may include <system-reminder> tags. <system-reminder> tags contain useful information and reminders.' The date is provided as a system-reminder and as an element of 'user message context'. Is it appropriate to ignore a <system-reminder> or not? What if a tool result contains a similar 'this may or may not be relevant' statement tagged as a system-reminder? Which instruction wins?",
+  "location": "<system-reminder> currentDate\nTool results and user messages may include <system-reminder> tags",
+  "category": "instruction-contradiction"
+ },
+ {
+  "id": "F6761",
+  "description": "The EnterPlanMode tool requires user approval, but ExitPlanMode includes a parameter (allowedPrompts) that lets the agent pre-authorize Bash actions like 'run tests' or 'install dependencies' before implementation begins. This enables speculative permission granting \u2014 the agent can request authorization for broad action categories that may not align with actual future execution, effectively front-loading trust.",
+  "location": "ExitPlanMode schema: 'allowedPrompts' array with semantic descriptions of Bash actions",
+  "category": "preemptive_authorization_bypass"
+ },
+ {
+  "id": "F1649",
+  "description": "The hooks mechanism treats <user-prompt-submit-hook> differently (as user-level trust) while <system-reminder> gets system-level trust. But both use angle-bracket tag syntax. If an attacker could control hook output, they could inject tags that mimic system-reminder format and get elevated trust. Previous explorer noted this as 'hook-tag-injection' but framed it as potential rather than probable.",
+  "location": "Hooks section: 'Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user'",
+  "category": "trust-elevation-vector"
+ },
+ {
+  "id": "F1796",
+  "description": "MCP (Model Context Protocol) is mentioned as a potential external tool provider but never defined. The prompt says MCP tools may have 'fewer restrictions' - this is a security boundary expansion that's completely opaque. What restrictions are removed? What trust does this imply? This was noted but framed as 'undefined plugin architecture' rather than 'undocumented security boundary that could bypass all restrictions in this prompt'.",
+  "location": "WebFetch: 'If an MCP-provided web fetch tool is available, prefer using that tool instead' - fewer restrictions",
+  "category": "opaque-security-boundary"
+ },
+ {
+  "id": "F6968",
+  "description": "The Task tool's Explore agent has access to all tools except Edit, Write, NotebookEdit, and ExitPlanMode \u2014 but it can still read, search, and execute Bash commands. This creates a high-risk profile: an agent designed for exploration can run arbitrary shell code (including git, npm, docker), potentially executing destructive operations under the guise of 'research' without triggering the same scrutiny as the main agent.",
+  "location": "## Task -> Available agent types -> Explore: 'Tools: All tools except Task, ExitPlanMode, Edit, Write, NotebookEdit'",
+  "category": "privilege_escalation_vector"
+ },
+ {
+  "id": "F1579",
+  "description": "The WebFetch tool explicitly instructs the model to 'use ToolSearch first to find a specialized tool that provides authenticated access' for authenticated URLs. However, no ToolSearch tool exists anywhere in the provided tool list. This is a dangling reference to a non-existent tool, creating a broken routing instruction.",
+  "location": "WebFetch Usage notes: 'Before using this tool, check if the URL points to an authenticated service... you MUST use ToolSearch first to find a specialized tool that provides authenticated access.'",
+  "category": "dangling_reference"
+ },
+ {
+  "id": "F2539",
+  "description": "Sub\u2011agent context blow\u2011up: every launched sub\u2011agent inherits the full 78\u202fKB system prompt plus any accumulated conversation, so spawning many parallel agents (Task sub\u2011agents, Explore agents, Plan agents, etc.) can cause exponential token growth and early summarisation, which may truncate crucial instructions or state.",
+  "location": "System Prompt (\u224878\u202fKB) \u2013 all tools and policy blocks are part of the initial context that is copied to each sub\u2011agent.",
+  "category": "context\u2011inflation"
+ },
+ {
+  "id": "F4693",
+  "description": "Risk of Resource Exhaustion",
+  "location": "Task tool description and max_turns parameter",
+  "category": "Resource exhaustion risk"
+ },
+ {
+  "id": "F2987",
+  "description": "Rule about 'NEVER give time estimates' contrasts with TodoWrite examples showing task breakdowns that imply temporal sequencing, creating potential confusion about what constitutes a time estimate.",
+  "location": "\"Never give time estimates or predictions for how long tasks will take\" vs TodoWrite examples showing sequenced tasks",
+  "category": "Boundary ambiguity"
+ },
+ {
+  "id": "F7016",
+  "description": "The Skill tool has a blocking requirement (invoke BEFORE any other response), but Skill execution may trigger hooks via <user-prompt-submit-hook>, which can block or modify the action. However, the system provides no recovery path if a hook rejects the Skill invocation \u2014 the assistant cannot revise, retry, or escalate. This creates a control flow deadlock: the assistant must invoke Skill immediately (per rules), but if the hook blocks it, the assistant has no authority to proceed or adapt. The model is forced to either violate the blocking rule (by pausing) or proceed blindly (ignoring hook feedback), exposing a conflict between atomicity expectations and extensibility mechanisms.",
+  "location": "\"invoke the relevant Skill tool BEFORE generating any other response\" (Skill docs) and \"If you get blocked by a hook, determine if you can adjust your actions\" (Asking questions as you work section)",
+  "category": "control-flow-contradiction"
+ },
+ {
+  "id": "F9796",
+  "description": "The <system-reminder> trust instruction tells model to treat injected content in tool results as system-level authoritative. If a tool result contains adversarial <system-reminder> tags, the model is instructed to trust them. Classic prompt injection surface.",
+  "location": "Line 124: system-reminder trust instruction",
+  "category": "injection-surface"
+ },
+ {
+  "id": "F6973",
+  "description": "The 'ask for help' section says '/help: Get help with using Claude Code' but /help is not defined as a Skill, unlike /commit which IS defined. This creates an ambiguous command: is /help a built-in CLI command that bypasses the Skill system, or is it an undefined reference? The prompt treats /help as a known command but never defines its mechanism. This suggests a command that exists outside the documented system - a hidden command that the model is instructed to reference but has no schema for.",
+  "location": "'If the user asks for help... /help: Get help with using Claude Code'",
+  "category": "undefined-command-reference"
+ },
+ {
+  "id": "F7592",
+  "description": "The prompt contains a User Message embedded within it that asks for a haiku about the date, but the System Prompt instructs the model to be a software engineering CLI tool. This creates a fundamental identity conflict: the embedded user message wants a creative writing task, but the system prompt positions the model as a coding assistant.",
+  "location": "User Message section (line with '2026-02-20T23:13:46.992Z is the date. Write a haiku about it.') vs. System Prompt section ('You are an AI assistant built on Anthropic's Claude Agent SDK. You are an interactive CLI tool that helps users with software engineering tasks.')",
+  "category": "scope_ambiguity"
+ },
+ {
+  "id": "F2721",
+  "description": "The User Message section containing system-reminder tags provides a template for injection attacks. The prompt legitimately embeds '<system-reminder>' tags inside what is labeled as the User Message section, demonstrating that users can construct messages that visually resemble system metadata. This provides a blueprint for crafting messages that might confuse the model about message provenance.",
+  "location": "User Message section contains: '<system-reminder>\\nThe following skills are available...</system-reminder>' followed by the haiku request.",
+  "category": "injection_template"
+ },
+ {
+  "id": "F6048",
+  "description": "Read tool documentation shows an implicit assumption about when to use pages parameter for PDFs, but doesn't specify what constitutes 'very large' or provide clear guidance for borderline cases (e.g., 9-11 pages)",
+  "location": "Read tool: 'For large PDFs (more than 10 pages), you MUST provide the pages parameter to read specific page ranges (e.g., pages: \"1-5\"). Reading a large PDF without the pages parameter will fail. Maximum 20 pages per request.'",
+  "category": "Ambiguous threshold"
+ },
+ {
+  "id": "F4236",
+  "description": "Dual identity framing. Line 36: 'You are a Claude agent, built on Anthropic's Claude Agent SDK.' Line 38: 'You are an interactive CLI tool.' These are structurally different \u2014 agent (autonomous) vs tool (reactive). The tension runs throughout the prompt.",
+  "location": "Lines 36-38: agent vs tool framing",
+  "category": "framing-tension"
+ },
+ {
+  "id": "F8618",
+  "description": "The Edit tool requires prior use of Read, and Write similarly requires reading before editing \u2014 but these dependencies are enforced through runtime failure rather than being framed as logical prerequisites in workflow design.",
+  "location": "Edit tool: \"You must use your `Read` tool at least once in the conversation before editing.\" | Write tool: \"If this is an existing file, you MUST use the Read tool first\"",
+  "category": "dependency-management"
+ },
+ {
+  "id": "F7779",
+  "description": "The prohibition on error handling requires subjective impossibility judgments: 'Don't add error handling, fallbacks, or validation for scenarios that can't happen.' The model must assess what 'can't happen' \u2014 a notoriously difficult category even for humans. This instruction optimizes for brevity at the expense of defensive programming.",
+  "location": "Over-engineering subsection under 'Doing tasks'",
+  "category": "judgment-based-instruction"
+ },
+ {
+  "id": "F3533",
+  "description": "EnterPlanMode and ExitPlanMode communicate through an undocumented 'plan file' that creates an implicit side channel. The prompt references 'the plan file specified in the plan mode system message' but no such file path or specification is visible in the provided prompt text. This hidden communication channel is critical for understanding how plan mode functions.",
+  "location": "ExitPlanMode description: 'You should have already written your plan to the plan file specified in the plan mode system message' and 'This tool simply signals that you're done planning and ready for the user to review and approve' \u2014 signals that the tool reads from an undocumented file location.",
+  "category": "implicit_channel"
+ },
+ {
+  "id": "F4167",
+  "description": "The prompt embeds an undocumented pseudo-XML tag vocabulary\u2014specifically <commentary>, <reasoning>, and <example_agent_descriptions>\u2014used exclusively inside tool usage examples. These tags create a meta-cognitive markup layer for structuring example rationales, yet they are never defined as valid output formats or system constructs elsewhere.",
+  "location": "Task tool examples contain <commentary>; TodoWrite examples contain <reasoning>; Task tool contains <example_agent_descriptions>",
+  "category": "surprising_structure"
+ }
+]

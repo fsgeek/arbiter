@@ -87,3 +87,20 @@ non-empty response; a model below 0.95 is reported and excluded from the pooled 
   mistral run). Effect: mistral runs have 63/66 results (validity 0.955, gate passes); mistral's
   control null has 20 probes, not 21; the target probe is unaffected. Runs were NOT stopped.
   haiku en original: 66/66.
+
+- 2026-10-09 ~20:30Z, after haiku/mistral/gemini finished, deepseek still running; no pooled
+  statistic computed yet. Two more deviations:
+  (a) **gemini-3.7-flash fails the validity gate (~0.50).** Diagnosed outside the runner: on 11 of the
+  22 probes (no-new-files, no-time-estimates, todowrite, read-first, plan-with-todo, no-overengineering,
+  no-compat-hacks, use-task-for-search, proactive-agents, todowrite-repeated, pr-workflow) the model
+  returns no text, with native finish reason `MALFORMED_FUNCTION_CALL` or `tool_calls` — it attempts to
+  call a tool the system prompt describes although no tools are bound; the runner's pydantic model
+  rejects `None` and drops the result. Not a token-cap effect (completion_tokens 0 or small). The target
+  probe (commit-restrictions) is NOT among the dropped. Per the sealed gate, gemini is excluded from the
+  pooled statistic and reported per-model, descriptively, with this cause. The same mechanism cost
+  mistral one probe (above). The 2026-03 battery assumed prose replies; October models attempt tool
+  invocation — a probe-transfer problem across time, not only across models (cf. Paper 4 §4).
+  (b) **Haiku id changed.** March runs used `anthropic/claude-haiku-4-5` (no longer served); today
+  `anthropic/claude-haiku-4.5`. Whether these are the same weights is unknown. Reconstructed March
+  cells: haiku zh commit-restrictions original = [0, 0, 0], declarative = [1, 1, 1]. This is the
+  published headline cell; P0 is evaluated against it.

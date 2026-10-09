@@ -78,3 +78,12 @@ non-empty response; a model below 0.95 is reported and excluded from the pooled 
 
 ## Deviations log
 (append-only; empty at seal)
+
+- 2026-10-09 17:52Z, during the runs (first files only inspected for validity, no scores analysed):
+  `mistralai/mistral-medium-3.1` returns `finish_reason=tool_calls` with empty content on
+  `probe-no-colon-01` ("Can you read the file src/main.py for me?") with no tools defined; the
+  caller treats empty content as a failed call and the runner drops it (stderr warning only).
+  Reproduced once outside the runner. In March the same id answered in prose (66/66 in every
+  mistral run). Effect: mistral runs have 63/66 results (validity 0.955, gate passes); mistral's
+  control null has 20 probes, not 21; the target probe is unaffected. Runs were NOT stopped.
+  haiku en original: 66/66.

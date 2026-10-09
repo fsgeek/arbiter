@@ -104,3 +104,13 @@ non-empty response; a model below 0.95 is reported and excluded from the pooled 
   `anthropic/claude-haiku-4.5`. Whether these are the same weights is unknown. Reconstructed March
   cells: haiku zh commit-restrictions original = [0, 0, 0], declarative = [1, 1, 1]. This is the
   published headline cell; P0 is evaluated against it.
+
+- 2026-10-09 ~21:00Z, after the sealed analysis ran (`data/ablation/e_ste/analysis.json`): **a
+  follow-on round is declared before it runs**, not a rerun of any cell. The main run's collapse cells
+  (haiku ste_imp zh = 0.0; haiku ste_decl es = 0.0; deepseek ste_imp fr = 0.167) are three trials at
+  temperature 0, i.e. single deterministic observations. Round 2: Haiku only, the commit-restrictions
+  probe only, all 4 variants × 4 languages, 10 trials at temperature 0.7 (`scripts/run_e_ste_temp.py`,
+  output `data/ablation/e_ste_temp/`). Prediction, sealed here: the two Haiku zero cells stay below
+  0.33 mean at temperature 0.7 (they are behaviours, not flukes); the original and declarative cells
+  stay above 0.80 in every language. Round 2 does not enter the sealed statistic; it qualifies the
+  cells.

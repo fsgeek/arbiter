@@ -80,3 +80,11 @@ Two labelers × ~12 batches each (Opus subagent; Codex), third judge ≤ 314 × 
 
 ## Deviations log
 (append-only; empty at seal)
+
+- 2026-10-09 ~18:00Z, after Labeler A finished and before any analysis: **the block file given to
+  labelers (`v2.1.50_blocks.json`) carries the 21 patterns under a top-level `interference` key.**
+  The prereg said labelers would not see the 21; the file I pointed them at contains them. Checked
+  both transcripts: Labeler A reports printing only the `blocks` array and not reading
+  `interference`; Labeler B's only read of the file is a script that prints `id` and `text` of each
+  block (Codex rollout ordinal 76). Neither model's context held the key. Blinding held by their
+  choices, not by my design; a future round must hand labelers a blocks-only file.

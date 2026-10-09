@@ -114,3 +114,8 @@ non-empty response; a model below 0.95 is reported and excluded from the pooled 
   0.33 mean at temperature 0.7 (they are behaviours, not flukes); the original and declarative cells
   stay above 0.80 in every language. Round 2 does not enter the sealed statistic; it qualifies the
   cells.
+
+- 2026-10-09 ~21:40Z, round 2 complete (`data/ablation/e_ste_temp/`, 16 runs × 10 trials, all 160
+  valid). Its sealed prediction LOST: ste_imp zh 0.69, ste_decl es 0.88 (predicted < 0.33); original zh
+  0.69, fr 0.70 (predicted > 0.80). Every cell is a bimodal mixture under sampling. See
+  `RESULT_e_ste.md` §Round 2.

@@ -63,9 +63,11 @@ def jaccard(a: set[str], b: set[str]) -> float:
 def m5(base: list[dict], perm: list[dict]) -> dict:
     def text(r: dict) -> set[str]:
         return bow(" ".join(f.get("category", "") + " " + f.get("description", "") for f in r["findings"]))
-    base_by_model = {r["model"]: (r["pass_number"], text(r)) for r in base}
-    perm_by_model = {r["model"]: (r["pass_number"], text(r)) for r in perm}
-    perm_by_pos = {r["pass_number"]: (r["model"], text(r)) for r in perm}
+    def mid(m: str) -> str:  # the original chain logged Opus as "claude-opus-4-6"; OpenRouter as "anthropic/claude-opus-4.6"
+        return m.split("/")[-1].replace(".", "-")
+    base_by_model = {mid(r["model"]): (r["pass_number"], text(r)) for r in base}
+    perm_by_model = {mid(r["model"]): (r["pass_number"], text(r)) for r in perm}
+    perm_by_pos = {r["pass_number"]: (mid(r["model"]), text(r)) for r in perm}
     same_model, diff_model = [], []
     for m, (pos, bt) in base_by_model.items():
         if m in perm_by_model:

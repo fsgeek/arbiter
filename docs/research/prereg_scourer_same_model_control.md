@@ -110,3 +110,5 @@ Under $3 total. Actual cost from OpenRouter generation records, reconciled after
 
 ## Deviations log
 (append-only; empty at seal)
+
+- 2026-10-09, after the runs: four deviations recorded in `RESULT_scourer_same_model_control.md` §Deviations (P2 comparator flaw; M5 id normalisation; one qwen re-ask; two models unavailable).

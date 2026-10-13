@@ -29,6 +29,10 @@ from .prompt_blocks import PromptBlock
 from .rules import CompiledRuleSet
 
 
+class EmptyReplyError(RuntimeError):
+    """The model returned no text (e.g. a tool-call attempt with no tools bound)."""
+
+
 class LLMCaller:
     """Adapter that runs decomposer and block evaluator prompts through LLM backends.
 
@@ -80,7 +84,18 @@ class LLMCaller:
                 {"role": "user", "content": user_message},
             ],
         )
-        return response.choices[0].message.content
+        choice = response.choices[0]
+        content = choice.message.content
+        if content is None or not content.strip():
+            # 2026-10-09: gemini-3.7-flash and mistral-medium-3.1 answer some prose probes with a
+            # tool-call attempt and no text; this used to surface as a pydantic error with the
+            # cause lost. Fail loudly, with the provider's reason, so the runner can record it.
+            raise EmptyReplyError(
+                f"empty reply from {self._model}: finish_reason={choice.finish_reason!r}, "
+                f"native_finish_reason={getattr(choice, 'native_finish_reason', None)!r}, "
+                f"tool_calls={bool(getattr(choice.message, 'tool_calls', None))}"
+            )
+        return content
 
     async def decompose(
         self, text: str, source: str, rule_set: CompiledRuleSet

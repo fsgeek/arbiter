@@ -69,6 +69,14 @@ class AblationRun(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class ProbeExecutionError(RuntimeError):
+    """A probe call failed; carries enough identity for the run file to record it."""
+
+    def __init__(self, config_id: str, probe_id: str, model_id: str, trial: int, cause: BaseException):
+        super().__init__(f"{probe_id} / {config_id} / {model_id} / trial {trial}: {cause}")
+        self.config_id, self.probe_id, self.model_id, self.trial, self.cause = config_id, probe_id, model_id, trial, cause
+
+
 class AblationRunner:
     """Orchestrate ablation experiments with async execution and resume support.
 
@@ -192,15 +200,18 @@ class AblationRunner:
                 loop = asyncio.get_event_loop()
 
                 # Make the LLM call with proper system/user separation
-                with ThreadPoolExecutor(max_workers=1) as pool:
-                    raw_response = await loop.run_in_executor(
-                        pool,
-                        lambda: self._caller._call_llm_with_system(
-                            system_prompt,
-                            probe.user_message,
-                            temperature=run.temperature,
-                        ),
-                    )
+                try:
+                    with ThreadPoolExecutor(max_workers=1) as pool:
+                        raw_response = await loop.run_in_executor(
+                            pool,
+                            lambda: self._caller._call_llm_with_system(
+                                system_prompt,
+                                probe.user_message,
+                                temperature=run.temperature,
+                            ),
+                        )
+                except Exception as exc:
+                    raise ProbeExecutionError(config.id, probe.id, model_id, trial, exc) from exc
 
                 # Score the response
                 if probe.scoring_method == "llm_judge":
@@ -248,6 +259,13 @@ class AblationRunner:
                     f"  warning: ablation probe failed: {exc}",
                     file=sys.stderr,
                 )
+                # Record the failure IN the run file. A dropped result used to be invisible
+                # except as a short count; the cause is part of the data (2026-10-09).
+                failure = {"error": str(exc)}
+                if isinstance(exc, ProbeExecutionError):
+                    failure.update(config_id=exc.config_id, probe_id=exc.probe_id,
+                                   model_id=exc.model_id, trial=exc.trial, error=str(exc.cause))
+                run.metadata.setdefault("failures", []).append(failure)
                 done += 1
                 if progress_callback:
                     progress_callback(done, total)

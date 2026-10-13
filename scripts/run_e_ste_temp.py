@@ -20,11 +20,19 @@ COMMIT = "probe-commit-restrictions-01"
 def main() -> None:
     ap = argparse.ArgumentParser(); ap.add_argument("--model", default="haiku"); ap.add_argument("--trials", type=int, default=10)
     ap.add_argument("--temperature", type=float, default=0.7); ap.add_argument("--concurrency", type=int, default=5)
+    ap.add_argument("--probes", default="commit", choices=["commit", "sampled"],
+                    help="commit = the target probe only (round 2); sampled = target + the 6 sealed controls (E-STE-S)")
+    ap.add_argument("--experiment", default="e-ste-temp")
     a = ap.parse_args()
     battery = load_battery(project_root / "data/ablation/phase0_battery.json")
-    battery.probes = [p for p in battery.probes if p.id == COMMIT]
-    assert len(battery.probes) == 1
-    out = project_root / "data/ablation/e_ste_temp"; out.mkdir(parents=True, exist_ok=True)
+    keep = {COMMIT}
+    if a.probes == "sampled":
+        import json as _json
+        keep |= set(_json.load(open(project_root / "data/ablation/e_ste_sampled_controls.json")))
+    battery.probes = [p for p in battery.probes if p.id in keep]
+    assert len(battery.probes) == len(keep)
+    out = project_root / ("data/ablation/e_ste_temp" if a.experiment == "e-ste-temp" else f"data/ablation/{a.experiment.replace('-', '_')}")
+    out.mkdir(parents=True, exist_ok=True)
     model_id = ste.MODEL_MAP[a.model]
     for v in ste.VARIANTS:
         for lang in rfe.LANGUAGES:
@@ -33,10 +41,10 @@ def main() -> None:
                 corpus = rfe.modify_corpus_block(corpus, ste.BLOCK, ste.VARIANTS[v][lang])
             constrained = [b.id for b in corpus.blocks if b.id not in rfe.FREE_BLOCKS]
             config = build_baseline_config(corpus, rfe.FREE_BLOCKS, constrained)
-            run = AblationRun(id=f"e-ste-temp-{lang}-{a.model}-{v}-{uuid.uuid4().hex[:8]}", configs=[config], battery=battery,
+            run = AblationRun(id=f"{a.experiment}-{lang}-{a.model}-{v}-{uuid.uuid4().hex[:8]}", configs=[config], battery=battery,
                               models=[model_id], trials_per_probe=a.trials, temperature=a.temperature,
-                              metadata={"experiment": "e-ste-temp", "language": lang, "model": a.model, "model_id": model_id, "variant": v})
-            runner = AblationRunner(caller=LLMCaller(rfe.make_client("e-ste-temp"), model_id))
+                              metadata={"experiment": a.experiment, "language": lang, "model": a.model, "model_id": model_id, "variant": v})
+            runner = AblationRunner(caller=LLMCaller(rfe.make_client(a.experiment), model_id))
             print(f"{v} {lang} ...", flush=True)
             asyncio.run(runner.run_phase(run, "baseline", corpus=corpus, concurrency=a.concurrency))
             save_run(run, str(out / f"run_{run.id}.json"))

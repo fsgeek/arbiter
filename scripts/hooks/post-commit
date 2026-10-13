@@ -1,56 +1,85 @@
 #!/bin/bash
-# Post-commit OpenTimestamps hook (the WHEN layer).
+# Post-commit OpenTimestamps hook.
 #
-# After every non-ots commit, write the commit hash to timestamps/<hash>,
-# stamp it with OpenTimestamps (anchors to Bitcoin via calendar servers),
-# then commit the .ots proof. This makes the commit's existence-time
-# non-backdatable — the core of the pre-registration credibility claim.
+# On every non-ots commit, write the commit hash to timestamps/<hash>,
+# stamp it with the OpenTimestamps client, and commit the resulting .ots
+# proof. This gives a cryptographic, third-party-anchorable timestamp on
+# each commit -- the pre-registration discipline: you cannot backdate an
+# experiment's design once its commit is stamped.
 #
-# Design note vs. the original governance-project hook: that version did a
-# SILENT skip (exit 0) when the ots client was missing, which is governance
-# theater — you'd believe commits were anchored when they weren't. This
-# version resolves ots robustly (uv run, then local .venv) and FAILS LOUDLY
-# if it genuinely cannot stamp. A missing stamp must be visible, not silent.
+# Run scripts/ots-upgrade.sh a few hours later to anchor pending proofs
+# to the Bitcoin blockchain.
+#
+# Also run by scripts/hooks/post-merge, because git fires post-merge, not
+# post-commit, for a merge commit; before 2026-10-09 merges went unstamped.
 set -e
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
-cd "$GIT_ROOT"
+# The ots client lives in the main checkout's venv; a .worktrees/ checkout
+# has its own venv without it, and its commits went unstamped before
+# 2026-10-09. Look in this checkout first, then the main one.
+MAIN_ROOT=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+OTS="$GIT_ROOT/.venv/bin/ots"
+[ -x "$OTS" ] || OTS="$MAIN_ROOT/.venv/bin/ots"
 
-# Guard: never stamp the ots-bookkeeping commits themselves (they are created
-# below with --no-verify, which skips pre-commit but NOT post-commit).
+# Guard: don't stamp the stamp commits (--no-verify skips pre-commit, not post-commit).
 COMMIT_MSG=$(git log -1 --format="%s")
 if [[ "$COMMIT_MSG" == ots:* ]]; then
     exit 0
 fi
 
-# Resolve the ots client. Prefer the project venv directly (fast, no uv
-# resolution overhead); fall back to `uv run ots` (location-independent).
-if [ -x "$GIT_ROOT/.venv/bin/ots" ]; then
-    OTS=("$GIT_ROOT/.venv/bin/ots")
-elif command -v uv >/dev/null 2>&1 && uv run --quiet ots --version >/dev/null 2>&1; then
-    OTS=(uv run --quiet ots)
-else
-    echo "FATAL: ots client not found (.venv/bin/ots absent and 'uv run ots' failed)." >&2
-    echo "       Commit $(git rev-parse --short HEAD) is NOT timestamped." >&2
-    echo "       Run: uv sync   then   scripts/install-hooks.sh" >&2
-    exit 1
+if [ ! -x "$OTS" ]; then
+    echo "ots: client not found in $GIT_ROOT/.venv or $MAIN_ROOT/.venv, skipping timestamp" >&2
+    echo "ots: run scripts/install-hooks.sh to install it" >&2
+    exit 0
 fi
 
 HASH=$(git rev-parse HEAD)
 TIMESTAMP_DIR="$GIT_ROOT/timestamps"
 mkdir -p "$TIMESTAMP_DIR"
 
-HASH_FILE="$TIMESTAMP_DIR/$HASH"
-echo "$HASH" > "$HASH_FILE"
-
-if ! "${OTS[@]}" stamp "$HASH_FILE"; then
-    echo "FATAL: 'ots stamp' failed for $HASH — commit is NOT timestamped." >&2
-    rm -f "$HASH_FILE"
-    exit 1
+# Idempotent: a fast-forward or pull lands on commits already stamped
+# (pending here, or anchored by scripts/ots-upgrade.sh); stamp each once.
+if [ -e "$TIMESTAMP_DIR/$HASH.ots" ] || [ -e "$TIMESTAMP_DIR/anchored/$HASH.ots" ]; then
+    exit 0
 fi
 
-# Add only the two files this hook created — never the whole directory,
-# which would silently sweep unrelated timestamps/ state (e.g. in-flight
-# anchored/ moves) into a stamp commit.
-git add "$HASH_FILE" "$HASH_FILE.ots"
-git commit --no-verify -m "ots: stamp $HASH"
+HASH_FILE="$TIMESTAMP_DIR/$HASH"
+echo "$HASH" > "$HASH_FILE"
+"$OTS" stamp "$HASH_FILE"
+
+# Commit the proof under the project's signing identity. Hamutay's history is
+# authored as hamutay@wamason.com and signed with key 01193FA2...; the author,
+# committer, and signing-key emails MUST all match or GitHub rejects the push
+# (see CLAUDE.md). The stamp commit must use the same identity, not the repo
+# default, or it diverges from the rest of history.
+OTS_EMAIL="hamutay@wamason.com"
+OTS_NAME="Tony Mason"
+OTS_SIGNINGKEY="01193FA2631C8AE8E4DF266E216D3C9B920813A1"
+
+# git exports the triggering commit's GIT_AUTHOR_* (and may export
+# GIT_COMMITTER_*) into this hook, and those override -c user.*: a commit made
+# under another identity would hand it to the stamp (found 2026-10-09 by
+# Codex's hook suite). Set every identity variable explicitly; drop the dates
+# so the stamp carries its own time.
+export GIT_AUTHOR_NAME="$OTS_NAME" GIT_AUTHOR_EMAIL="$OTS_EMAIL"
+export GIT_COMMITTER_NAME="$OTS_NAME" GIT_COMMITTER_EMAIL="$OTS_EMAIL"
+unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
+
+# Build the stamp with commit-tree, not `git commit`. Run from post-merge,
+# git's merge state (MERGE_HEAD) is still present, and `git commit` would make
+# the stamp a second merge commit with parents [merge, side] (found 2026-10-10
+# by guest:governance, plaza seq 80; hamutay's 2b08455 has that shape and is
+# left as it is). commit-tree takes exactly the parents it is given and runs
+# no hooks. It ignores commit.gpgSign, so the key is passed with -S
+# explicitly: an unsigned stamp cannot be repaired without rewriting every
+# commit after it (governance, plaza seq 82).
+git -C "$GIT_ROOT" add "$TIMESTAMP_DIR/"
+PARENT=$(git -C "$GIT_ROOT" rev-parse HEAD)
+TREE=$(git -C "$GIT_ROOT" write-tree)
+STAMP=$(git -C "$GIT_ROOT" \
+    -c user.email="$OTS_EMAIL" \
+    -c user.name="$OTS_NAME" \
+    commit-tree "$TREE" -p "$PARENT" -S"$OTS_SIGNINGKEY" -m "ots: stamp $HASH")
+git -C "$GIT_ROOT" update-ref -m "ots: stamp $HASH" HEAD "$STAMP" "$PARENT"
+echo "ots: stamp $HASH -> $(git -C "$GIT_ROOT" rev-parse --short "$STAMP")"

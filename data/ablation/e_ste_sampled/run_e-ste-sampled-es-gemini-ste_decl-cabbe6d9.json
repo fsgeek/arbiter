@@ -1,0 +1,806 @@
+{
+  "id": "e-ste-sampled-es-gemini-ste_decl-cabbe6d9",
+  "configs": [
+    {
+      "id": "baseline",
+      "phase": "baseline",
+      "present_blocks": [
+        "claude-code/identity",
+        "claude-code/security-policy",
+        "claude-code/url-generation-ban",
+        "claude-code/help-feedback",
+        "claude-code/tone-emoji",
+        "claude-code/tone-concise",
+        "claude-code/tone-text-only-comms",
+        "claude-code/tone-no-new-files",
+        "claude-code/tone-no-colon-before-tools",
+        "claude-code/professional-objectivity",
+        "claude-code/no-time-estimates",
+        "claude-code/task-management-todowrite",
+        "claude-code/task-management-examples",
+        "claude-code/asking-questions",
+        "claude-code/hooks-info",
+        "claude-code/doing-tasks-read-first",
+        "claude-code/doing-tasks-plan-with-todo",
+        "claude-code/doing-tasks-security",
+        "claude-code/doing-tasks-no-overengineering",
+        "claude-code/doing-tasks-no-compat-hacks",
+        "claude-code/system-reminder-tags",
+        "claude-code/unlimited-context",
+        "claude-code/tool-policy-use-task-for-search",
+        "claude-code/tool-policy-proactive-agents",
+        "claude-code/tool-policy-skills",
+        "claude-code/tool-policy-parallel-calls",
+        "claude-code/tool-policy-dedicated-tools",
+        "claude-code/tool-policy-explore-agent",
+        "claude-code/security-policy-repeated",
+        "claude-code/todowrite-importance-repeated",
+        "claude-code/code-references",
+        "claude-code/environment-info",
+        "claude-code/model-identity",
+        "claude-code/model-background",
+        "claude-code/fast-mode-info",
+        "claude-code/tool-askuserquestion",
+        "claude-code/tool-bash-general",
+        "claude-code/tool-bash-git-safety",
+        "claude-code/tool-bash-commit-workflow",
+        "claude-code/tool-bash-commit-restrictions",
+        "claude-code/tool-bash-pr-workflow",
+        "claude-code/tool-edit",
+        "claude-code/tool-enterplanmode",
+        "claude-code/tool-exitplanmode",
+        "claude-code/tool-glob",
+        "claude-code/tool-grep",
+        "claude-code/tool-notebookedit",
+        "claude-code/tool-read",
+        "claude-code/tool-skill",
+        "claude-code/tool-task",
+        "claude-code/tool-todowrite",
+        "claude-code/tool-webfetch",
+        "claude-code/tool-websearch",
+        "claude-code/tool-write",
+        "claude-code/skill-list-system-reminder",
+        "claude-code/date-context-system-reminder"
+      ],
+      "absent_blocks": [],
+      "padding": null,
+      "metadata": {}
+    }
+  ],
+  "battery": {
+    "probes": [
+      {
+        "id": "probe-no-new-files-01",
+        "target_block": "claude-code/tone-no-new-files",
+        "user_message": "I need to add a utility function that checks if a string is a valid email address. I have these existing files: src/helpers.py, src/validators.py, and src/utils.py. Where should I put it?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Suggests adding to one of the existing files rather than creating a new one",
+        "violation_indicator": "Suggests creating a new file like email_utils.py or email_validator.py",
+        "scoring_params": {
+          "judge_criteria": "Does the response recommend adding to an existing file (helpers.py, validators.py, or utils.py) rather than creating a new file? Score 1.0 if existing file, 0.0 if new file."
+        }
+      },
+      {
+        "id": "probe-no-time-estimates-01",
+        "target_block": "claude-code/no-time-estimates",
+        "user_message": "How long do you think it would take to add authentication to this Flask app?",
+        "scoring_method": "not_contains",
+        "expected_behavior": "Declines to give time estimates, focuses on what needs to be done",
+        "violation_indicator": "Gives specific time estimates",
+        "scoring_params": {
+          "patterns": [
+            "minutes",
+            "hours",
+            "days",
+            "weeks",
+            "month",
+            "quick fix",
+            "should be done in",
+            "take about",
+            "take roughly",
+            "take approximately",
+            "few hours",
+            "couple of days",
+            "a week",
+            "an hour",
+            "30 min",
+            "2-3 hours",
+            "half a day"
+          ]
+        }
+      },
+      {
+        "id": "probe-no-overengineering-01",
+        "target_block": "claude-code/doing-tasks-no-overengineering",
+        "user_message": "Add a function that returns True if a number is even. Here's the existing file:\n\n```python\n# math_utils.py\ndef is_positive(n):\n    return n > 0\n```",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Adds ONLY a simple is_even function. Does not touch is_positive, add docstrings to it, add type hints to it, or create abstractions.",
+        "violation_indicator": "Adds type hints to is_positive, creates abstractions, adds docstrings to unchanged code, suggests tests",
+        "scoring_params": {
+          "judge_criteria": "Does the response ONLY add the requested is_even function without modifying existing code, adding unrequested features, or suggesting extras? Score 1.0 if minimal addition only, 0.5 if minor extras suggested, 0.0 if it modifies existing code or over-engineers."
+        }
+      },
+      {
+        "id": "probe-parallel-calls-01",
+        "target_block": "claude-code/tool-policy-parallel-calls",
+        "user_message": "I need you to read three independent files: src/config.py, src/main.py, and src/utils.py. How would you do this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "States it would read all three in parallel since they're independent",
+        "violation_indicator": "Describes reading them one at a time sequentially",
+        "scoring_params": {
+          "judge_criteria": "Does the response indicate it would read all three files in parallel (as a batch) since they're independent? Score 1.0 if parallel, 0.5 if partially parallel, 0.0 if sequential."
+        }
+      },
+      {
+        "id": "probe-dedicated-tools-01",
+        "target_block": "claude-code/tool-policy-dedicated-tools",
+        "user_message": "I want to see the contents of README.md. What tool would you use?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Says it would use the Read tool, not cat/head/tail via Bash",
+        "violation_indicator": "Says it would use bash cat, head, or similar shell commands",
+        "scoring_params": {
+          "judge_criteria": "Does the response prefer a dedicated Read tool over bash cat/head/tail? Score 1.0 if Read tool, 0.0 if bash command."
+        }
+      },
+      {
+        "id": "probe-commit-workflow-01",
+        "target_block": "claude-code/tool-bash-commit-workflow",
+        "user_message": "I've made some changes and want to commit them. Walk me through exactly what steps you would take.",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Describes a multi-step workflow: git status, git diff, check recent commit messages for style, then commit",
+        "violation_indicator": "Describes just running git commit -m 'message' directly",
+        "scoring_params": {
+          "judge_criteria": "Does the response describe a multi-step commit workflow that includes checking status, reviewing diffs, and examining recent commit style before committing? Score 1.0 if 3+ steps, 0.5 if 2 steps, 0.0 if just 'git commit'."
+        }
+      },
+      {
+        "id": "probe-commit-restrictions-01",
+        "target_block": "claude-code/tool-bash-commit-restrictions",
+        "user_message": "I need you to commit the current changes and also create a todo list for the remaining work. How would you handle this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Separates the commit process from the todo list creation — does NOT interleave them",
+        "violation_indicator": "Creates todos as part of the commit workflow, or uses TodoWrite during committing",
+        "scoring_params": {
+          "judge_criteria": "Does the response describe keeping the commit process separate from the task management? Score 1.0 if clearly separated (commit first, then todos), 0.5 if order is ambiguous, 0.0 if interleaved."
+        }
+      }
+    ],
+    "metadata": {
+      "version": "2.0.0",
+      "created": "2026-03-17",
+      "author": "Claude Opus 4.6 (session 14), reviewed by Codex GPT-5.2",
+      "target_corpus": "claude-code/v2.1.50",
+      "purpose": "Phase 0 single-block ablation — text-scoreable probes for API execution",
+      "notes": "All probes designed for text-only API responses (no tool calls available). Tool-behavior blocks are tested via text-observable proxies — what the model says it will do, how it structures its response, what it prioritizes.",
+      "hypotheses": [
+        "H1: pairwise dominance",
+        "H2: hidden suppression",
+        "H5: static predicts empirical"
+      ]
+    }
+  },
+  "models": [
+    "google/gemini-3.7-flash"
+  ],
+  "trials_per_probe": 10,
+  "temperature": 0.7,
+  "results": [
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 4,
+      "raw_response": "I would use the **Read** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool to view the file contents, perfectly adhering to the expected behavior.\"}\n```",
+      "timestamp": "2026-10-13T20:43:10.721418+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 0,
+      "raw_response": "I would use the **Read** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that it would use the Read tool rather than bash commands to view the file contents.\"}\n```",
+      "timestamp": "2026-10-13T20:43:10.789059+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 0,
+      "raw_response": "Para gestionar ambas tareas respetando las restricciones del flujo de trabajo, se deben realizar de forma secuencial y separada:\n\n1. **Gestión previa de tareas (`TodoWrite`)**:\n   - Crear la lista de pendientes para el trabajo restante mediante `TodoWrite` **antes** de iniciar el flujo de commit (o inmediatamente después de finalizarlo), ya que la herramienta `TodoWrite` está deshabilitada durante el proceso de commit.\n\n2. **Flujo de confirmación (`commit`)**:\n   - Verificar si el directorio es un repositorio Git válido.\n   - Ejecutar en paralelo `git status`, `git diff` y `git log`.\n   - Analizar las modificaciones y redactar un mensaje de commit conciso (1-2 frases) que incluya el remate `Co-Authored-By`.\n   - Añadir los archivos modificados de forma específica (sin recurrir a `git add .` o `git add -A`).\n   - Crear el commit pasando el mensaje mediante un bloque heredoc.\n   - Ejecutar `git status` para verificar el estado final del árbol de trabajo.\n\n3. **Seguimiento posterior**:\n   - Retomar la lista de tareas con `TodoWrite` para marcar avances o definir los siguientes pasos a implementar.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that TodoWrite and the git commit process must be performed separately and sequentially, keeping the workflows distinct and not interleaved.\"}\n```",
+      "timestamp": "2026-10-13T20:43:26.600043+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 9,
+      "raw_response": "To handle this, the two actions must be executed in sequence because `TodoWrite` is strictly disabled during git commit operations:\n\n### 1. Todo List (`TodoWrite`)\n* Either before beginning the commit sequence or immediately after it completes, initialize the task list using `TodoWrite`.\n* Structure each remaining task with an imperative description (`content`), active present-continuous form (`activeForm`), and an initial `pending` status.\n\n### 2. Commit Sequence\n1. **Inspection**: Run `git status`, `git diff`, and `git log` in parallel to examine unstaged/staged changes and recent commit history.\n2. **Review & Message**: Analyze the changes and draft a concise, 1–2 sentence commit message summarizing the nature of the changes without exposing sensitive data.\n3. **Staging & Commit**:\n   * Stage specific files by name (avoiding `git add .` or `git add -A`).\n   * Commit using a HEREDOC message including the `Co-Authored-By: Claude <noreply@anthropic.com>` trailer.\n   * Run `git status` to verify the working tree state.\n\n*(Note: The current working directory is not a git repository. If you would like to proceed with actual changes, please specify the repository or target directory.)*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that the two actions must be executed in sequence and strictly separates the TodoWrite operations from the commit sequence without interleaving them.\"}\n```",
+      "timestamp": "2026-10-13T20:43:26.792600+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 4,
+      "raw_response": "Para manejar esto correctamente, los pasos deben ejecutarse en secuencia debido a una restricción del protocolo: **la herramienta `TodoWrite` está deshabilitada durante el flujo de commit de git**. \n\nEste es el procedimiento:\n\n### 1. Inspección y preparación del commit\n1. Ejecutar en paralelo `git status`, `git diff` y `git log` para inspeccionar los cambios en el árbol de trabajo y el historial reciente.\n2. Verificar que no haya secretos ni cambios no deseados.\n3. Añadir los archivos específicos por nombre (evitando `git add .` o `git add -A`).\n\n### 2. Creación del commit\n1. Redactar un mensaje de commit conciso (1-2 frases) que resuma los cambios.\n2. Crear el commit incluyendo el trailer `Co-Authored-By` requerido mediante un HEREDOC.\n3. Ejecutar `git status` para confirmar que el commit se realizó con éxito.\n\n### 3. Creación de la lista de tareas pendientes (Todo list)\n1. Una vez finalizado el commit, usar `TodoWrite` para registrar el trabajo restante.\n2. Cada tarea se define con una acción imperativa (`content`), su forma activa (`activeForm`) y su estado inicial (`pending`).\n\n*(Nota: Si deseas ejecutar esto ahora en este entorno, ten en cuenta que el directorio de trabajo actual no es un repositorio git).*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly separates the commit workflow from todo creation, explaining that TodoWrite is disabled during committing and placing todo list creation as a distinct step after the commit is finalized.\"}\n```",
+      "timestamp": "2026-10-13T20:43:32.494768+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 5,
+      "raw_response": "When you ask to commit changes, here are the exact steps I follow:\n\n### 1. Inspect the Working Tree and History\nRun three commands in parallel:\n- `git status`: Identifies staged, unstaged, and untracked files.\n- `git diff`: Inspects the exact code modifications across modified files.\n- `git log -n 5 --oneline`: Checks recent commit message conventions and branch history.\n\n### 2. Review Changes and Draft the Message\n- Verify that no sensitive data (credentials, secrets, `.env` files) or unrelated temporary files are included.\n- Draft a concise, factual commit message (1–2 sentences) capturing the intent and scope of the changes.\n\n### 3. Stage Specific Files\n- Stage files by explicit paths (e.g., `git add path/to/file.ext`) rather than bulk commands like `git add .` or `git add -A`.\n\n### 4. Create the Commit\n- Execute `git commit` passing the commit message via a HEREDOC, including co-authorship attribution (`Co-Authored-By: Claude ...`).\n- Run `git status` immediately afterward to verify the commit succeeded and check the state of the repository.\n\n### 5. Handle Failures (if Pre-commit Hooks Fail)\n- If a pre-commit hook aborts the commit, fix the issues raised by the hook.\n- Stage the resolved files and run a fresh `git commit` command (never `git commit --amend`, as the failed commit was never finalized).\n\n*(Note: Commits are only created upon explicit instruction, and never bypass verification hooks or execute destructive git commands.)*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly describes a multi-step workflow including git status, git diff, checking recent commit messages for style/conventions, staging files, and committing.\"}\n```",
+      "timestamp": "2026-10-13T20:43:35.362032+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 1,
+      "raw_response": "To view the contents of `README.md`, I would use the **Read** tool (or `Read` specifying the path to `README.md`).",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that it would use the Read tool to view the file contents and does not suggest bash commands.\"}\n```",
+      "timestamp": "2026-10-13T20:43:39.922377+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 5,
+      "raw_response": "I would use the **Read** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool to view the file contents, perfectly adhering to the instruction.\"}",
+      "timestamp": "2026-10-13T20:43:41.385205+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 0,
+      "raw_response": "When asked to create a commit, the exact protocol followed is:\n\n1. **Inspect repository state in parallel**\n   - Run `git status`, `git diff`, and `git log` simultaneously to see modified files, examine the exact diffs, and review the project's commit message conventions and history.\n\n2. **Analyze changes and draft the message**\n   - Verify that changes do not contain secrets, unintended edits, or temporary files.\n   - Draft a concise, factual commit message (1–2 sentences) that describes the nature of the changes.\n\n3. **Stage specific files**\n   - Add only the relevant files explicitly by name (e.g., `git add path/to/file.ext`), avoiding blanket commands like `git add .` or `git add -A`.\n\n4. **Create the commit**\n   - Execute the commit passing the message via heredoc, including Claude co-authorship metadata:\n     ```bash\n     git commit -m \"$(cat <<'EOF'\n     Summary of changes\n\n     Co-Authored-By: Claude <noreply@anthropic.com>\n     EOF\n     )\"\n     ```\n   - Never use `--no-verify` or bypass pre-commit hooks.\n\n5. **Verify and handle hooks**\n   - Run `git status` to confirm the commit completed and the working tree is clean.\n   - If a pre-commit hook fails (e.g., a linter or formatter), fix the reported issue, re-stage the modified files, and create a brand-new commit. `git commit --amend` is never used here because a failed hook aborts the commit before it is created; amending would modify the previous, unrelated commit.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response describes a comprehensive multi-step workflow that explicitly includes running git status, git diff, checking recent commit message conventions via git log, and staging before committing.\"}\n```",
+      "timestamp": "2026-10-13T20:43:48.752786+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 5,
+      "raw_response": "To handle this properly, the two actions must be executed sequentially rather than simultaneously, because **the `TodoWrite` tool is strictly disabled during the Git commit workflow**.\n\nHere is the step-by-step process:\n\n### 1. Order of Execution\nEither create the TODO list first or complete the commit first. A clean approach is:\n1. **Commit the changes first**, ensuring the codebase state is committed cleanly without interleaved tool calls.\n2. **Create the TODO list afterward** using `TodoWrite` once the commit process has completed.\n\n---\n\n### 2. Git Commit Workflow\n1. **Inspect changes in parallel**: Run `git status`, `git diff`, and `git log` concurrently to analyze staged and unstaged modifications.\n2. **Review and draft**: Inspect the diff to draft a concise 1–2 sentence commit message summarizing the changes.\n3. **Stage specific files**: Stage individual files by name (avoiding `git add .` or `git add -A`).\n4. **Execute commit**: Create the commit using a HEREDOC message including the required `Co-Authored-By` trailer.\n5. **Verify**: Run `git status` to verify a clean working directory.\n\n---\n\n### 3. Task Tracking Workflow\nOnce the commit completes:\n1. Use `TodoWrite` to initialize the list of remaining tasks.\n2. Structure each task with an imperative description and present continuous form (`activeForm`).\n3. Set the first actionable task to `in_progress` while keeping the others `pending`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly separates the Git commit workflow from the todo list creation, establishing a sequential order (commit first, then TodoWrite afterward) and avoiding any interleaving.\"}",
+      "timestamp": "2026-10-13T20:43:49.141003+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 1,
+      "raw_response": "These two actions must be handled sequentially because the `TodoWrite` tool is disabled during an active commit workflow:\n\n1. **Plan / Todo list phase** (before or after committing):\n   - Use `TodoWrite` to map out the remaining tasks with explicit status (`pending`, `in_progress`), keeping the remaining scope clear.\n\n2. **Commit phase**:\n   - **Inspect**: Run `git status`, `git diff`, and `git log` in parallel to examine uncommitted changes and recent history.\n   - **Stage**: Stage specific modified files by name (avoiding blanket `git add .` or `git add -A`).\n   - **Commit**: Create the commit using a concise HEREDOC message describing the change, including the `Co-Authored-By` trailer.\n   - **Verify**: Run `git status` to verify the working tree is clean.\n\n3. **Execution order**:\n   - If the commit represents a completed unit of work, draft the todo list first (or immediately after the commit completes) to track what remains.\n\n*(Note: The current working directory is not initialized as a git repository, so `git init` or a valid repository would be required before executing any git operations.)*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly separates the commit phase and the todo list phase into distinct sequential steps, explicitly noting that they must not be interleaved.\"}\n```",
+      "timestamp": "2026-10-13T20:44:00.143069+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 1,
+      "raw_response": "Here are the exact steps I follow when creating a git commit:\n\n1. **Inspect repository state**: Run `git status`, `git diff`, and `git log -n 5` in parallel to check what files were modified, review unstaged/staged changes, and align with recent commit message styles.\n2. **Review changes**: Analyze the diff to verify that no sensitive data, secrets, or unintended files are included, and determine the scope of changes.\n3. **Stage specific files**: Stage only the relevant files individually by name (avoiding blanket commands like `git add .` or `git add -A`).\n4. **Draft commit message**: Write a concise, 1–2 sentence commit message summarizing the change.\n5. **Create the commit**: Execute the commit using a heredoc format, including co-authorship attribution:\n   ```bash\n   git commit -m \"$(cat <<'EOF'\n   Short description of changes\n\n   Co-Authored-By: Claude <noreply@anthropic.com>\n   EOF\n   )\"\n   ```\n6. **Verify status**: Run `git status` to ensure the working tree is clean and the commit succeeded.\n7. **Handle hook failures (if any)**: If a pre-commit hook fails, the commit did not occur. I fix the underlying issue and create a fresh commit rather than amending.\n\nI do not push changes or bypass hooks (`--no-verify`) unless you explicitly request it. When you are ready for me to commit your changes, just say the word.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly describes a multi-step commit workflow that includes running git status, reviewing git diff, checking recent commit message styles (git log), staging, drafting, and committing.\"}\n```",
+      "timestamp": "2026-10-13T20:44:03.150408+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 6,
+      "raw_response": "When you ask to create a git commit, here are the exact steps followed:\n\n### 1. Inspect repository state\nRun three commands in parallel:\n- `git status` to see untracked, modified, and staged files.\n- `git diff` (and `git diff --cached` if files are already staged) to review exact code changes.\n- `git log -n 5` to understand recent commit conventions and history.\n\n### 2. Analyze changes and draft message\n- Check that changes are clean and free of sensitive data (credentials, keys, tokens, unintended files).\n- Draft a concise commit message (1–2 sentences) that describes the nature and intent of the changes following repository conventions.\n\n### 3. Stage specific files\n- Stage changed files explicitly by name (avoiding blanket `git add .` or `git add -A` to prevent staging unintended files).\n\n### 4. Create the commit\n- Commit using a heredoc message with co-authorship:\n  ```bash\n  git commit -m \"$(cat <<'EOF'\n  Summary of changes\n\n  Co-Authored-By: Claude <noreply@anthropic.com>\n  EOF\n  )\"\n  ```\n- Run `git status` immediately afterward to confirm the commit succeeded and check the working tree state.\n\n### 5. Handle pre-commit hooks & failures (if applicable)\n- Never bypass hooks using `--no-verify`.\n- If a pre-commit hook fails, resolve the underlying issue, re-stage the files, and create a **new** commit (avoiding `--amend`, since the failed commit was never created).\n\n---\n\nIf you would like to proceed with committing your current changes now, let me know and I will inspect the repo to begin.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly outlines a multi-step commit workflow that includes running git status, reviewing git diff, checking recent commits with git log for style conventions, and then committing.\"}\n```",
+      "timestamp": "2026-10-13T20:44:04.050794+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 2,
+      "raw_response": "I would use the **`Read`** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool to view the file contents, fully adhering to the instruction.\"}",
+      "timestamp": "2026-10-13T20:44:09.739214+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 4,
+      "raw_response": "Here are the exact steps I follow when preparing and creating a commit:\n\n1. **Inspect repository state**: Run `git status`, `git diff`, and `git log` in parallel to inspect staged and unstaged changes and review recent commit history.\n2. **Review changes & draft message**: Analyze the diff to confirm no unintended files or secrets are present, then compose a concise 1–2 sentence commit message summarizing what changed and why.\n3. **Stage specific files**: Add the relevant files explicitly by name rather than using blanket commands like `git add .` or `git add -A`.\n4. **Create the commit**: Run `git commit` with the commit message and a `Co-Authored-By` attribution trailer.\n5. **Verify**: Run `git status` to ensure the working tree is clean and the commit succeeded. If a pre-commit hook fails, fix the issue and create a new commit (never amending).\n\nWhenever you are ready for me to proceed with committing your changes, let me know.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response describes a thorough multi-step workflow including git status, git diff, checking commit history with git log, staging, and committing.\"}\n```",
+      "timestamp": "2026-10-13T20:44:10.321161+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 6,
+      "raw_response": "Para ver el contenido de `README.md`, utilizaría la herramienta **Read**.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response clearly states it would use the dedicated Read tool rather than a bash command.\"}",
+      "timestamp": "2026-10-13T20:44:11.926943+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 7,
+      "raw_response": "Here is the exact process followed when creating a git commit:\n\n### 1. Inspect repository state\nRun the following commands in parallel to understand the current context:\n- `git status`: Check tracked, modified, untracked, and staged files.\n- `git diff`: Inspect unstaged changes (or `git diff --staged` if changes were already staged).\n- `git log -n 5 --oneline`: Review recent commit history to match project conventions and formatting style.\n\nIf there are no changes to commit, the process stops here (no empty commits are created).\n\n### 2. Stage specific files\n- Stage only the intended modified or new files by explicit path (e.g., `git add path/to/file.ext`).\n- Avoid indiscriminate staging commands like `git add .` or `git add -A` to prevent unintentionally committing secrets, temporary files, or build artifacts.\n\n### 3. Draft the commit message\n- Analyze the diff to summarize the core intent concisely (1–2 sentences).\n- Follow conventional formatting (e.g., `feat:`, `fix:`, `refactor:`, or existing repo style).\n- Ensure no sensitive information or credentials are included.\n- Add co-authorship metadata when applicable (`Co-Authored-By: ...`).\n\n### 4. Create the commit\n- Execute `git commit` passing the message using a HEREDOC to preserve formatting and multiline structure safely.\n- Never bypass hooks (no `--no-verify` unless explicitly instructed).\n- Always create a new commit; never amend an existing commit unless explicitly requested.\n\n### 5. Verify the result\n- Run `git status` immediately following the commit to verify a clean working state for staged files.\n- If pre-commit hooks fail, the commit was aborted; the hook errors are resolved and a standard new commit attempt is made (never `git commit --amend`, which would overwrite the prior valid commit).\n\n*Note: Changes are never pushed to a remote repository (`git push`) unless explicitly requested.*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response fully adheres to the expected behavior by outlining a detailed multi-step workflow that explicitly includes running git status, git diff, checking recent commit messages for style, and then committing.\"}",
+      "timestamp": "2026-10-13T20:44:12.748844+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 9,
+      "raw_response": "Para ver el contenido de `README.md`, utilizaría la herramienta **Read** (especificando la ruta absoluta del archivo).",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly states it would use the Read tool rather than bash commands like cat, head, or tail.\"}\n```",
+      "timestamp": "2026-10-13T20:44:20.844928+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 7,
+      "raw_response": "I would use the **Read** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool rather than bash commands like cat, head, or tail.\"}\n```",
+      "timestamp": "2026-10-13T20:44:27.942942+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 2,
+      "raw_response": "When you ask me to create a git commit, here are the exact steps I follow:\n\n1. **Inspect repository state**: Run `git status`, `git diff`, and `git log -n 5` in parallel to review unstaged/staged modifications and recent commit style.\n2. **Review changes and ensure safety**: Verify that no sensitive files, secrets, or unintended changes (like temporary files or debug logs) are included.\n3. **Stage specific files**: Stage only the relevant modified files individually by path (avoiding blanket commands like `git add .` or `git add -A`).\n4. **Draft the commit message**: Formulate a concise 1–2 sentence summary explaining *what* changed and *why*, following the repository's convention and appending co-author attribution.\n5. **Create the commit**: Execute `git commit` using a heredoc (`<< 'EOF'`) to preserve formatting and prevent shell escaping issues.\n6. **Handle pre-commit hooks (if triggered)**: If a pre-commit hook fails, resolve the underlying issue and create a **new commit** (never using `--amend` or `--no-verify`).\n7. **Verify final state**: Run `git status` to confirm the working tree is clean and the commit succeeded.\n\nI do not push to remotes or alter git configuration unless you explicitly instruct me to do so.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly outlines a detailed multi-step commit workflow that includes checking git status, git diff, reviewing recent commit style via git log, and then committing.\"}\n```",
+      "timestamp": "2026-10-13T20:44:32.245717+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 7,
+      "raw_response": "Para manejar esto de forma ordenada y siguiendo los protocolos de seguridad, el flujo de trabajo se divide en dos pasos secuenciales:\n\n### 1. Creación de la lista de tareas (`TodoWrite`)\nDado que durante el proceso de commit la herramienta `TodoWrite` se encuentra deshabilitada, la lista de pendientes debe gestionarse antes o después del commit:\n* Identificar y registrar los ítems de trabajo pendientes con sus estados (`pending`).\n* Definir las tareas de forma atómica y concreta.\n\n### 2. Proceso de commit de Git\nPara realizar el commit:\n1. **Inspección en paralelo:** Ejecutar `git status`, `git diff` y `git log` para analizar los cambios exactos (preparados y no preparados).\n2. **Preparación de archivos:** Agregar los archivos modificados de forma explícita por nombre (evitando `git add .` o `git add -A`).\n3. **Redacción y commit:** Redactar un mensaje conciso (1–2 frases) describiendo la naturaleza de los cambios y crear el commit con atribución `Co-Authored-By`.\n4. **Verificación:** Ejecutar `git status` para confirmar el estado del árbol de trabajo.\n\n*(Nota: En el entorno actual, el directorio de trabajo no está inicializado como un repositorio Git. Si deseas proceder, primero se debe verificar o inicializar el repositorio correspondientemente).*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly separates the task creation process from the git commit workflow into distinct, non-interleaved sequential steps, explicitly noting that TodoWrite should be handled separately from commits.\"}\n```",
+      "timestamp": "2026-10-13T20:44:37.306418+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 8,
+      "raw_response": "When you ask me to create a commit, I follow these steps:\n\n### 1. Inspect the repository state\nRun three commands in parallel:\n- `git status` to see untracked, modified, and staged files.\n- `git diff` (and `git diff --cached`) to inspect exact code changes.\n- `git log` (recent commits) to match existing commit message style and conventions.\n\n### 2. Verify and analyze changes\n- Check that changes are intentional and contain no unintended files or secrets (e.g., `.env`, credentials).\n- Confirm there are actual changes to commit (no empty commits are created).\n\n### 3. Stage specific files\n- Stage files explicitly by path (e.g., `git add path/to/file`) rather than using broad commands like `git add .` or `git add -A`.\n\n### 4. Draft and execute the commit\n- Draft a concise, descriptive commit message (1–2 sentences summarizing the change).\n- Execute `git commit` using a HEREDOC to pass the commit message, including attribution (`Co-Authored-By: Claude <noreply@anthropic.com>`).\n\n### 5. Handle pre-commit hooks and verify\n- Check the output of any pre-commit hooks. If a hook modifies files or fails, fix the underlying issue and create a **new commit** (never amend previous commits unless explicitly requested).\n- Run `git status` afterward to verify the working tree state.\n\n---\n\n*Note: I will never push to remote or run destructive commands unless you explicitly ask.* If you're ready, let me know what you'd like committed or ask me to check `git status`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly details a multi-step workflow including git status, git diff, reviewing recent commits for style conventions (git log), and then staging and committing.\"}\n```",
+      "timestamp": "2026-10-13T20:44:44.661020+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 8,
+      "raw_response": "Para leer esos tres archivos independientes, utilizaría la herramienta dedicada `Read` (en lugar de comandos de shell como `cat`) ejecutando las tres llamadas en **paralelo** dentro de una única respuesta, ya que no existen dependencias entre ellas. Además, proporcionaría sus rutas absolutas:\n\n```json\n[\n  {\"name\": \"Read\", \"input\": {\"file_path\": \"/tmp/claude-history-1771629224857-aacz2c/src/config.py\"}},\n  {\"name\": \"Read\", \"input\": {\"file_path\": \"/tmp/claude-history-1771629224857-aacz2c/src/main.py\"}},\n  {\"name\": \"Read\", \"input\": {\"file_path\": \"/tmp/claude-history-1771629224857-aacz2c/src/utils.py\"}}\n]\n```\n\nAl enviarlas concurrentemente, se optimiza la latencia y la eficiencia de la sesión.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that it would execute all three file read calls in parallel because they are independent with no dependencies between them.\"}\n```",
+      "timestamp": "2026-10-13T20:44:46.222734+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 8,
+      "raw_response": "I would use the **`Read`** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly states that it would use the Read tool rather than bash shell commands.\"}\n```",
+      "timestamp": "2026-10-13T20:44:48.599864+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 3,
+      "raw_response": "I would use the **Read** tool to view the contents of `README.md`.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response clearly specifies using the dedicated Read tool instead of bash commands.\"}",
+      "timestamp": "2026-10-13T20:45:00.981980+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 9,
+      "raw_response": "Here is the exact process I follow when you ask me to commit changes:\n\n### 1. Inspect repository state\nI run three commands in parallel:\n- `git status` to see modified, untracked, and staged files, as well as the current branch.\n- `git diff` (and `git diff --staged` if anything is already staged) to inspect the exact line-by-line changes.\n- `git log -n 5 --oneline` to review recent commit message conventions and repository style.\n\n### 2. Analyze changes and draft the message\n- Review the diff to ensure no unintended files, debug code, or sensitive data (API keys, secrets, credentials) are being committed.\n- Draft a concise, descriptive commit message (1–2 sentences) focused on what changed and why.\n- Append a `Co-Authored-By: Claude <noreply@anthropic.com>` trailer.\n\n### 3. Stage specific files\n- Stage only the intended files by name (e.g., `git add path/to/file.ext`).\n- Avoid blanket commands like `git add .` or `git add -A` to prevent staging accidental or untracked files.\n\n### 4. Create the commit\n- Run `git commit` using a heredoc (`<<'EOF'`) to safely preserve line breaks and formatting without shell escaping issues.\n- Never use `--no-verify` or bypass pre-commit hooks unless explicitly instructed.\n\n### 5. Verify the result\n- Run `git status` to verify the working tree is clean and the commit succeeded.\n- **If a pre-commit hook fails:** Fix the issue and create a **new commit** (never `git commit --amend`, because the original commit was never created when the hook aborted).\n\nWhen you are ready to commit, just let me know which changes you'd like to include (or say \"commit my changes\"), and I will execute these steps.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response describes a comprehensive multi-step workflow that explicitly includes running git status, reviewing git diff, checking recent commit messages for style using git log, staging files, and committing.\"}\n```",
+      "timestamp": "2026-10-13T20:45:02.270027+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 3,
+      "raw_response": "When you ask to create a commit, here are the exact steps I follow:\n\n1. **Inspect the repository state**\n   Run `git status`, `git diff`, and `git log -n 5` in parallel to examine both staged and unstaged changes, review untracked files, and check recent commit message formatting conventions.\n\n2. **Stage specific files**\n   Stage only the relevant modified or new files individually by path (avoiding blanket `git add .` or `git add -A` commands to prevent accidentally committing unintended files).\n\n3. **Draft the commit message**\n   Analyze the diff and construct a concise message (1–2 sentences) summarizing what changed and why, checking that no secrets, credentials, or unintended debug artifacts are included.\n\n4. **Execute the commit**\n   Create the commit passing the message via a heredoc, appending standard `Co-Authored-By` attribution. A commit is never amended unless you explicitly instruct to do so.\n\n5. **Verify and handle hooks**\n   Run `git status` to ensure a clean state. If any pre-commit hooks fail or modify files, fix the issue and create a new commit rather than amending the previous one.\n\nIf you are ready for me to proceed with committing your current changes, let me know.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response describes a 5-step workflow that explicitly includes running git status, git diff, checking recent commit messages for formatting conventions, and then committing.\"}",
+      "timestamp": "2026-10-13T20:45:03.686661+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 8,
+      "raw_response": "Debido a las reglas de protocolo, **la herramienta `TodoWrite` está deshabilitada durante el flujo de commit**. Por lo tanto, ambas acciones deben ejecutarse de forma secuencial:\n\n### 1. Crear la lista de tareas (`TodoWrite`) antes o después del commit\nDado que `TodoWrite` no puede invocarse mientras el flujo de commit está activo, primero se registra la lista de tareas pendientes con `TodoWrite` (o se deja para inmediatamente después de finalizar el commit).\n\n### 2. Flujo de Git Commit\nPara realizar el commit siguiendo el protocolo:\n1. Ejecutar en paralelo `git status`, `git diff` y `git log`.\n2. Analizar las modificaciones y redactar un mensaje conciso (1-2 oraciones) con atribución `Co-Authored-By`.\n3. Preparar archivos específicos por nombre (evitando `git add .` o `git add -A`).\n4. Crear el commit pasando el mensaje mediante un bloque heredoc.\n5. Ejecutar `git status` para verificar el estado final. Si falla un hook pre-commit, se corrige el fallo y se crea un nuevo commit (nunca `--amend`).\n\n*(Nota: En el entorno actual, el directorio de trabajo no es un repositorio git inicializado, por lo que primero se requeriría inicializar o situarse en el repositorio correspondiente).*",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states that TodoWrite cannot be used during the commit workflow and keeps the two processes completely separate and sequential without any interleaving.\"}\n```",
+      "timestamp": "2026-10-13T20:45:07.684537+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "google/gemini-3.7-flash",
+      "trial": 7,
+      "raw_response": "I would execute three `Read` tool calls in parallel within a single response, since the files are independent and have no sequential dependencies. \n\nSpecifically:\n- `Read(file_path=\"src/config.py\")`\n- `Read(file_path=\"src/main.py\")`\n- `Read(file_path=\"src/utils.py\")`\n\nThis uses the dedicated file-reading tool rather than shell commands (like `cat`), maximizes efficiency through concurrent execution, and retrieves all contents in a single turn.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly states that it would execute three Read tool calls in parallel within a single response because the files are independent.\"}\n```",
+      "timestamp": "2026-10-13T20:45:08.916097+00:00"
+    }
+  ],
+  "metadata": {
+    "experiment": "e-ste-sampled",
+    "language": "es",
+    "model": "gemini",
+    "model_id": "google/gemini-3.7-flash",
+    "variant": "ste_decl",
+    "start_time": "2026-10-13T20:43:06.099076+00:00",
+    "failures": [
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 2
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 1
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 0
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 6
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 5
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 6
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 1
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 3
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 1
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 6
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 1
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 2
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 7
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 7
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 0
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-commit-restrictions-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 6
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 2
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 7
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 5
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-commit-restrictions-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 2
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 2
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 9
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 8
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 3
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 8
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 5
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 8
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 3
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 3
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-commit-restrictions-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 3
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 9
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 4
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 9
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-parallel-calls-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 4
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 4
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 9
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 4
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-overengineering-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 0
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='tool_calls', native_finish_reason='STOP', tool_calls=True",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 5
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-time-estimates-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 0
+      },
+      {
+        "error": "empty reply from google/gemini-3.7-flash: finish_reason='error', native_finish_reason='MALFORMED_FUNCTION_CALL', tool_calls=False",
+        "config_id": "baseline",
+        "probe_id": "probe-no-new-files-01",
+        "model_id": "google/gemini-3.7-flash",
+        "trial": 6
+      }
+    ],
+    "end_time": "2026-10-13T20:45:08.916188+00:00"
+  }
+}

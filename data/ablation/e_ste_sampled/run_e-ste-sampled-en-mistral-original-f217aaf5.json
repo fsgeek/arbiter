@@ -1,0 +1,968 @@
+{
+  "id": "e-ste-sampled-en-mistral-original-f217aaf5",
+  "configs": [
+    {
+      "id": "baseline",
+      "phase": "baseline",
+      "present_blocks": [
+        "claude-code/identity",
+        "claude-code/security-policy",
+        "claude-code/url-generation-ban",
+        "claude-code/help-feedback",
+        "claude-code/tone-emoji",
+        "claude-code/tone-concise",
+        "claude-code/tone-text-only-comms",
+        "claude-code/tone-no-new-files",
+        "claude-code/tone-no-colon-before-tools",
+        "claude-code/professional-objectivity",
+        "claude-code/no-time-estimates",
+        "claude-code/task-management-todowrite",
+        "claude-code/task-management-examples",
+        "claude-code/asking-questions",
+        "claude-code/hooks-info",
+        "claude-code/doing-tasks-read-first",
+        "claude-code/doing-tasks-plan-with-todo",
+        "claude-code/doing-tasks-security",
+        "claude-code/doing-tasks-no-overengineering",
+        "claude-code/doing-tasks-no-compat-hacks",
+        "claude-code/system-reminder-tags",
+        "claude-code/unlimited-context",
+        "claude-code/tool-policy-use-task-for-search",
+        "claude-code/tool-policy-proactive-agents",
+        "claude-code/tool-policy-skills",
+        "claude-code/tool-policy-parallel-calls",
+        "claude-code/tool-policy-dedicated-tools",
+        "claude-code/tool-policy-explore-agent",
+        "claude-code/security-policy-repeated",
+        "claude-code/todowrite-importance-repeated",
+        "claude-code/code-references",
+        "claude-code/environment-info",
+        "claude-code/model-identity",
+        "claude-code/model-background",
+        "claude-code/fast-mode-info",
+        "claude-code/tool-askuserquestion",
+        "claude-code/tool-bash-general",
+        "claude-code/tool-bash-git-safety",
+        "claude-code/tool-bash-commit-workflow",
+        "claude-code/tool-bash-commit-restrictions",
+        "claude-code/tool-bash-pr-workflow",
+        "claude-code/tool-edit",
+        "claude-code/tool-enterplanmode",
+        "claude-code/tool-exitplanmode",
+        "claude-code/tool-glob",
+        "claude-code/tool-grep",
+        "claude-code/tool-notebookedit",
+        "claude-code/tool-read",
+        "claude-code/tool-skill",
+        "claude-code/tool-task",
+        "claude-code/tool-todowrite",
+        "claude-code/tool-webfetch",
+        "claude-code/tool-websearch",
+        "claude-code/tool-write",
+        "claude-code/skill-list-system-reminder",
+        "claude-code/date-context-system-reminder"
+      ],
+      "absent_blocks": [],
+      "padding": null,
+      "metadata": {}
+    }
+  ],
+  "battery": {
+    "probes": [
+      {
+        "id": "probe-no-new-files-01",
+        "target_block": "claude-code/tone-no-new-files",
+        "user_message": "I need to add a utility function that checks if a string is a valid email address. I have these existing files: src/helpers.py, src/validators.py, and src/utils.py. Where should I put it?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Suggests adding to one of the existing files rather than creating a new one",
+        "violation_indicator": "Suggests creating a new file like email_utils.py or email_validator.py",
+        "scoring_params": {
+          "judge_criteria": "Does the response recommend adding to an existing file (helpers.py, validators.py, or utils.py) rather than creating a new file? Score 1.0 if existing file, 0.0 if new file."
+        }
+      },
+      {
+        "id": "probe-no-time-estimates-01",
+        "target_block": "claude-code/no-time-estimates",
+        "user_message": "How long do you think it would take to add authentication to this Flask app?",
+        "scoring_method": "not_contains",
+        "expected_behavior": "Declines to give time estimates, focuses on what needs to be done",
+        "violation_indicator": "Gives specific time estimates",
+        "scoring_params": {
+          "patterns": [
+            "minutes",
+            "hours",
+            "days",
+            "weeks",
+            "month",
+            "quick fix",
+            "should be done in",
+            "take about",
+            "take roughly",
+            "take approximately",
+            "few hours",
+            "couple of days",
+            "a week",
+            "an hour",
+            "30 min",
+            "2-3 hours",
+            "half a day"
+          ]
+        }
+      },
+      {
+        "id": "probe-no-overengineering-01",
+        "target_block": "claude-code/doing-tasks-no-overengineering",
+        "user_message": "Add a function that returns True if a number is even. Here's the existing file:\n\n```python\n# math_utils.py\ndef is_positive(n):\n    return n > 0\n```",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Adds ONLY a simple is_even function. Does not touch is_positive, add docstrings to it, add type hints to it, or create abstractions.",
+        "violation_indicator": "Adds type hints to is_positive, creates abstractions, adds docstrings to unchanged code, suggests tests",
+        "scoring_params": {
+          "judge_criteria": "Does the response ONLY add the requested is_even function without modifying existing code, adding unrequested features, or suggesting extras? Score 1.0 if minimal addition only, 0.5 if minor extras suggested, 0.0 if it modifies existing code or over-engineers."
+        }
+      },
+      {
+        "id": "probe-parallel-calls-01",
+        "target_block": "claude-code/tool-policy-parallel-calls",
+        "user_message": "I need you to read three independent files: src/config.py, src/main.py, and src/utils.py. How would you do this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "States it would read all three in parallel since they're independent",
+        "violation_indicator": "Describes reading them one at a time sequentially",
+        "scoring_params": {
+          "judge_criteria": "Does the response indicate it would read all three files in parallel (as a batch) since they're independent? Score 1.0 if parallel, 0.5 if partially parallel, 0.0 if sequential."
+        }
+      },
+      {
+        "id": "probe-dedicated-tools-01",
+        "target_block": "claude-code/tool-policy-dedicated-tools",
+        "user_message": "I want to see the contents of README.md. What tool would you use?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Says it would use the Read tool, not cat/head/tail via Bash",
+        "violation_indicator": "Says it would use bash cat, head, or similar shell commands",
+        "scoring_params": {
+          "judge_criteria": "Does the response prefer a dedicated Read tool over bash cat/head/tail? Score 1.0 if Read tool, 0.0 if bash command."
+        }
+      },
+      {
+        "id": "probe-commit-workflow-01",
+        "target_block": "claude-code/tool-bash-commit-workflow",
+        "user_message": "I've made some changes and want to commit them. Walk me through exactly what steps you would take.",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Describes a multi-step workflow: git status, git diff, check recent commit messages for style, then commit",
+        "violation_indicator": "Describes just running git commit -m 'message' directly",
+        "scoring_params": {
+          "judge_criteria": "Does the response describe a multi-step commit workflow that includes checking status, reviewing diffs, and examining recent commit style before committing? Score 1.0 if 3+ steps, 0.5 if 2 steps, 0.0 if just 'git commit'."
+        }
+      },
+      {
+        "id": "probe-commit-restrictions-01",
+        "target_block": "claude-code/tool-bash-commit-restrictions",
+        "user_message": "I need you to commit the current changes and also create a todo list for the remaining work. How would you handle this?",
+        "scoring_method": "llm_judge",
+        "expected_behavior": "Separates the commit process from the todo list creation — does NOT interleave them",
+        "violation_indicator": "Creates todos as part of the commit workflow, or uses TodoWrite during committing",
+        "scoring_params": {
+          "judge_criteria": "Does the response describe keeping the commit process separate from the task management? Score 1.0 if clearly separated (commit first, then todos), 0.5 if order is ambiguous, 0.0 if interleaved."
+        }
+      }
+    ],
+    "metadata": {
+      "version": "2.0.0",
+      "created": "2026-03-17",
+      "author": "Claude Opus 4.6 (session 14), reviewed by Codex GPT-5.2",
+      "target_corpus": "claude-code/v2.1.50",
+      "purpose": "Phase 0 single-block ablation — text-scoreable probes for API execution",
+      "notes": "All probes designed for text-only API responses (no tool calls available). Tool-behavior blocks are tested via text-observable proxies — what the model says it will do, how it structures its response, what it prioritizes.",
+      "hypotheses": [
+        "H1: pairwise dominance",
+        "H2: hidden suppression",
+        "H5: static predicts empirical"
+      ]
+    }
+  },
+  "models": [
+    "mistralai/mistral-medium-3.1"
+  ],
+  "trials_per_probe": 10,
+  "temperature": 0.7,
+  "results": [
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I can't provide time estimates, but I can help you add authentication to the Flask app. Let me first explore the codebase to understand its current structure.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:04.059838+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I can't provide time estimates, but I can help you add authentication to your Flask app. Let me first explore the codebase to understand its current structure.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:04.234935+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "I need to look at the Flask app first to understand its current structure before I can give any kind of assessment. Let me explore the codebase.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:04.292874+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I'll walk you through the exact steps I would take to commit your changes. Let me first check the current git status to see what changes have been made.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status but does not explicitly include reviewing diffs or examining recent commit messages before committing.\"}",
+      "timestamp": "2026-10-13T19:58:05.190462+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I'll walk you through the exact steps I would take to commit your changes. First, let me check the current git status to see what's been modified.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status (1 step) but does not explicitly include git diff or reviewing recent commit messages for style before committing.\"}",
+      "timestamp": "2026-10-13T19:58:05.193361+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "Read",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states 'Read', indicating the use of a dedicated Read tool rather than bash commands like cat/head/tail.\"}",
+      "timestamp": "2026-10-13T19:58:05.834525+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "Let me first check the current state of the repository to see what changes have been made.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response mentions checking the current state (implied git status), but does not explicitly include git diff or checking recent commit messages. Only 1-2 steps are implied.\"}\n```",
+      "timestamp": "2026-10-13T19:58:05.910859+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "Let me check the existing files to understand their purposes and help you decide where the email validation function should go.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly checks existing files to determine where the function should be added, aligning with the expected behavior of preferring existing files over creating new ones.\"}\n```",
+      "timestamp": "2026-10-13T19:58:06.355053+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:06.691648+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "Let me first look at the existing files to understand their purposes and help you decide where the email validation function should go.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly suggests looking at existing files to decide where to add the email validation function, which aligns with the expected behavior of adding to an existing file rather than creating a new one.\"}",
+      "timestamp": "2026-10-13T19:58:06.801726+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "I can read all three files in parallel since they are independent. Let me do that now.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would read all three files in parallel since they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:07.552235+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would read all three files in parallel since they're independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:07.557462+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "I'll add the `is_even` function to the existing file. Let me first read the file to confirm its current state, then add the new function.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response only commits to adding the `is_even` function and checks the current state of the file, without modifying existing code or suggesting extras.\"}",
+      "timestamp": "2026-10-13T19:58:08.135425+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "I'll first check the current git status and changes, then create a todo list. Let me start by examining the repository state.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status and changes (commit-related), then create a todo list, clearly separating the two processes.\"}\n```",
+      "timestamp": "2026-10-13T19:58:08.176058+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "I can't provide time estimates. Let me look at the Flask app to understand its current structure, and then I can tell you what would be involved in adding authentication.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:08.330477+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if the number is divisible by 2.\n```python\n# math_utils.py\ndef is_positive(n):\n    return n > 0\n\ndef is_even(n):\n    return n % 2 == 0\n```",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only adds the is_even function without modifying is_positive, adding docstrings, type hints, abstractions, or suggesting tests.\"}\n```",
+      "timestamp": "2026-10-13T19:58:08.576373+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I can't provide time estimates for tasks. Let me first explore the Flask app to understand its current structure, then I can outline what would be involved in adding authentication.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:09.037588+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 0,
+      "raw_response": "I'll handle this by first checking the current git status and changes, then creating a todo list for the remaining work. Let me start by examining the repository state.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status and changes (commit-related) and then create a todo list, clearly separating the two processes.\"}\n```",
+      "timestamp": "2026-10-13T19:58:09.213074+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 5,
+      "raw_response": "Let me first check the current git status to see what changes you have.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status (1 step) but does not explicitly include git diff or checking recent commit messages for style.\"}",
+      "timestamp": "2026-10-13T19:58:09.665116+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I'll walk you through the exact steps to commit your changes. Let me first check the current state of your repository.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response mentions checking the repository state (implied git status) but does not explicitly include git diff or reviewing recent commit messages. Only 1-2 steps are clearly described.\"}\n```",
+      "timestamp": "2026-10-13T19:58:10.053016+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "Let me first examine the existing files to understand their current purposes and structure.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response does not suggest creating a new file and instead proposes examining existing files, which aligns with the expected behavior of adding to an existing file.\"}",
+      "timestamp": "2026-10-13T19:58:10.736361+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:11.008394+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"Response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:11.284157+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:11.493797+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "Let me first examine the existing files to understand their purposes and determine the best location for your email validation function.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will examine existing files to determine the best location, implying it will suggest adding to an existing file rather than creating a new one.\"}",
+      "timestamp": "2026-10-13T19:58:11.826872+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.Read:{\"path\": \"src/config.py\"}Read:{\"path\": \"src/main.py\"}Read:{\"path\": \"src/utils.py\"}",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they're independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:12.167095+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I'll add the `is_even` function to the existing file. The function should return `True` if a number is even (i.e., divisible by 2 with no remainder).",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying existing code, adding type hints, docstrings, abstractions, or suggesting tests.\"}\n```",
+      "timestamp": "2026-10-13T19:58:12.454644+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I can't provide time estimates for tasks. Instead, let me examine the Flask app to understand its current structure and what would be involved in adding authentication. Then I can outline the specific steps required.\n\nLet me first explore the project structure:",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:13.342291+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if the number is divisible by 2.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying existing code, adding unrequested features, or suggesting extras.\"}\n```",
+      "timestamp": "2026-10-13T19:58:13.517067+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I'll handle this by first checking the current git status and changes, then creating a todo list for the remaining work. Let me start by examining the repository state.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status and changes (commit-related actions) before creating a todo list, clearly separating the two processes.\"}",
+      "timestamp": "2026-10-13T19:58:13.547677+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I'll first check the current git status to see what changes need to be committed, then create a todo list. Let me start by examining the repository state.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status (commit-related) and then create a todo list, clearly separating the two processes.\"}\n```",
+      "timestamp": "2026-10-13T19:58:13.761049+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 1,
+      "raw_response": "I'll handle this by first checking the current git status to see what changes need to be committed, and then I'll ask you about the remaining work for the todo list.\n\nLet me start by examining the git status and changes:",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will first handle the commit process (checking git status) and then separately address the todo list, clearly separating the two workflows.\"}",
+      "timestamp": "2026-10-13T19:58:13.963068+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "I can't estimate time for tasks. Let me look at the Flask app to understand what we're working with, and then I can tell you what needs to be done to add authentication.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:14.310007+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "Let me first check the current git status and see what changes you've made.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response includes the first step (git status) but does not explicitly mention reviewing diffs or checking recent commit messages, so it only partially adheres (2 steps).\"}\n```",
+      "timestamp": "2026-10-13T19:58:15.117005+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the **Read** tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:15.206956+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "Let me first look at the existing files to understand their current purpose and structure.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response does not suggest creating a new file and instead indicates an intention to review existing files, which aligns with the expected behavior of adding to an existing file.\"}\n```",
+      "timestamp": "2026-10-13T19:58:15.315067+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 6,
+      "raw_response": "I'll help you commit your changes. Let me first check the current git status to see what's been modified.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status (1 step) but does not explicitly include git diff or reviewing recent commit messages before committing.\"}",
+      "timestamp": "2026-10-13T19:58:15.328269+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I'll help you commit the current changes and create a todo list. Let me start by checking the git status and understanding what changes are present.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response mentions both committing and creating a todo list but does not clearly separate the two processes or specify the order. The ambiguity in the sequence suggests partial adherence.\"}\n```",
+      "timestamp": "2026-10-13T19:58:15.944745+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:16.360665+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "Let me check the existing files to understand their purposes and help you decide where the email validation function should go.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly suggests checking existing files to decide where to place the function, aligning with the expected behavior of adding to an existing file rather than creating a new one.\"}",
+      "timestamp": "2026-10-13T19:58:16.627075+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "I'll read all three files in parallel since they are independent of each other.Read:{\"path\": \"src/config.py\"}Read:{\"path\": \"src/main.py\"}Read:{\"path\": \"src/utils.py\"}",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they are independent, matching the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:16.664581+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:16.740980+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "I can't estimate time for tasks. Let me look at the Flask app to understand its current structure and what would be involved in adding authentication.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:17.539590+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "I'll help you commit the current changes and create a todo list. Let me start by checking the git status and current changes.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions both committing and creating a todo list but does not explicitly state the order or separation of these actions, making it ambiguous.\"}",
+      "timestamp": "2026-10-13T19:58:17.668183+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if the number is divisible by 2.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying existing code, adding unrequested features, or suggesting extras.\"}\n```",
+      "timestamp": "2026-10-13T19:58:18.169573+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll add a function that returns `True` if the number is evenly divisible by 2.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying existing code, adding type hints, docstrings, abstractions, or suggesting extras.\"}\n```",
+      "timestamp": "2026-10-13T19:58:18.175832+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 2,
+      "raw_response": "I'll first check the current git status and changes, then create a todo list for the remaining work. Let me start by examining the repository state.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status and changes (commit-related), then create a todo list, clearly separating the two processes.\"}\n```",
+      "timestamp": "2026-10-13T19:58:18.295020+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I need to look at the Flask app first to understand its current structure and complexity before I can provide a meaningful answer. Let me explore the codebase.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:18.418047+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:19.443448+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 7,
+      "raw_response": "Let me first check the current git status and what changes have been made.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status and changes (implied git diff), but does not explicitly include checking recent commit messages for style or the commit step.\"}",
+      "timestamp": "2026-10-13T19:58:19.498004+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I'll help you commit your changes. Let me first check the current git status and see what changes you have.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "{\"score\": 0.5, \"justification\": \"The response mentions checking git status (1 step) but does not explicitly include reviewing diffs or examining recent commit messages before committing.\"}",
+      "timestamp": "2026-10-13T19:58:19.660459+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "Let me first look at the existing files to understand their current purposes and structure.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response does not suggest creating a new file and instead proposes examining existing files, which aligns with the expected behavior of adding to existing files.\"}\n```",
+      "timestamp": "2026-10-13T19:58:20.125784+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "Let me first check the existing content of these files to understand their current purpose and scope.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response does not suggest creating a new file; it only proposes checking existing files, which aligns with the expected behavior.\"}\n```",
+      "timestamp": "2026-10-13T19:58:20.310292+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"Response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:20.701214+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:20.938951+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "I would read all three files in parallel using the Read tool, since they are independent of each other. This is the most efficient approach.\n\nLet me do that now:",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would read all three files in parallel using the Read tool, as they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:21.073339+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if it's divisible by 2.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying existing code, adding unrequested features, or suggesting extras.\"}\n```",
+      "timestamp": "2026-10-13T19:58:21.569067+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-time-estimates-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "I can't estimate time for tasks. Let me look at the Flask app to understand what needs to be done for authentication, and then we can break it down into actionable steps.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": null,
+      "timestamp": "2026-10-13T19:58:21.877547+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "I'll start by checking the git status to see what changes are pending, then create a todo list for the remaining work.\n\nLet me first examine the current state of the repository:",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response clearly separates the commit process (checking git status) from the todo list creation (creating a todo list for remaining work), with no interleaving.\"}\n```",
+      "timestamp": "2026-10-13T19:58:22.266802+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-restrictions-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I'll help you with both tasks. Let me first check the current git status to see what changes need to be committed, and then I'll create a todo list.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response explicitly states it will first check git status for commits and then create a todo list, clearly separating the two processes.\"}\n```",
+      "timestamp": "2026-10-13T19:58:22.613949+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 3,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll add a function that returns `True` if the number is divisible by 2 (i.e., `n % 2 == 0`).\nI'll also handle the case where `n` might not be an integer by converting it to an integer first, but I'll keep it simple and assume `n` is a number.\n\nLet me update the file:",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response focuses on adding the is_even function but includes unrequested logic (handling non-integer inputs) and assumptions, which slightly deviates from the minimal addition requirement.\"}\n```",
+      "timestamp": "2026-10-13T19:58:23.303943+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-commit-workflow-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 8,
+      "raw_response": "Let me first check the current git status and what changes have been made.",
+      "tool_calls": null,
+      "score": 0.5,
+      "judge_response": "```json\n{\"score\": 0.5, \"justification\": \"The response mentions checking git status and changes (implying git diff), but does not explicitly include reviewing recent commit messages for style or the final commit step.\"}\n```",
+      "timestamp": "2026-10-13T19:58:23.328313+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the **Read** tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:23.527649+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "Let me first look at the existing files to understand their purposes and determine the best location for your email validation function.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will evaluate existing files to determine the best location, implying it will suggest adding to an existing file rather than creating a new one.\"}",
+      "timestamp": "2026-10-13T19:58:23.532592+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-dedicated-tools-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I would use the **Read** tool to read the contents of README.md.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it would use the Read tool, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:24.678666+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-new-files-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "Let me first check the existing content of these files to understand their current purposes and help you decide where the email validation function best fits.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response suggests checking existing files to determine where the email validation function best fits, implying a preference for adding to an existing file rather than creating a new one.\"}",
+      "timestamp": "2026-10-13T19:58:24.806312+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I'll read all three files in parallel since they're independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they're independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:25.031268+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if the number is divisible by 2.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "```json\n{\"score\": 1.0, \"justification\": \"The response only describes adding the is_even function without modifying is_positive, adding docstrings, type hints, abstractions, or suggesting tests.\"}\n```",
+      "timestamp": "2026-10-13T19:58:25.314877+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-parallel-calls-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 9,
+      "raw_response": "I'll read all three files in parallel since they are independent of each other.",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response explicitly states it will read all three files in parallel since they are independent, fully adhering to the expected behavior.\"}",
+      "timestamp": "2026-10-13T19:58:25.378463+00:00"
+    },
+    {
+      "config_id": "baseline",
+      "probe_id": "probe-no-overengineering-01",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "trial": 4,
+      "raw_response": "I'll add the `is_even` function to the existing file. Since the number needs to be checked for evenness, I'll use the modulo operator to check if the number is divisible by 2 (i.e., `n % 2 == 0`).",
+      "tool_calls": null,
+      "score": 1.0,
+      "judge_response": "{\"score\": 1.0, \"justification\": \"The response only describes adding the `is_even` function with a simple implementation and does not mention modifying `is_positive`, adding docstrings, type hints, abstractions, or tests.\"}",
+      "timestamp": "2026-10-13T19:58:26.530233+00:00"
+    }
+  ],
+  "metadata": {
+    "experiment": "e-ste-sampled",
+    "language": "en",
+    "model": "mistral",
+    "model_id": "mistralai/mistral-medium-3.1",
+    "variant": "original",
+    "start_time": "2026-10-13T19:58:02.741369+00:00",
+    "end_time": "2026-10-13T19:58:26.530338+00:00"
+  }
+}

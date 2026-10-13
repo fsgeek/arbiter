@@ -61,3 +61,12 @@ floor for a bimodal cell, not a comfortable number.
 
 ## Deviations log
 (append-only; empty at seal)
+
+- 2026-10-13, during the runs (mistral complete 1120/1120; haiku 14/16, deepseek 7/16 cells; no
+  scores analysed): gemini's process stopped after 5 of 16 cells. Cause: three of the six control
+  probes (no-new-files, no-time-estimates, no-overengineering) fail on every trial with
+  `MALFORMED_FUNCTION_CALL` (now recorded in each run file), and the runner's fail-stop fires when
+  a cell's first five completions are all failures. The target probe is 50/50 in the finished cells.
+  Fix: the runner script now skips finished cells and retries a cell up to 3× on the fail-stop
+  (nothing is saved on exception, so a retry is a clean re-run of that cell, not a re-draw of
+  trials). Gemini relaunched for the remaining 11 cells. Its control set is reported as kept/lost.

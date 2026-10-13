@@ -34,8 +34,11 @@ def main() -> None:
     out = project_root / ("data/ablation/e_ste_temp" if a.experiment == "e-ste-temp" else f"data/ablation/{a.experiment.replace('-', '_')}")
     out.mkdir(parents=True, exist_ok=True)
     model_id = ste.MODEL_MAP[a.model]
+    import glob as _glob
     for v in ste.VARIANTS:
         for lang in rfe.LANGUAGES:
+            if _glob.glob(str(out / f"run_{a.experiment}-{lang}-{a.model}-{v}-*.json")):
+                print(f"{v} {lang} already done, skipping", flush=True); continue  # resume (2026-10-13)
             corpus = rfe.load_corpus(rfe.corpus_path_for_lang(lang))
             if ste.VARIANTS[v] is not None:
                 corpus = rfe.modify_corpus_block(corpus, ste.BLOCK, ste.VARIANTS[v][lang])
@@ -46,7 +49,19 @@ def main() -> None:
                               metadata={"experiment": a.experiment, "language": lang, "model": a.model, "model_id": model_id, "variant": v})
             runner = AblationRunner(caller=LLMCaller(rfe.make_client(a.experiment), model_id))
             print(f"{v} {lang} ...", flush=True)
-            asyncio.run(runner.run_phase(run, "baseline", corpus=corpus, concurrency=a.concurrency))
+            for attempt in range(1, 4):
+                # The runner fail-stops when its FIRST five completions all fail. With a model that
+                # cannot answer 3 of these 7 probes, that is a coin flip per cell, not a dead model.
+                # Retry the whole cell (nothing is saved on exception); declared 2026-10-13.
+                try:
+                    asyncio.run(runner.run_phase(run, "baseline", corpus=corpus, concurrency=a.concurrency))
+                    break
+                except RuntimeError as exc:
+                    print(f"  cell fail-stop (attempt {attempt}): {str(exc)[:160]}", flush=True)
+                    run.results.clear(); run.metadata.pop("failures", None)
+                    runner._consecutive_errors = 0
+            else:
+                print(f"  giving up on {v} {lang} after 3 fail-stops", flush=True); continue
             save_run(run, str(out / f"run_{run.id}.json"))
             sc = [r.score for r in run.results if r.score is not None]
             print(f"  n={len(run.results)} mean={statistics.mean(sc) if sc else None:.3f} scores={sc}", flush=True)

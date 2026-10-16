@@ -1,11 +1,11 @@
-# RESULT: E-STE-S — under sampling, Paper 3's declarative rewrite does nothing to spread or level; the only robust effect is that the STE-imperative rewrite hurts
+# RESULT: E-STE-S — under sampling, Paper 3's declarative rewrite has no detectable effect on spread or level (intervals do not exclude modest effects); the only robust effect is that the STE-imperative rewrite hurts
 
 **Run:** 2026-10-13, 64 cells (4 variants × 4 languages × 4 models), 7 probes × 10 trials at temperature 0.7.
 **Prereg:** `prereg_e_ste_sampled.md` (sealed 1b7f8e1, stamped f19bf13; one deviation logged mid-run, 93842c9).
 **Data:** `data/ablation/e_ste_sampled/` (64 run files with every response, judge response and recorded
 failure; `analysis.json`). **Analysis:** `scripts/analyze_e_ste_sampled.py` (10,000-draw trial-level bootstrap).
 **Validity:** haiku, deepseek, mistral 1,120/1,120 each, zero failures. gemini-3.7-flash: target probe
-0.956 (gated in), **519 control failures** (`MALFORMED_FUNCTION_CALL` / `tool_calls`): it kept
+0.956 (gated in), **519 failures (512 control, 7 target)** (`MALFORMED_FUNCTION_CALL` / `tool_calls`): it kept
 commit-workflow 160/160, dedicated-tools 158, parallel-calls 122, and lost no-time-estimates (2),
 no-new-files (1), no-overengineering (5). Its commit cells are ~1.0 everywhere (immune, as Paper 3
 reported for Gemini 2.0), which pulls every pooled spread toward zero equally.
@@ -67,3 +67,16 @@ updated after round 2, all lost.
 
 ## Status
 `run, scored, 6 sealed predictions settled (2 supported). Converged-untested-from-outside.`
+
+## Addendum 2026-10-16 (Opus 5.5 owner)
+Title changed from "does nothing" to "no detectable effect": the original→declarative level interval is
+[−0.097, +0.026] and the spread interval admits an 81% reduction relative to today's baseline, so the run
+detects no effect; it does not establish absence. The ste_imp→ste_decl level recovery is an *exploratory*
+contrast (sealed P2 concerned spread and failed); intervals are unadjusted across contrasts; control
+intervals used 2,000 draws, not 10,000. Judging ran at provider default temperature (see RESULT_e_ste.md
+addendum). Cost from the OpenRouter export within the run window: $14.36.
+Reading items 3 and 4 above overstate, kept as written: "not above it" should read "not detectably different
+from the original (+0.041 [−0.018, +0.099])"; "nothing here moves the neighbours" should read "no control met
+the sealed spread criterion (interval wholly above 0.01); one control interval reaches 0.024, and
+parallel-calls adherence fell 0.991 → 0.956 between ste_imp and ste_decl (exploratory)". Failures: 519 =
+512 control + 7 target.

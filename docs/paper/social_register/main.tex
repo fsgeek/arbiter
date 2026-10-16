@@ -25,20 +25,59 @@
 \usepackage{multirow}
 
 % --- Metadata ---
-\title{\textbf{Imperative Interference: Social Register Shapes Instruction Topology in Large Language Models}}
+\title{\textbf{Imperative Interference: Does Social Register Shape Instruction Topology in Large Language Models?}}
 
 \author{Tony Mason \\
 the University of British Columbia \\
 the Georgia Institute of Technology \\
 fsgeek@\{cs.ubc.ca,gatech.edu,wamason.com\}}
 
-\date{March 2026}
+\date{March 2026; version 3, October 2026}
 
 \begin{document}
 
 \maketitle
 
 % ============================================================
+\noindent\textbf{Note on version 3.}\enspace
+The headline result of version 2, that declarative rewriting of one
+instruction block reduces cross-linguistic variance by 81\%, did not
+replicate, and we withdraw it as a claim about how to write prompts.
+Two things went wrong, and either alone would have been enough. First,
+the declarative variant changed three things at once (it changed the
+mood, dropped the intensifiers in favour of a uniform list, and added
+an explicit ``during commit operations'' scope that the original
+lacked), so the 81\% could never have been credited to register alone.
+Second, every March response in this paper was generated with three
+trials at temperature~0, and we have since learned two things about
+that regime: the cells are not reproducible (the headline cell gave a
+different answer in October on what OpenRouter's records identify as
+the same model snapshot, served by the same provider), and the
+\texttt{llm\_judge} scorer, used for 18 of the 22 probes (version~2
+said seven), was called at the provider's default temperature, so nothing
+guaranteed deterministic scores even when the responses repeated. In
+October 2026 we re-ran the comparison on current models,
+with the confound split out (a $2\times2$ of mood by sentence shape)
+and with ten sampled trials per cell at temperature~0.7
+(\S\ref{sec:replication}). The declarative rewrite had no detectable
+effect on cross-linguistic spread or on adherence. The one effect that
+survived sampling, an exploratory contrast on one block, runs the
+other way from our design advice: rewriting the block as one scoped
+imperative per sentence \emph{lowered} adherence, and the same
+sentences in declarative mood recovered it. The $\sigma$ figures
+(5.9$\sigma$, 11.1$\sigma$, 3.5$\sigma$) are withdrawn; the rank
+$p = 0.045$ stands only as a description of the March 2026 snapshot.
+The topology results (\S\ref{sec:topology}, \S\ref{sec:etopo}) were
+measured in the same regime and have not been re-run; they should be
+read as snapshot observations, and the social-register mechanism as a
+hypothesis, not an established effect. Version~3 also corrects four
+errors of description that version~2 carried: the number of
+judge-scored probes, the account of Gemini's E-PROC cells, the text of
+the declarative variant, and the code availability statement. The text
+of version 2 is otherwise retained, with the affected claims marked. The title, which stated the mechanism as a finding, is
+now a question.
+
+\medskip
 \noindent\textbf{Note on version 2.}\enspace
 This version corrects two reported statistics to match the analysis
 script of record. The control-probe mean shift is $+0.0010$ (was
@@ -55,18 +94,28 @@ observed effect---is unchanged.
 System prompt instructions that cooperate in English compete in
 Spanish, with the same semantic content, but opposite interaction topology. We present
 instruction-level ablation experiments across four languages and four
-models showing that this topology inversion is mediated by
+models, and the hypothesis (stated in version~2 as a finding) that this
+topology inversion is mediated by
 \emph{social register}: the imperative mood carries different obligatory
 force across speech communities, and models trained on multilingual data
-have learned these conventions. Declarative rewriting of a single
-instruction block reduces cross-linguistic variance by 81\%
-($p = 0.045$, rank-permutation vs.\ 21 control probes). Rewriting three of eleven imperative
-blocks shifts Spanish instruction topology from competitive to
-cooperative, with spillover effects on unrewritten blocks. These
-findings suggest that models process instructions as social acts, not
+have learned these conventions. All of these measurements are March
+2026 snapshots taken at generation temperature~0 with three trials. In the March 2026 snapshot, declarative rewriting of a single
+instruction block reduced cross-linguistic variance by 81\%
+($p = 0.045$, rank-permutation vs.\ 21 control probes); \emph{this did
+not replicate} in an October 2026 re-run with ten sampled trials per
+cell, which also separated mood from sentence shape (version~3 note,
+\S\ref{sec:replication}). The surviving register result is narrower
+and exploratory: when this one block was rewritten as one scoped
+instruction per sentence, imperative mood lowered adherence and
+declarative mood recovered it. In
+the snapshot, rewriting three of eleven imperative
+blocks shifted Spanish instruction topology from competitive to
+cooperative, with spillover effects on unrewritten blocks; this has
+not been re-run under sampling. These
+observations suggest that models may process instructions as social acts, not
 technical specifications: ``NEVER do X'' is an exercise of authority
-whose force is language-dependent, while ``X: disabled'' is a factual
-description that transfers across languages. If register mediates
+whose force may be language-dependent, while ``X: disabled'' is a factual
+description. If register mediates
 instruction-following at inference time, it plausibly does so during
 training. We state this as a testable prediction: constitutional AI
 principles authored in imperative mood may create language-dependent
@@ -84,8 +133,8 @@ Bash.'' ``Use the Task tool VERY frequently.'' These instructions work
 in English. They fail in predictable, structurally characterizable
 ways when the same instructions are translated to other languages.
 
-The failure is not uniform degradation. It is structural inversion.
-In English, the instructions in a production system prompt form a
+In our March 2026 measurements, the failure was not uniform
+degradation but structural inversion. In English, the instructions in a production system prompt form a
 cooperative network: removing any instruction reduces overall
 adherence. In Spanish, the same instructions, which are semantically
 identical and correctly translated, form a competitive network: removing
@@ -102,8 +151,11 @@ translation hurts. An interaction topology tells you \emph{how}:
 which instructions interfere, which cooperate, and whether the
 pattern is stable across languages.
 
-Our central finding is that this topology difference is mediated by
-\textbf{social register}. Imperative mood (``Use X,'' ``NEVER do
+(Version~3: the next two paragraphs state the mechanism as version~2
+held it. The single-block evidence for it did not replicate, and the
+topology evidence has not been re-measured, so read them as the
+hypothesis, \S\ref{sec:replication}.) Our central finding was that this
+topology difference is mediated by \textbf{social register}. Imperative mood (``Use X,'' ``NEVER do
 Y'') carries different obligatory force in different speech
 communities. In English, stacked imperatives create a coherent
 authority context. In Spanish, the same stack creates competing
@@ -117,7 +169,7 @@ for how authority and obligation are encoded across languages. When a
 system prompt exercises authority through imperative mood, the
 model's response depends on which language's conventions it applies.
 
-We demonstrate this through a five-experiment arc:
+We investigated this through a five-experiment arc (all March 2026 snapshots):
 
 \begin{enumerate}[nosep]
 \item \textbf{Observation:} Instruction interaction topology is a
@@ -125,17 +177,18 @@ We demonstrate this through a five-experiment arc:
   instruction), not a language main effect (\S\ref{sec:baselines}).
 \item \textbf{Falsification:} Information density does not explain
   the topology differences (\S\ref{sec:density}).
-\item \textbf{Single-block fix:} Declarative rewriting eliminates
-  cross-linguistic variance for individual instructions, 81\%
-  reduction, $p = 0.045$ (rank-permutation vs.\ 21 control
-  probes; \S\ref{sec:eproc}).
-\item \textbf{Topology confirmation:} Pairwise ablation confirms
-  the cooperative/competitive inversion between English and Spanish
+\item \textbf{Single-block fix (withdrawn in v3):} In the March
+  snapshot, declarative rewriting reduced cross-linguistic variance
+  for one instruction by 81\%, $p = 0.045$ (rank-permutation vs.\ 21
+  control probes; \S\ref{sec:eproc}); it did not replicate under
+  sampling (\S\ref{sec:replication}).
+\item \textbf{Topology confirmation:} Pairwise ablation (Haiku,
+  temperature~0) showed the cooperative/competitive inversion between English and Spanish
   (\S\ref{sec:topology}).
-\item \textbf{Causal mechanism:} Rewriting three imperative blocks
-  to declarative shifts Spanish topology from competitive to
-  cooperative, with spillover to unrewritten blocks
-  (\S\ref{sec:etopo}).
+\item \textbf{Causal mechanism (unreplicated):} In the March
+  snapshot, rewriting three imperative blocks to declarative shifted
+  Spanish topology from competitive to cooperative, with spillover to
+  unrewritten blocks (\S\ref{sec:etopo}); Haiku only, not re-run.
 \end{enumerate}
 
 The experimental substrate is the Claude Code system prompt (v2.1.50),
@@ -150,12 +203,15 @@ Our contributions are:
 \item The first instruction-level ablation study of a production
   system prompt across languages (4 models $\times$ 4 languages
   $\times$ 22 probes).
-\item Discovery that instruction interaction topology inverts across
+\item An observation (March snapshot, Haiku, not re-run under
+  sampling) that instruction interaction topology inverts across
   languages: cooperative in English, competitive in Spanish.
-\item Identification of social register as the causal mechanism,
-  with experimental confirmation via declarative rewriting.
-\item Evidence of spillover effects: rewriting the register of some
-  instructions changes how the model processes others.
+\item A proposal that social register is the mechanism. (Version~3:
+  the single-block confirmation did not replicate; what survives is a
+  mood effect on adherence within one controlled sentence shape,
+  \S\ref{sec:replication}.)
+\item An observation of spillover (same caveats): rewriting the
+  register of some instructions changed adherence on others.
 \item A testable prediction: if register mediates
   instruction-following at inference time, alignment training via
   imperatively-phrased constitutional principles may be
@@ -195,10 +251,11 @@ things) originates with Austin and Searle's speech act theory.
 ``NEVER use TodoWrite'' is not a description; it is an exercise of
 authority. The distinction between locutionary content (what is said),
 illocutionary force (what is done), and perlocutionary effect (what
-results) maps directly onto our findings: identical locutionary
-content produces different perlocutionary effects across languages
-because the illocutionary force of imperative mood is
-language-dependent.
+results) offers a way to read our March observations: identical
+locutionary content produced different perlocutionary effects across
+languages, which would follow if the illocutionary force of
+imperative mood is language-dependent. (Version~3: this is the
+hypothesis, not a demonstrated cause.)
 
 \emph{Register} is the sociolinguistic term for the variety of
 language used in a particular social context.
@@ -316,9 +373,11 @@ Scoring methods include:
 
 All probes are in English: the user speaks English, only the system
 prompt changes language. Three trials per probe at temperature 0.0.
+(Version~3: that temperature applied to generation only. The judge
+call set no temperature, so judging ran at each provider's default.)
 
-The \texttt{llm\_judge} method (7 of 22 probes) uses the same model
-being tested. This is a known limitation (\S\ref{sec:limitations}).
+The \texttt{llm\_judge} method (18 of 22 probes; version~2 said seven)
+uses the same model being tested. This is a known limitation (\S\ref{sec:limitations}).
 
 \subsection{Ablation Design}
 
@@ -358,9 +417,9 @@ Label & Experiment & Finding & Motivated \\
 \midrule
 T7  & Cross-ling.\ baseline & Three-way interaction & T9 \\
 T9  & E-DENSE (padding) & Density is bidirectional & T10 \\
-T10 & E-PROC (rewrite) & Declarative fixes variance & E-PAIR-ES \\
---- & E-PAIR-ES (pairwise) & Spanish topology inverts & T11 \\
-T11 & E-TOPO (topology) & Register is the mechanism & --- \\
+T10 & E-PROC (rewrite) & Declarative fixed variance (did not replicate) & E-PAIR-ES \\
+--- & E-PAIR-ES (pairwise) & Spanish topology inverted & T11 \\
+T11 & E-TOPO (topology) & Consistent with register (not re-run) & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -461,7 +520,8 @@ the main effects.
 \subsection{Topology Inversion}
 \label{sec:topology}
 
-Phase~0 single-block removal on Haiku reveals that instruction
+In the March snapshot (temperature~0, three trials, not re-run),
+Phase~0 single-block removal on Haiku indicated that instruction
 topology is language-dependent (\Cref{fig:topology}).
 
 \begin{table}[ht]
@@ -498,7 +558,7 @@ topology.
 remains strongest at $-$0.094) but with positive effects elsewhere.
 Mixed topology.
 
-The cross-linguistic correlation of main effects confirms the
+In the March snapshot, the cross-linguistic correlation of main effects was consistent with the
 inversion: English and Spanish are anti-correlated ($r = -0.274$).
 No language pair has a positive correlation.
 
@@ -513,8 +573,8 @@ strengthen the English prompt weaken the Spanish one.}
 \end{figure}
 
 \textbf{Pairwise confirmation (E-PAIR-ES).} Phase~1 pairwise ablation
-on Haiku with the Spanish corpus confirms the topology at the
-interaction level:
+on Haiku with the Spanish corpus showed the same topology at the
+interaction level (a temperature-0 snapshot, not re-run):
 \begin{itemize}[nosep]
 \item English mean pairwise $\Delta$: $-$0.116 (cooperative)
 \item Spanish mean pairwise $\Delta$: $+$0.010 (competitive)
@@ -572,14 +632,23 @@ its cross-linguistic variance.
 
 The \texttt{commit-restrictions} block was rewritten in two forms:
 \begin{itemize}[nosep]
-\item \textbf{Declarative:} flat bullet list with explicit per-item
-  status (``Disabled: TodoWrite, Task tools; Required: specific file
-  staging'')
+\item \textbf{Declarative:} a single scope sentence (``During commit
+  operations, the following tools and commands are unavailable'')
+  followed by a flat list with per-item status (``TodoWrite tool:
+  disabled''). (Version~2 quoted text here that does not appear in the
+  variant; this is the text that was run.)
 \item \textbf{Scoped:} bracketed block with compact inline list
 \end{itemize}
 
 Both preserve the same semantic content. All other blocks unchanged
-(21 control probes).
+(21 control probes). (Version~3: the original block is an ``Important
+notes:'' header over bullets with intensifiers (``NEVER'',
+``IMPORTANT'', ``ALWAYS'') and no statement that the rules apply
+during commits. The declarative variant changed the mood, replaced the
+intensified bullets with a uniform status list, and added that scope
+in its opening sentence. The comparison below therefore cannot
+attribute its effect to mood; \S\ref{sec:replication} separates mood
+from sentence shape.)
 
 \begin{table}[ht]
 \centering
@@ -602,33 +671,164 @@ Scoped                & 0.0966 & 38\% (n.s.) \\
 \centering
 \includegraphics[width=0.85\columnwidth]{eproc_variance.pdf}
 \caption{Cross-linguistic variance of \texttt{commit-restrictions} by
-encoding variant and model. Declarative rewriting eliminates Haiku's
-cross-linguistic variance almost entirely. Gemini is unaffected; its
-failure is model-level, not encoding-dependent.}
+encoding variant and model (March 2026 snapshot). Declarative
+rewriting eliminates Haiku's cross-linguistic variance almost
+entirely. (Version~2's caption said Gemini was unaffected; its variance
+also fell, see text.)}
 \label{fig:eproc}
 \end{figure}
 
-The declarative variant reduced cross-linguistic variance by 81\%
-($p = 0.045$, rank-permutation vs.\ 21 control probes). The effect was
-5.9$\sigma$ above the 21 control probes (mean control $\Delta$ =
-$+$0.0010). With zero of 21 control probes exceeding the observed
-effect, significance is firm but margin-thin: a single control probe
-above the effect would cross $p > 0.05$. The effect is carried by
-Haiku: restricted to Haiku alone the reduction is 100\% (11.1$\sigma$),
-and it survives excluding Gemini (77\%, 3.5$\sigma$). The most dramatic
-change: Haiku Mandarin went from 0.00 to 1.00. The complete failure
-caused by procedural encoding was eliminated.
+In the March snapshot, the declarative variant reduced cross-linguistic variance by 81\%
+($p = 0.045$, rank-permutation vs.\ 21 control probes). Version~2
+reported this as 5.9$\sigma$ above the 21 control probes (mean control
+$\Delta$ = $+$0.0010). Version~3 withdraws that figure. It divides by
+the spread of the control probes' changes, and that spread was measured
+in a regime whose dependence structure we do not know: responses at
+temperature~0, scored by a judge at the provider's default temperature,
+three times each. Whether it understates or overstates the noise, it
+is not a calibrated estimate of it. With zero of 21 control probes exceeding the observed
+effect, the rank result was margin-thin even on its own terms: a
+single control probe above the effect would cross $p > 0.05$. The effect is carried by
+Haiku: restricted to Haiku alone the reduction is 100\%, and excluding
+Gemini it is 77\%. (Version~2 gave these as 11.1$\sigma$ and
+3.5$\sigma$; they use the same construction as the 5.9$\sigma$ and are
+withdrawn with it.) Variances in \Cref{tab:eproc} are sample
+variances of the four language means; the rank test and the
+replication use population variances, which changes the values but
+not the ranks. The most dramatic
+change: Haiku Mandarin went from 0.00 to 1.00, a cell that in
+October scored 1.00 under the original block as well.
 
-Gemini was unaffected (0.00 across all languages in all variants).
-Its \texttt{commit-restrictions} failure is model-level, not
-encoding-dependent. The declarative fix is not universal; it
-addresses register-mediated fragility, not all fragility.
+Version~2 said Gemini was unaffected, scoring 0.00 in every language
+and variant. That was wrong. Gemini's original-block cells were
+$[0,0,0]$ in English, French and Spanish and $[1,1,1]$ in Mandarin;
+its declarative cells were $[0,0,0]$ except Spanish, $[0.5,0.5,0]$.
+Its cross-linguistic variance therefore fell too (population variance
+0.1875 to 0.0208), by moving its one passing language to failure
+rather than by fixing anything, which is a reminder that a variance
+reduction is not the same thing as an improvement.
+
+\subsection{Replication Under Sampling (Version 3, October 2026)}
+\label{sec:replication}
+
+The E-PROC result rests on three trials per cell, with responses
+generated at temperature~0 and, for 18 of the 22 probes including the
+target, scored by an LLM judge called at the provider's default
+temperature. Across the 16 March cross-linguistic baseline runs, 257
+of the 351 complete cells (73\%) returned the identical score on all
+three trials and 111 (32\%) the identical response text; only 91 were
+identical in both, and 20 cells with identical text received
+different scores. These counts do not establish the dependence
+between trials or the effective sample size, and we cannot say how
+much information three trials carry. The cell that carried the headline
+(Haiku, Mandarin, original block: $[0, 0, 0]$, becoming $[1, 1, 1]$
+when rewritten) is one in which all three trials agreed.
+
+We re-ran the comparison twice in October 2026, with predictions
+sealed and timestamped before each run. Both runs used a $2\times2$
+design on the \texttt{commit-restrictions} block, crossing mood
+(imperative or declarative) with sentence shape (the original loose
+bullets, or a controlled shape with one instruction per sentence, the
+commit scope stated in each instruction sentence (``When you commit,
+\ldots''; a few supporting sentences, such as ``Git commands are
+available,'' carry no scope),
+no intensifiers, and at most twenty words per sentence). The loose declarative cell is the version~2 declarative text,
+unchanged. Everything else in the prompt, the probe battery and the
+scoring was as in E-PROC.
+
+The first re-run kept the March regime (three trials, temperature~0).
+On the three models that passed a response-validity gate, mean
+cross-linguistic variance on the target rose from 0.0133 (original) to
+0.0207 (declarative), and the reason is in the cells: current Haiku no
+longer fails the original block in Mandarin, so there was nothing for
+the rewrite to fix. The model alias had changed since March
+(\texttt{claude-haiku-4-5} is no longer served), but OpenRouter's
+per-call activity records show that the March E-PROC calls and the
+October calls were served by the same snapshot
+(\texttt{claude-4.5-haiku-20251001}) through the same provider
+(Amazon Bedrock). Under the same recorded snapshot, provider and
+generation temperature, then, the headline cell did not reproduce.
+Those labels cannot rule out a change in how the provider serves the
+model, so the cause remains open; what the episode shows is that a
+temperature-0 cell is not a stable measurement over months. The
+controlled-shape imperative cell looked nine times worse than the
+original, and two controlled-shape cells (one imperative, one
+declarative) collapsed to zero; in a follow-up on Haiku at
+temperature~0.7 with ten trials, those collapses recovered, and
+low-scoring responses appeared in many cells rather than in a few.
+
+The second re-run was the one designed to answer the question: four
+models, four languages, all four variants, the target probe and six
+controls, ten trials per probe at temperature~0.7, and a trial-level
+bootstrap (10{,}000 draws for the target, 2{,}000 for the controls). The
+results are in \Cref{tab:replication}.
+
+\begin{table}[ht]
+\centering
+\caption{Sampled replication (October 2026). Differences pooled over
+four models (Haiku~4.5, DeepSeek~V3, Mistral Medium~3.1,
+Gemini~3.7~Flash); 95\% bootstrap intervals. Spread is the variance of
+the four language means on the target probe; level is mean adherence.  orig.\ = original block; decl.\ = version~2 declarative text; ctrl.\ = controlled sentence shape; imp.\ = imperative.}
+\label{tab:replication}
+\begin{tabular}{lrr}
+\toprule
+Comparison & Change in spread & Change in level \\
+\midrule
+orig.\ $\to$ decl.\ (E-PROC) & $-0.0003$ [$-0.014$, $+0.016$] & $-0.036$ [$-0.097$, $+0.026$] \\
+orig.\ $\to$ ctrl.\ imp.\ & $+0.0121$ [$-0.003$, $+0.032$] & $\mathbf{-0.072}$ [$-0.136$, $-0.007$] \\
+ctrl.\ imp.\ $\to$ ctrl.\ decl.\ & $-0.0108$ [$-0.032$, $+0.008$] & $\mathbf{+0.113}$ [$+0.048$, $+0.177$] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The declarative rewrite of version~2 had no detectable effect on
+spread or on level. That is a statement about detection, not
+equivalence: the level interval admits anything from a loss of about
+ten points to a gain of about three, and the spread interval is wide
+enough to include a reduction as large as the March one, measured
+against today's much smaller baseline spread. Of the six sealed
+predictions, two held, and the three that bet \emph{for} the register
+account all failed, including the one that predicted a spread
+reduction within the controlled shape. What survived is an
+exploratory contrast (P5 sealed a level gain for the loose
+declarative rewrite, which failed; no sealed prediction concerned this
+within-shape adherence contrast), and it runs in the opposite direction from our design
+advice: rewriting the block as one scoped imperative per sentence
+lowered adherence (for Haiku alone, from 0.864 to 0.615), and the same
+sentences in declarative mood recovered it (Haiku 0.878; pooled, not
+detectably different from the original, $+0.041$ [$-0.018$,
+$+0.099$]). The intervals are unadjusted for the several contrasts we
+report. Mood therefore mattered for adherence within that one
+controlled shape of one block; we have no evidence that it reduces
+cross-linguistic variance, and none that it improves on the original
+block. Six control probes, drawn at random from the 21 with the seed
+fixed before the run, were checked for spillover; none met the sealed
+criterion for a change in spread (an interval lying entirely above
+0.01). That criterion does not establish that the controls were
+unchanged: one control's interval reaches 0.024, and in an exploratory
+check one control's adherence fell by about three points between the
+two controlled variants.
+
+Two limits apply to the replication itself. It covers one block of one
+prompt, and the judge for several probes is the model under test, as
+in the original study. Gemini~3.7~Flash answered many control probes
+with tool-call attempts and no text (519 recorded failures, almost all
+on control probes; 95.6\% of its target-probe trials were valid), and
+it scored near ceiling on the target in every cell (its spreads were
+between 0 and 0.0025) and, pooled with equal weight, lowers every
+variant's pooled spread (by 0.0025 to 0.0068 depending on the
+variant).
+Raw responses, judge outputs, recorded failures, preregistrations and
+analysis scripts are in the repository
+(\texttt{docs/research/RESULT\_e\_ste.md},
+\texttt{docs/research/RESULT\_e\_ste\_sampled.md}).
 
 \subsection{Register Shapes Topology}
 \label{sec:etopo}
 
-E-PROC showed that declarative rewriting fixes individual instruction
-variance. \textbf{E-TOPO} tested whether it also fixes the topology
+In the March snapshot, E-PROC appeared to show that declarative
+rewriting fixes individual instruction variance (it did not replicate,
+\S\ref{sec:replication}). \textbf{E-TOPO} tested whether it also fixes the topology
 inversion.
 
 Three blocks showing the strongest competitive effects in E-PAIR-ES
@@ -704,13 +904,18 @@ todowrite-repeated & $+$0.011 & $-$0.059 & $-$0.070 & Fixed \\
 \caption{E-TOPO topology shift. Target probes (top) shift from
 competitive to cooperative as expected. Spillover probes (middle) also
 shift despite being unrewritten. Control probes (bottom) remain stable.
-The spillover demonstrates that register operates at the system level,
-not per-block.}
+In version~2 we read the spillover as showing that register operates
+at the system level, not per-block; it is an unreplicated snapshot.}
 \label{fig:etopo}
 \end{figure}
 
-The spillover is the strongest evidence for the social register
-hypothesis. The imperative register creates system-wide
+(Version~3: E-TOPO is a Haiku-only, three-trial, temperature-0
+measurement, taken in the same regime in which the E-PROC headline
+cell proved fragile. It has not been re-run under sampling, so the
+paragraph below states the hypothesis as we held it, not an
+established effect.)
+In version~2 we wrote that the spillover is the strongest evidence for the social register
+hypothesis: that the imperative register creates system-wide
 interference, not just per-block fragility. Reducing the number of
 imperatives from approximately eleven to eight (by rewriting three)
 reduces the total obligation-resolution load, freeing the model to
@@ -750,8 +955,9 @@ state rules directly. The fragility has two mechanisms:
 
 \textbf{Procedural compression.} Conditional workflow chains compress
 ambiguously under translation. The model loses track of which
-constraints apply to which context. This is fixable with declarative
-rewriting (confirmed by E-PROC).
+constraints apply to which context. (Version~2 called this fixable
+with declarative rewriting, citing E-PROC; that confirmation did not
+replicate, \S\ref{sec:replication}.)
 
 \textbf{Domain jargon opacity.} Technical terms that are clear in
 English developer culture don't translate cleanly.
@@ -771,10 +977,10 @@ The specification model of system prompts, treating instructions as formal
 constraints on output, predicts language-invariant interaction
 topology. If ``NEVER use TodoWrite'' is a constraint, removing it
 should have the same structural effect regardless of what language
-it's expressed in. Our data falsifies this prediction. The same
+it's expressed in. Our March data contradict this prediction. The same
 instruction is essential in English and deadweight in Spanish.
 
-The social act model predicts exactly what we observe: that
+The social act model, which we offer as a hypothesis, predicts what we observed: that
 interaction topology depends on how the target language encodes the
 social relationship between instructor and instructed. Stacked
 imperatives in English reinforce a single authority frame. In
@@ -784,25 +990,29 @@ signals, as if from multiple authority sources. The model must
 resolve not just ``what am I being told to do'' but ``who is telling
 me, and do these authorities agree?''
 
-The spillover effect (\S\ref{sec:etopo}) is the strongest evidence
-for this interpretation. If register operated per-block, rewriting
+We took the spillover effect (\S\ref{sec:etopo}) to be the strongest
+evidence for this interpretation; as noted there, it is an unreplicated
+temperature-0 observation. If register operated per-block, rewriting
 three blocks should affect only three probes. Instead, unrewritten
 blocks also shifted from competitive to cooperative. This is
 consistent with a system-level obligation-resolution load: each
 imperative consumes processing resources, and reducing the count
 benefits the whole prompt.
 
-Declarative register sidesteps the social dimension entirely.
-``Status: available'' does not invoke authority. It cannot compete
-for it.
+On this hypothesis, declarative register sidesteps the social
+dimension: ``Status: available'' does not invoke authority, so it
+cannot compete for it. (The sampled replication found no detectable
+benefit from the declarative rewrite of the original block.)
 
 \subsection{Alignment Implications}
 \label{sec:alignment}
 
 We state the following as a \textbf{testable prediction}, not a
 confirmed result: if social register mediates instruction-following
-at inference time---and our experiments demonstrate that it does---then
-it plausibly mediates instruction-following during training as well.
+at inference time (which version~2 claimed our experiments
+demonstrate, and which the sampled replication supports only within
+one controlled sentence shape of one block, as an exploratory effect on adherence), then it
+plausibly mediates instruction-following during training as well.
 
 Constitutional AI \citep{bai2022constitutional} trains models using
 principles that are overwhelmingly written in imperative mood: ``Be
@@ -816,14 +1026,14 @@ obligatory force across languages, then:
   differently-helpful in other languages, not because of the
   \emph{content} of the principles but because of their
   \emph{register}.
-\item The Mistral anomaly supports this. A French-trained model that
+\item The Mistral anomaly is consistent with this. A French-trained model that
   performs worst in English and best in Mandarin suggests that
   training language creates behavioral signatures that interact
   unpredictably with register.
 \item The direction of the interaction is not predictable from the
-  language pair alone. Our data shows that English-Spanish produces
-  topology inversion, but English-French produces topology
-  flattening and English-Mandarin produces partial preservation.
+  language pair alone. Our March data show that English-Spanish produced
+  topology inversion, English-French topology
+  flattening, and English-Mandarin partial preservation.
   These are different failure modes, not different magnitudes of
   the same failure.
 \end{enumerate}
@@ -831,19 +1041,32 @@ obligatory force across languages, then:
 This prediction is testable. One could compare models trained on
 declaratively-phrased constitutional principles against models trained
 on imperatively-phrased ones, measuring cross-linguistic alignment
-consistency. Our inference-time findings predict that
+consistency. The register hypothesis predicts that
 declaratively-trained models would show more consistent alignment
 across languages.
 
 The broader implication: the question ``why aren't Spanish-speaking
 countries building Spanish-primary models?'' is not merely economic.
-Our data suggests that training language creates behavioral
+Our March data suggest that training language may create behavioral
 signatures that interact with instruction register in ways that are
 only beginning to be characterized.
 
 \subsection{Design Principles}
 
-The experimental findings suggest concrete design rules for system
+\noindent\textbf{Version 3.} The first two rules below are \emph{not
+supported} by the sampled replication (\S\ref{sec:replication}).
+Declarative rewriting of the original block had no detectable effect,
+and the controlled shape that rule~2 describes (one self-contained,
+scoped instruction per sentence) \emph{lowered} adherence when written
+in the imperative. What the replication supports is narrower than a
+rule: for this one block, rewriting it as one scoped imperative per
+sentence cost adherence and the declarative version of the same
+sentences did not, an exploratory result on one block of one prompt
+that we would want replicated before anyone treated it as advice.
+Rule~3 was never directly tested. We leave the
+version~2 list in place so that the change is visible.
+
+The experimental findings (version~2) suggested these design rules for system
 prompts intended to work across languages:
 
 \begin{enumerate}[nosep]
@@ -874,8 +1097,9 @@ replication.
 did not verify translation quality with native speakers. Translation
 artifacts could explain some findings.
 
-\textbf{LLM-as-judge.} Seven of 22 probes use the same model being
-tested as judge. This could create systematic bias. Cross-model
+\textbf{LLM-as-judge.} Eighteen of 22 probes (version~2 said seven)
+use the same model being tested as judge, at the provider's default
+temperature. This could create systematic bias. Cross-model
 judging would be more independent.
 
 \textbf{Limited model set.} Four models. The three-way interaction may
@@ -900,13 +1124,28 @@ languages.
 \textbf{Small sample sizes.} Three trials per probe. Per-probe
 results have high variance.
 
+\textbf{Temperature 0 (added in version 3).} This is the limitation
+that mattered most, and version~2 did not list it. At temperature~0
+the three trials of a cell usually repeat one draw (73\% of baseline
+cells scored identically on every trial), so ``three trials'' is
+closer to one observation, and the variance across controls
+understates the noise it was used to measure. The one result we
+re-ran under sampling did not survive (\S\ref{sec:replication}). Every
+other number in this paper was measured in the same regime and
+carries the same caveat. A related variable we did not control is the
+serving provider: OpenRouter's records show that in a single hour of
+the March E-PROC run, DeepSeek~V3 calls were served by eight different
+providers, any of which may differ in quantization or inference stack.
+(Haiku calls went almost entirely to one provider, in March and in
+October alike.)
+
 \subsection{Future Work}
 
 The experimental arc suggests several research directions, ordered
 by proximity to current findings:
 
-\textbf{Phase transition mapping.} The cooperative-to-competitive
-shift is not gradual. Varying imperative density from 0 to 11 blocks
+\textbf{Phase transition mapping.} If the cooperative-to-competitive
+shift is real, it may not be gradual. Varying imperative density from 0 to 11 blocks
 could reveal a critical threshold where the topology undergoes a
 discontinuity. E-TOPO's result (changing 3 of 11 blocks flipped the
 topology) hints that Spanish/Haiku may be near the critical point.
@@ -920,7 +1159,7 @@ ecological model could predict which instruction pairs will compete
 without running experiments.
 
 \textbf{Register head.} If models process imperative and declarative
-registers differently, as T11 demonstrates, this should
+registers differently, as T11 suggested in the March snapshot, this should
 be visible in the transformer's internals. Mechanistic
 interpretability (activation patching, probing classifiers) could
 identify the attention head(s) that encode register. If found, one
@@ -930,7 +1169,8 @@ behavioral experiments.
 \textbf{Pragmatic force translation.} Current machine translation
 preserves semantic content but not social force. A register-aware
 translator would map obligatory force to each language's conventions,
-not just meaning. T11 is the evidence that such a tool is needed.
+not just meaning. Whether such a tool is needed depends on the
+register effect replicating, which the single-block result did not.
 
 \textbf{Constitutional prompt design.} If models process instructions
 as social contracts, a system prompt could be designed as a formal
@@ -944,15 +1184,24 @@ implications for alignment.
 \section{Conclusion}
 \label{sec:conclusion}
 
-System prompt instructions are social acts, not technical
-specifications. The register in which they are written, whether imperative or
-declarative, determines not just individual adherence but the
-interaction topology between instructions: cooperative in English,
-competitive in Spanish, flat in French. This is fixable at the prompt
-level: declare facts, don't issue commands. The fix works, and it
-spills over to instructions that weren't rewritten.
+(Version~3.) In version~2 this section said that the register of an
+instruction determines both its adherence and the interaction topology
+of the prompt, that the problem is fixable by declaring facts instead
+of issuing commands, and that the fix spills over to unrewritten
+instructions. What remains after a sampled replication is smaller. The
+single-block fix did not replicate on October 2026 models, and its
+design confounded mood with shape and scope. The topology
+observations (cooperative in English, competitive in Spanish, flat in
+French) and the spillover have not been re-measured outside the
+temperature-0 regime that produced the failed result. The register
+effect that does survive is a cost of the imperative mood on
+adherence when a block is written as one scoped instruction per
+sentence, and the declarative mood recovers it. That is an
+exploratory result on one block, and a much narrower claim than the
+one we made.
 
-The mechanism is social register. Models trained on multilingual data
+The hypothesis we proposed (version~2 text follows) remains a
+hypothesis. Models trained on multilingual data
 have learned that imperative mood carries different obligatory force
 in different speech communities. When a system prompt stacks
 imperatives, the resulting interaction topology depends on which
@@ -971,7 +1220,11 @@ prediction. We hope someone tests it.
 
 Total cost of the experimental arc that produced these findings:
 sixty-nine dollars, verified against billing records. Ninety-six
-percent of that was one model serving as its own judge.
+percent of that was one model serving as its own judge. The two
+October replications cost about thirty-four dollars more: \$19.31 for
+the temperature-0 re-run and its follow-up, and \$14.36 for the
+sampled run, summed from OpenRouter's per-call records for the four
+models within each run's recorded time window.
 
 % ============================================================
 \section{Code and Data Availability}
@@ -980,13 +1233,27 @@ percent of that was one model serving as its own judge.
 Code, analysis scripts, data files, and reproducibility artifacts are
 available at
 \url{https://github.com/fsgeek/arbiter} (paper snapshot: tag
-v0.2.0).
+\texttt{p3-v3}). Versions~1 and~2 cited tag \texttt{v0.2.0} and two
+scripts, \texttt{run\_e\_proc.py} and \texttt{run\_e\_topo.py}; the
+tag predates every script used in this paper and the two scripts never
+existed under those names. The commands below are the ones that
+produced the results.
 
-Reproduction commands:
 \begin{verbatim}
+# March 2026 snapshot (temperature 0, three trials)
 python scripts/run_cross_linguistic.py --compare
-python scripts/run_e_proc.py --compare
-python scripts/run_e_topo.py --compare
+python scripts/run_fragility_experiments.py --compare proc   # E-PROC
+python scripts/run_topology_rewrite_test.py                  # E-TOPO
+python scripts/audit_eproc_permutation.py                    # v2 statistics
+# October 2026 replication (version 3)
+python scripts/run_e_ste.py                  # T=0, all four models
+python scripts/analyze_e_ste.py
+python scripts/run_e_ste_temp.py             # follow-up: Haiku, target, T=0.7
+for m in haiku gemini deepseek mistral; do   # sampled run, 10 trials, T=0.7
+  python scripts/run_e_ste_temp.py --model $m --probes sampled \
+      --experiment e-ste-sampled
+done
+python scripts/analyze_e_ste_sampled.py
 \end{verbatim}
 
 % ============================================================

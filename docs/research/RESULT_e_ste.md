@@ -130,3 +130,25 @@ protocol needs a sampled replication before it is restated.
 
 ## Status
 `main run scored (P0 failed, P1 dead, P2 won narrowly, P3 half, P4 lost); round 2 scored (its prediction lost): the temperature-0 cells are artefacts. Converged-untested-from-outside.`.
+
+## Addendum 2026-10-16 (Opus 5.5 owner): the Haiku snapshot did not change
+The caveat above ("the Haiku id changed ... whether the weights are the same is unknown") is resolved by
+Tony's OpenRouter activity export (per-generation rows, 2026-02-15 → 2026-10-16; not committed, it holds
+every project's traffic). Rows for the March E-PROC dates (03-20..03-22) and for this run (10-09) and
+E-STE-S (10-13) all carry `model_permaslug = anthropic/claude-4.5-haiku-20251001`, provider `Amazon Bedrock`
+(25 of ~14,270 March rows went to `Google`). Only the alias changed (`claude-haiku-4-5` → `claude-haiku-4.5`).
+So "this is the world moving, not the March measurement being wrong" is withdrawn: by OpenRouter's own
+records the same snapshot, served by the same provider, at temperature 0, gave haiku zh original
+`[0,0,0]` in March and 1.00 in October. Temperature-0 cells are not reproducible across time even on
+fixed weights. (OpenRouter's permaslug is its label; a provider-side serving change is not excluded.)
+Also: in the export, `app_name` is the *latest* X-Title per referer, not the title at call time; split by
+date and model.
+
+Two further corrections found in the Paper 3 v3 review (Codex, 2026-10-16), both verified against code:
+- `prereg_e_ste.md` says the March declarative variant moved scope to "During commit operations, ..." *on
+  every item*. It did not: the variant has one opening scope sentence, then unscoped `X: disabled` items
+  (`scripts/run_fragility_experiments.py` COMMIT_RESTRICTIONS_DECLARATIVE). The original block has no commit
+  scope at all, only an "Important notes:" header. Per-clause scope belongs to the new ste_* variants.
+- The judge is called without a temperature (`src/arbiter/ablation/runner.py` → `llm_caller._call_llm`, same
+  in March at 9a86623), so every "temperature 0" run here and in Paper 3 had judging at provider default
+  temperature, on 18 of 22 probes (Paper 3 v2 said 7). Scores were never deterministic even when text was.
